@@ -29,6 +29,7 @@ from tasks.shared.shared_fixtures.runs import (
     remove_leftover,
 )
 from tasks.shared.shared_fixtures.session import (
+    FAMILY_BUILT,
     SharedBuildError,
     SharedFixtureSession,
 )
@@ -258,6 +259,40 @@ class TestACleanRun:
         for line in lines:
             assert not timeline.NEXTEST_SUMMARY.match(line)
             assert not timeline._FINISHED_IN.fullmatch(line)
+
+
+class TestNamingWhatItBuilds:
+    def _building_line(
+        self, harness: Harness, families: Collection[Family]
+    ) -> list[str]:
+        harness.run(lambda _handover: None, families=families, filtered=True)
+        return [
+            line
+            for line in harness.printed().splitlines()
+            if line.startswith("shared VCS fixtures: building ")
+        ]
+
+    def test_names_one_family_alone(self, harness: Harness):
+        assert self._building_line(harness, (Family.MATRIX,)) == [
+            "shared VCS fixtures: building matrix"
+        ]
+
+    def test_joins_two_families_with_and(self, harness: Harness):
+        assert self._building_line(
+            harness, (Family.MATRIX, Family.STATUS_LOG)
+        ) == ["shared VCS fixtures: building matrix and status-log"]
+
+    def test_each_family_s_build_line_reads_back_as_that_family(
+        self, harness: Harness
+    ):
+        harness.run()
+
+        read = {
+            (built["heading"], float(built["seconds"]))
+            for line in harness.printed().splitlines()
+            if (built := FAMILY_BUILT.fullmatch(line)) is not None
+        }
+        assert read == {(family.heading, 2.4) for family in SHARED_FAMILIES}
 
 
 class TestNothingToShare:

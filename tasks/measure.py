@@ -34,6 +34,7 @@ from invoke import Context, Exit, task
 from tasks.shared.build_measurement.cache_states import BuildCacheState
 from tasks.shared.build_measurement.comparison import compare_records
 from tasks.shared.build_measurement.comparison_report import comparison_report
+from tasks.shared.build_measurement.duration_logs import timed_runs
 from tasks.shared.build_measurement.errors import MeasurementRefusedError
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
@@ -47,11 +48,9 @@ from tasks.shared.build_measurement.settings import BuildSettings
 from tasks.shared.build_measurement.test_durations import (
     Charge,
     DurationFigures,
-    TimedRun,
     duration_report,
     parse_served_by,
 )
-from tasks.shared.build_measurement.timeline import read_stamped
 from tasks.shared.build_measurement.wiring import real_ports
 from tasks.shared.diagnostics import (
     DiagnosticRunner,
@@ -3854,45 +3853,17 @@ def per_test_durations(
         raise Exit("name at least one --binary", code=1)
     try:
         figures = DurationFigures(
-            runs=_timed_runs(record, log or ()),
+            runs=timed_runs(
+                record=(
+                    None
+                    if record is None
+                    else REPO_ROOT / RUN_DIRECTORY_ROOT / record
+                ),
+                logs=log or (),
+            ),
             charges=[Charge.parse(each) for each in charge or ()],
             served_by=dict(parse_served_by(each) for each in served_by or ()),
         )
         print(duration_report(figures, binary), end="")
     except MeasurementRefusedError as error:
         raise Exit(str(error), code=1) from error
-
-
-def _timed_runs(record: str | None, logs: Sequence[str]) -> list[TimedRun]:
-    if (record is None) == (not logs):
-        raise MeasurementRefusedError("read from either --record or --log")
-    if record is not None:
-        directory = REPO_ROOT / RUN_DIRECTORY_ROOT / record
-        paths = sorted(
-            directory.glob("run-*-test_unit_cli.log"), key=_run_number
-        )
-        if not paths:
-            raise MeasurementRefusedError(
-                f"no run-*-test_unit_cli.log under {directory}"
-            )
-        return [TimedRun.parse(read_stamped(_text(path))) for path in paths]
-    return [TimedRun.parse_unstamped(_text(path)) for path in _matched(logs)]
-
-
-def _run_number(path: Path) -> int:
-    return int(path.name.split("-")[1])
-
-
-def _matched(patterns: Sequence[str]) -> list[Path]:
-    paths: list[Path] = []
-    for pattern in patterns:
-        path = Path(pattern)
-        matched = sorted(path.parent.glob(path.name))
-        if not matched:
-            raise MeasurementRefusedError(f"no log matches {pattern}")
-        paths.extend(matched)
-    return paths
-
-
-def _text(path: Path) -> str:
-    return path.read_text(errors="replace", newline="")

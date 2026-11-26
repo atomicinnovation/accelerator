@@ -207,6 +207,13 @@ def _stamped(raw: str) -> StampedLine:
     return StampedLine(at=float(at), text=text)
 
 
+def unprefixed(text: str) -> str:
+    """`text` without its colour or the `[task]` prefix mise gives it."""
+    plain = ANSI_CSI.sub("", text)
+    prefixed = _TASK_PREFIX.fullmatch(plain)
+    return plain if prefixed is None else prefixed["rest"]
+
+
 def attributed_lines(
     lines: Iterable[StampedLine],
 ) -> Iterator[tuple[str, StampedLine]]:

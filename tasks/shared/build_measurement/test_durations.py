@@ -12,20 +12,17 @@ from typing import Self, override
 
 from tasks.shared.build_measurement.errors import MeasurementRefusedError
 from tasks.shared.build_measurement.timeline import (
-    ANSI_CSI,
     NEXTEST_SUMMARY,
     StampedLine,
+    unprefixed,
 )
 from tasks.shared.measurement import median
 from tasks.shared.shared_fixtures.families import Family
+from tasks.shared.shared_fixtures.session import FAMILY_BUILT
 
-_TASK_OUTPUT = re.compile(r"(?:\[[^\]\s]+\] ?)?(?P<output>.*)", re.DOTALL)
 _PASSED = re.compile(
     r"\s*(?:TRY \d+ )?(?:PASS|LEAK) \[\s*(?P<seconds>[\d.]+)s\] "
     r"\(\s*(?P<position>\d+)/\s*\d+\) (?P<binary>\S+) (?P<test>\S.*?)\s*"
-)
-_FAMILY_BUILT = re.compile(
-    r"\s*shared VCS fixtures: (?P<heading>.+) built in (?P<seconds>[\d.]+) s\s*"
 )
 _FAMILIES_BY_HEADING = MappingProxyType(
     {family.heading: family for family in Family}
@@ -102,7 +99,7 @@ class TimedRun:
         phase_end: float | None = None
         family_builds: dict[Family, float] = {}
         for at, text in lines:
-            output = _task_output(text)
+            output = unprefixed(text)
             if (passed := _PASSED.fullmatch(output)) is not None:
                 test = TestId(passed["binary"], passed["test"])
                 passes[test] = PassedTest(
@@ -114,7 +111,7 @@ class TimedRun:
             elif (summary := NEXTEST_SUMMARY.match(output)) is not None:
                 phases.append(float(summary["seconds"]))
                 phase_end = at
-            elif (built := _FAMILY_BUILT.fullmatch(output)) is not None:
+            elif (built := FAMILY_BUILT.fullmatch(output.strip())) is not None:
                 family = _family_headed(built["heading"])
                 family_builds[family] = float(built["seconds"])
         return cls(
@@ -135,11 +132,6 @@ class TimedRun:
             self.passes.values(), key=lambda each: each.position, reverse=True
         )
         return by_completion[:count]
-
-
-def _task_output(text: str) -> str:
-    unprefixed = _TASK_OUTPUT.fullmatch(ANSI_CSI.sub("", text))
-    return "" if unprefixed is None else unprefixed["output"]
 
 
 def _family_headed(heading: str) -> Family:
@@ -199,14 +191,7 @@ class DurationFigures:
             self.family_build(family)
 
     def per_test(self, binary: str) -> Mapping[TestId, RunFigure]:
-        tests = dict.fromkeys(
-            test
-            for run in self.runs
-            for test in run.passes
-            if test.binary == binary
-        )
-        if not tests:
-            raise MeasurementRefusedError(f"no pass line for {binary}")
+        tests = self._tests_of(binary)
         return MappingProxyType(
             {
                 test: _figure_over(
@@ -223,9 +208,9 @@ class DurationFigures:
         )
 
     def binary_seconds(self, binary: str) -> RunFigure:
-        self.per_test(binary)
+        tests = self._tests_of(binary)
         return _figure_over(
-            (self._binary_seconds_in(run, binary) for run in self.runs),
+            (self._binary_seconds_in(run, binary, tests) for run in self.runs),
             missing=self._never_served(binary),
         )
 
@@ -247,6 +232,19 @@ class DurationFigures:
             if any(family in run.family_builds for run in self.runs)
         )
 
+    def _tests_of(self, binary: str) -> tuple[TestId, ...]:
+        tests = tuple(
+            dict.fromkeys(
+                test
+                for run in self.runs
+                for test in run.passes
+                if test.binary == binary
+            )
+        )
+        if not tests:
+            raise MeasurementRefusedError(f"no pass line for {binary}")
+        return tests
+
     def _never_charged(self, test: TestId) -> str:
         checkers = ", ".join(str(each) for each in self.charges_to(test))
         return f"{test} and its checker {checkers} never pass in the same run"
@@ -264,12 +262,10 @@ class DurationFigures:
             return None
         return sum(each.seconds for each in seconds if each is not None)
 
-    def _binary_seconds_in(self, run: TimedRun, binary: str) -> float | None:
-        own = [
-            each.seconds
-            for test, each in run.passes.items()
-            if test.binary == binary
-        ]
+    def _binary_seconds_in(
+        self, run: TimedRun, binary: str, tests: Sequence[TestId]
+    ) -> float | None:
+        own = [run.passes[test].seconds for test in tests if test in run.passes]
         if not own:
             return None
         family = self.served_by.get(binary)

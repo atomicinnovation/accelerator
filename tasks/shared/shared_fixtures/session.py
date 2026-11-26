@@ -8,6 +8,7 @@ yield bogus problems.
 
 import contextlib
 import dataclasses
+import re
 import time
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from pathlib import Path
@@ -38,6 +39,14 @@ type Build = Callable[[Mapping[Family, Path], Path], None]
 
 
 class SharedBuildError(SharedFixturesError): ...
+
+
+_SAYING = "shared VCS fixtures: "
+
+FAMILY_BUILT = re.compile(
+    rf"{re.escape(_SAYING)}(?P<heading>.+) built in (?P<seconds>[\d.]+) s"
+)
+"""A line saying how long one family took to build, as the session says it."""
 
 
 def _listed(families: Collection[Family]) -> str:
@@ -277,7 +286,7 @@ class SharedFixtureSession:
         return []
 
     def _say(self, message: str) -> None:
-        print(f"shared VCS fixtures: {message}", file=self._out, flush=True)
+        print(f"{_SAYING}{message}", file=self._out, flush=True)
 
 
 def _problems_of(error: Exception) -> Sequence[str]:
