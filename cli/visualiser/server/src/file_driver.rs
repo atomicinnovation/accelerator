@@ -109,6 +109,54 @@ pub struct LocalFileDriver {
         Arc<std::sync::Mutex<HashMap<PathBuf, Arc<tokio::sync::Mutex<()>>>>>,
 }
 
+/// A doc root as the filesystem resolves it: canonical when it exists, else
+/// its nearest existing ancestor canonicalised with the rest appended, so a
+/// root that does not exist yet still resolves through any symlink above it.
+#[must_use]
+pub fn resolved_root(raw: &Path) -> PathBuf {
+    raw.ancestors()
+        .find_map(|ancestor| {
+            let canonical = std::fs::canonicalize(ancestor).ok()?;
+            let rest = raw.strip_prefix(ancestor).ok()?;
+            Some(canonical.join(rest))
+        })
+        .unwrap_or_else(|| raw.to_path_buf())
+}
+
+/// Refuses doc roots of which one equals or contains another once each is
+/// resolved through the filesystem, so a symlink cannot alias one root into
+/// another.
+///
+/// # Errors
+///
+/// [`config::ConfigError::OverlappingDocRoots`] naming the first overlapping
+/// pair.
+pub fn refuse_overlapping_doc_roots(
+    doc_paths: &HashMap<String, PathBuf>,
+) -> Result<(), config::ConfigError> {
+    let roots: Vec<config::paths::DocTypeDir> = DocTypeKey::all()
+        .into_iter()
+        .filter_map(|kind| {
+            let path_key = kind.config_path_key()?;
+            let raw = doc_paths.get(path_key)?;
+            Some(config::paths::DocTypeDir {
+                doc_type: kind.linkage_type_name().unwrap_or(kind.wire_str()),
+                path_key,
+                dir: resolved_root(raw).display().to_string(),
+                blank_fallback: false,
+            })
+        })
+        .collect();
+    let paths: Vec<&Path> =
+        roots.iter().map(|root| Path::new(&root.dir)).collect();
+    config::paths::first_overlap(&paths).map_or(Ok(()), |overlap| {
+        Err(config::ConfigError::OverlappingDocRoots {
+            container: Box::new(roots[overlap.container].clone()),
+            contained: Box::new(roots[overlap.contained].clone()),
+        })
+    })
+}
+
 impl LocalFileDriver {
     pub fn new(
         doc_paths: &HashMap<String, PathBuf>,
@@ -123,9 +171,7 @@ impl LocalFileDriver {
             let Some(raw) = doc_paths.get(cfg_key) else {
                 continue;
             };
-            let canonical =
-                std::fs::canonicalize(raw).unwrap_or_else(|_| raw.clone());
-            roots.insert(kind, canonical);
+            roots.insert(kind, resolved_root(raw));
         }
         let extra_roots = extra_roots
             .into_iter()

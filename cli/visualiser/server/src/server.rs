@@ -76,6 +76,7 @@ impl AppState {
     ) -> Result<Arc<Self>, AppStateError> {
         let kanban_columns = Arc::new(cfg.resolve_kanban_columns()?);
         let idle_limit_ms = cfg.resolve_idle_limit_ms()?;
+        crate::file_driver::refuse_overlapping_doc_roots(&cfg.doc_paths)?;
         let cfg = Arc::new(cfg);
         let template_roots =
             crate::file_driver::template_extra_roots(&cfg.templates);
@@ -190,6 +191,8 @@ pub enum AppStateError {
     Indexer(#[from] crate::file_driver::FileDriverError),
     #[error("invalid configuration: {0}")]
     Config(#[from] crate::config::ConfigError),
+    #[error("invalid configuration: {0}")]
+    DocRoots(#[from] config::ConfigError),
 }
 
 #[derive(Debug, Serialize)]
