@@ -235,6 +235,10 @@ fn cloned_whole(source: &Path, copy: &Path) -> Result<bool, Error> {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn cloned_whole(_source: &Path, _copy: &Path) -> Result<bool, Error> {
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "shares the signature of macOS's clone, which can fail"
+)]
+const fn cloned_whole(_source: &Path, _copy: &Path) -> Result<bool, Error> {
     Ok(false)
 }
