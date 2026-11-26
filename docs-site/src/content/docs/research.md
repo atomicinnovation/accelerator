@@ -533,13 +533,7 @@ spawn to its listed commands, and it fails open when it cannot run (see
 least-privilege option.
 
 Where those grants do not reach the researcher, add the rules to the
-project's allow rules. That includes a headless session, where Claude Code
-can drop `research-topic`'s grants once the orchestrator's turn ends while
-researchers are still running. Every node researcher runs its node query and
-template command before it writes anything, so a dropped grant fails each
-node of the batch. A headless run also needs
-`Bash(accelerator research topic outstanding *)`, or the orchestrator's
-next plan after that turn waits for approval.
+project's allow rules:
 
 ```json
 {
@@ -549,6 +543,40 @@ next plan after that turn waits for approval.
       "Bash(accelerator research topic node *)",
       "Bash(accelerator config template topic-research --kind finding)",
       "Bash(accelerator config template topic-research --kind level-note)"
+    ]
+  }
+}
+```
+
+For a headless run, add every rule `research-topic` grants instead. Claude
+Code can drop the skill's grants once the orchestrator's turn ends while
+researchers are still running. Every node researcher runs its node query and
+template command before it writes anything, so a dropped grant fails each
+node of the batch, and every command the orchestrator runs after that turn,
+from its next plan to `end-run`, `counts` and the corpus commands, waits for
+an approval no one gives:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(accelerator config agent *)",
+      "Bash(accelerator config agents *)",
+      "Bash(accelerator config context *)",
+      "Bash(accelerator config get *)",
+      "Bash(accelerator config instructions *)",
+      "Bash(accelerator config path *)",
+      "Bash(accelerator config template *)",
+      "Bash(accelerator corpus resolve *)",
+      "Bash(accelerator corpus metadata derive)",
+      "Bash(accelerator corpus frontmatter validate *)",
+      "Bash(accelerator research fetch *)",
+      "Bash(accelerator research topic consultable *)",
+      "Bash(accelerator research topic counts *)",
+      "Bash(accelerator research topic end-run *)",
+      "Bash(accelerator research topic node *)",
+      "Bash(accelerator research topic outstanding *)",
+      "Bash(accelerator research topic report-path *)"
     ]
   }
 }

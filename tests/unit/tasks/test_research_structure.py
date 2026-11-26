@@ -3463,3 +3463,17 @@ def test_the_node_query_docs_scope_additivity_to_stable() -> None:
         "added, never renamed or removed, and consumers ignore keys they do "
         "not know."
     ) in node_query
+
+
+def test_the_headless_allow_rules_are_every_research_topic_grant() -> None:
+    headless = _section(
+        _read(DOCS_RESEARCH),
+        "For a headless run",
+        ":::caution",
+        path=DOCS_RESEARCH,
+    )
+    documented = re.findall(r'"Bash\((.+)\)"', headless)
+    assert documented == frontmatter_bash_rules(_read(RESEARCH_TOPIC)), (
+        "a headless session can drop every grant research-topic holds, so "
+        "its allow rules must list each one"
+    )
