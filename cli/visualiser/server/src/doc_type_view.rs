@@ -3,6 +3,7 @@
 
 use std::path::PathBuf;
 
+use corpus::set::{MemberKind, Presentation, SetMatcher};
 use corpus::DocTypeKey;
 use serde::Serialize;
 
@@ -30,6 +31,46 @@ pub struct DocTypeView {
     /// directly and SHOULD NOT trust this field; consider splitting the
     /// type if a second consumer appears.
     pub count: usize,
+    pub set: Option<SetView>,
+}
+
+/// A set type's shape and presentation, as its owner declares them.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetView {
+    pub root: &'static str,
+    pub document_slots: Vec<&'static str>,
+    pub asset_slots: Vec<&'static str>,
+    pub presentation: PresentationView,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PresentationView {
+    SetPage,
+    EntryPoint,
+}
+
+impl From<&SetMatcher> for SetView {
+    fn from(set: &SetMatcher) -> Self {
+        let slots_of = |kind: MemberKind| {
+            set.shape()
+                .member_slots
+                .iter()
+                .filter(|slot| slot.kind == kind)
+                .map(|slot| slot.pattern)
+                .collect()
+        };
+        Self {
+            root: set.root(),
+            document_slots: slots_of(MemberKind::Document),
+            asset_slots: slots_of(MemberKind::Asset),
+            presentation: match set.presentation() {
+                Presentation::SetPage => PresentationView::SetPage,
+                Presentation::EntryPoint => PresentationView::EntryPoint,
+            },
+        }
+    }
 }
 
 #[must_use]
@@ -50,6 +91,7 @@ pub fn describe_types(
             in_kanban: key.in_kanban(),
             r#virtual: key.is_virtual(),
             count: 0,
+            set: doc_types.set_matcher(key).map(SetView::from),
         });
     }
     out

@@ -4,7 +4,10 @@ use accelerator_visualiser::activity::Activity;
 use accelerator_visualiser::server::{build_router, AppState};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use corpus::doc_type::DocType;
+use corpus::doc_type::{DocType, Listing};
+use corpus::set::{
+    MemberKind, MemberSlot, Presentation, SetDeclaration, SetShape,
+};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
@@ -15,6 +18,25 @@ static NOTEBOOKS: DocType = DocType {
     config_path_key: Some("notebooks"),
     label: "Notebooks",
     ..DocType::FLAT_DEFAULTS
+};
+
+static SCRAPBOOKS: DocType = DocType {
+    wire_token: "scrapbooks",
+    config_path_key: Some("scrapbooks"),
+    label: "Scrapbooks",
+    listing: Listing::Set,
+    ..DocType::FLAT_DEFAULTS
+};
+
+static SCRAPBOOK: SetDeclaration = SetDeclaration {
+    shape: SetShape {
+        root: "cover.md",
+        member_slots: &[MemberSlot {
+            pattern: "clippings/*.jpg",
+            kind: MemberKind::Asset,
+        }],
+    },
+    presentation: Presentation::SetPage,
 };
 
 async fn served_with_notebooks() -> (tempfile::TempDir, Arc<AppState>) {
@@ -97,5 +119,49 @@ async fn a_config_carrying_no_catalogue_serves_the_assembled_one() {
     assert_eq!(
         state.doc_types.doc_types(),
         declarations::catalogue().unwrap().doc_types()
+    );
+}
+
+#[tokio::test]
+async fn a_declared_set_type_lists_its_sets_and_describes_its_shape() {
+    let tmp = tempfile::tempdir().unwrap();
+    let scrapbooks = tmp.path().join("meta/scrapbooks");
+    let holiday = scrapbooks.join("holiday");
+    std::fs::create_dir_all(&holiday).unwrap();
+    std::fs::write(
+        holiday.join("cover.md"),
+        "---\ntitle: \"Holiday\"\n---\n# body\n",
+    )
+    .unwrap();
+    let mut cfg = common::seeded_cfg(tmp.path());
+    cfg.doc_paths.insert("scrapbooks".into(), scrapbooks);
+    cfg.doc_types = Some(common::catalogue_with(
+        &[&SCRAPBOOKS],
+        &[(corpus::DocTypeKey::declared(&SCRAPBOOKS), &SCRAPBOOK)],
+    ));
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+
+    let docs = get_json(state.clone(), "/api/docs?type=scrapbooks").await;
+    let types = get_json(state, "/api/types").await;
+
+    let docs = docs["docs"].as_array().unwrap();
+    assert_eq!(docs.len(), 1);
+    assert_eq!(docs[0]["title"], "Holiday");
+    let scrapbooks = types["types"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["key"] == "scrapbooks")
+        .expect("scrapbooks listed");
+    assert_eq!(
+        scrapbooks["set"],
+        serde_json::json!({
+            "root": "cover.md",
+            "documentSlots": [],
+            "assetSlots": ["clippings/*.jpg"],
+            "presentation": "set-page"
+        })
     );
 }
