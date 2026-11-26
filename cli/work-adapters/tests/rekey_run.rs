@@ -969,6 +969,9 @@ mod in_a_real_repository {
         }
     }
 
+    const FOUR_FILE_MUTATIONS: usize = 13;
+    const FIVE_FILE_MUTATIONS: usize = 14;
+
     fn five_files_committed() -> Result<(Repo, Hermetic), TestError> {
         let (repo, env) = committed(Vcs::Git)?;
         seed_synced_only(&repo)?;
@@ -999,13 +1002,14 @@ mod in_a_real_repository {
     fn a_whole_run_makes_exactly_the_counted_mutations() -> Result<(), TestError>
     {
         let four_files = mutations_of_a_whole_run()?;
+        let five_files = mutations_of_a_whole_run_over(seed_synced_only)?;
+
+        assert_eq!(four_files, FOUR_FILE_MUTATIONS);
+        assert_eq!(five_files, FIVE_FILE_MUTATIONS);
         each_of(2, Vcs::ALL, |vcs| {
             assert_counted_exactly(four_files, || committed(vcs))
         })?;
-        assert_counted_exactly(
-            mutations_of_a_whole_run_over(seed_synced_only)?,
-            five_files_committed,
-        )
+        assert_counted_exactly(five_files, five_files_committed)
     }
 
     fn assert_copy_matches_a_fresh_build(
@@ -1032,16 +1036,14 @@ mod in_a_real_repository {
     #[test]
     fn the_edit_refusal_tests_copied_repository_matches_one_built_from_scratch(
     ) -> Result<(), TestError> {
-        each_of(1, [Vcs::Git], |vcs| -> Result<(), TestError> {
-            let copied = assert_copy_matches_a_fresh_build(|| {
-                Committed::build(vcs)?
-                    .then_committing(seed_synced_only)?
-                    .packed()
-            })?;
+        let copied = assert_copy_matches_a_fresh_build(|| {
+            Committed::build(Vcs::Git)?
+                .then_committing(seed_synced_only)?
+                .packed()
+        })?;
 
-            assert_eq!(copied.commits.len(), 2);
-            Ok(())
-        })
+        assert_eq!(copied.commits.len(), 2);
+        Ok(())
     }
 
     #[test]
@@ -1071,9 +1073,9 @@ mod in_a_real_repository {
     fn assert_a_run_killed_at_every_write_resumes(
         vcs: Vcs,
     ) -> Result<(), TestError> {
-        let halts = mutations_of_a_whole_run()?;
+        let halts = 0..mutations_of_a_whole_run()?;
         let template = Committed::build(vcs)?.packed()?;
-        each_of(halts, 0..halts, |at| -> Result<(), TestError> {
+        each_of(FOUR_FILE_MUTATIONS, halts, |at| -> Result<(), TestError> {
             let (repo, _env) = template.fresh_copy()?;
             halt_at(&repo, at)?;
             let mutations = Mutations::new(Fault::Never);
@@ -1104,18 +1106,17 @@ mod in_a_real_repository {
     #[test]
     fn a_resume_refuses_an_edit_since_the_halt_to_a_path_not_yet_written(
     ) -> Result<(), TestError> {
-        let halts = mutations_of_a_whole_run_over(seed_synced_only)?;
+        let halts = 0..mutations_of_a_whole_run_over(seed_synced_only)?;
         let template = Committed::build(Vcs::Git)?
             .then_committing(seed_synced_only)?
             .packed()?;
-        let (mut checked, mut skipped) = (0, 0);
-        each_of(halts, 0..halts, |at| -> Result<(), TestError> {
+        let mut checked = 0;
+        each_of(FIVE_FILE_MUTATIONS, halts, |at| -> Result<(), TestError> {
             let (repo, _env) = template.fresh_copy()?;
             halt_at(&repo, at)?;
             let unreached = repo.read(SYNCED).is_some()
                 && repo.read(SYNCED_ONLY).as_deref() == Some("See PP-760.\n");
             if repo.read(RUN_PLAN).is_none() || !unreached {
-                skipped += 1;
                 return Ok(());
             }
             repo.write(SYNCED_ONLY, "See PP-760, edited since the halt.\n")?;
@@ -1132,8 +1133,7 @@ mod in_a_real_repository {
             checked += 1;
             Ok(())
         })?;
-        assert_eq!(checked + skipped, halts);
-        assert!(checked > 0, "no halt left the synced entry unreached");
+        assert_eq!(checked, 6, "halts leaving the synced-only entry unreached");
         Ok(())
     }
 
