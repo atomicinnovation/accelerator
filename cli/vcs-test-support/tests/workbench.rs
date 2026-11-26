@@ -40,10 +40,6 @@ impl SharedFamily for Marked {
     const FAMILY: Family = Family::Matrix;
     type Inputs = ();
 
-    fn inputs_from_environment() -> Result<(), Error> {
-        Ok(())
-    }
-
     fn adopt(tree: &Path) -> Result<Self, Error> {
         if !tree.join(MARKER).is_file() {
             return Err(Error::message(format!(
@@ -124,10 +120,6 @@ struct PartContents(&'static str);
 impl SharedFamily for MarkedWith {
     const FAMILY: Family = Family::Matrix;
     type Inputs = PartContents;
-
-    fn inputs_from_environment() -> Result<PartContents, Error> {
-        Ok(PartContents("from the environment"))
-    }
 
     fn adopt(tree: &Path) -> Result<Self, Error> {
         Marked::adopt(tree).map(Self)

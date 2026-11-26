@@ -9,11 +9,11 @@ use std::thread;
 use std::time::Instant;
 
 use crate::family::Family;
-use crate::family::SharedFamily as _;
 use crate::fixture_log::Event;
 use crate::fixture_log::FixtureLog;
 use crate::fixtures::Matrix;
 use crate::hermetic::tool_version;
+use crate::stalled_migration::MigrateBinary;
 use crate::stalled_migration::StalledMigrations;
 use crate::status_log::States;
 use crate::Error;
@@ -159,7 +159,7 @@ fn build_for_sharing(family: Family, tree: &Path) -> Result<(), Error> {
         Family::Matrix => Matrix::build_for_sharing(tree).map(drop),
         Family::StatusLog => States::build_for_sharing(tree).map(drop),
         Family::StalledMigration => {
-            let migrate = StalledMigrations::inputs_from_environment()?;
+            let migrate = MigrateBinary::from_environment()?;
             StalledMigrations::build_for_sharing(tree, &migrate).map(drop)
         }
     }

@@ -582,10 +582,6 @@ impl SharedFamily for States {
     const FAMILY: Family = Family::StatusLog;
     type Inputs = ();
 
-    fn inputs_from_environment() -> Result<(), Error> {
-        Ok(())
-    }
-
     fn adopt(tree: &Path) -> Result<Self, Error> {
         let base = tree.canonicalize().map_err(|error| {
             Error::message(format!("{}: {error}", tree.display()))

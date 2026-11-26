@@ -119,13 +119,6 @@ pub trait SharedFamily: Sized {
     /// What a build needs beyond a directory and a hermetic environment.
     type Inputs;
 
-    /// The inputs the run's build step hands this family's builder.
-    ///
-    /// # Errors
-    ///
-    /// When an input the family needs is missing.
-    fn inputs_from_environment() -> Result<Self::Inputs, Error>;
-
     /// Takes over a tree the run's build step made, building nothing.
     ///
     /// # Errors

@@ -34,6 +34,25 @@ const REPRODUCTION: &str =
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MigrateBinary(pub PathBuf);
 
+impl MigrateBinary {
+    /// The binary the run's build step hands the stalled-migration builder.
+    ///
+    /// # Errors
+    ///
+    /// When the build step named no binary.
+    pub fn from_environment() -> Result<Self, Error> {
+        env::var_os(MIGRATE_VARIABLE)
+            .filter(|value| !value.is_empty())
+            .map(|value| Self(PathBuf::from(value)))
+            .ok_or_else(|| {
+                Error::message(format!(
+                    "building {} needs {MIGRATE_VARIABLE}",
+                    Family::StalledMigration
+                ))
+            })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParentShape {
     SingleParent,
@@ -257,18 +276,6 @@ impl StalledMigrations {
 impl SharedFamily for StalledMigrations {
     const FAMILY: Family = Family::StalledMigration;
     type Inputs = MigrateBinary;
-
-    fn inputs_from_environment() -> Result<MigrateBinary, Error> {
-        env::var_os(MIGRATE_VARIABLE)
-            .filter(|value| !value.is_empty())
-            .map(|value| MigrateBinary(PathBuf::from(value)))
-            .ok_or_else(|| {
-                Error::message(format!(
-                    "building {} needs {MIGRATE_VARIABLE}",
-                    Self::FAMILY
-                ))
-            })
-    }
 
     fn adopt(tree: &Path) -> Result<Self, Error> {
         let base = tree.canonicalize().map_err(|error| {
