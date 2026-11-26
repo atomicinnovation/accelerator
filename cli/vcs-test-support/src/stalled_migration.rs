@@ -88,13 +88,6 @@ impl StallKey {
     const fn of(colocation: JjColocation, shape: ParentShape) -> Self {
         Self { colocation, shape }
     }
-
-    const fn colocation_name(self) -> &'static str {
-        match self.colocation {
-            JjColocation::Pure => "pure",
-            JjColocation::Colocated => "colocated",
-        }
-    }
 }
 
 impl fmt::Display for StallKey {
@@ -102,7 +95,7 @@ impl fmt::Display for StallKey {
         write!(
             formatter,
             "{}-{}",
-            self.colocation_name(),
+            self.colocation.name(),
             self.shape.name()
         )
     }
@@ -152,7 +145,14 @@ impl Stall {
         };
         let output =
             stalling_corpus::migrate_command(&migrate.0, &root, hermetic)
-                .output()?;
+                .output()
+                .map_err(|error| {
+                    Error::message(format!(
+                        "building {}: cannot run migrate at {}: {error}",
+                        Family::StalledMigration,
+                        migrate.0.display()
+                    ))
+                })?;
         let stderr = String::from_utf8_lossy(&output.stderr);
         if output.status.code() != Some(1) || !stderr.contains(STALL_MARKER) {
             let exit = output.status.code().map_or_else(

@@ -3,12 +3,20 @@ use std::os::unix::fs::PermissionsExt as _;
 use std::process::Command;
 use std::process::Output;
 
+use vcs_test_support::family::SharedFamily as _;
 use vcs_test_support::fixture_log::FIXTURE_LOG_VARIABLE;
+use vcs_test_support::stalled_migration::StallKey;
+use vcs_test_support::stalled_migration::StalledMigrations;
 use vcs_test_support::stalled_migration::MIGRATE_VARIABLE;
 
 type TestError = Box<dyn std::error::Error>;
 
 const FORCED_FAILURE_VARIABLE: &str = "ACCELERATOR_SHARED_FIXTURES_FAIL";
+
+const STALLING: &str = "#!/bin/sh
+echo 'MIGRATION STALLED' >&2
+exit 1
+";
 
 const STALLING_EXCEPT_IN_ONE_STALL: &str = "#!/bin/sh
 case \"$(basename \"$PWD\")\" in
@@ -174,6 +182,31 @@ fn a_stall_that_fails_to_build_is_named_and_the_others_still_build(
         "colocated-merge-with-sibling",
     ] {
         assert!(tree.join(built).join(".jj").is_dir(), "{built}: {stderr}");
+    }
+    Ok(())
+}
+
+#[test]
+fn a_build_in_which_every_stall_stalls_is_adopted_whole(
+) -> Result<(), TestError> {
+    let directory = tempfile::tempdir()?;
+    let tree = directory.path().join("stalled-migration");
+    let migrate = directory.path().join("migrate");
+    fs::write(&migrate, STALLING)?;
+    fs::set_permissions(&migrate, fs::Permissions::from_mode(0o755))?;
+
+    let output = shared_fixtures()
+        .env(MIGRATE_VARIABLE, &migrate)
+        .arg("--stalled-migration")
+        .arg(&tree)
+        .output()?;
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let adopted = StalledMigrations::adopt(&tree)?;
+    let keys: Vec<StallKey> = adopted.stalls.keys().copied().collect();
+    assert_eq!(keys, StallKey::ALL);
+    for stall in adopted.stalls.values() {
+        assert!(stall.root.join(".jj").is_dir(), "{}", stall.root.display());
     }
     Ok(())
 }

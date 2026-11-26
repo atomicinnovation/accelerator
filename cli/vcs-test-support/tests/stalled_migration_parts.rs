@@ -150,6 +150,29 @@ fn a_migrate_that_fails_without_stalling_is_refused() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_migrate_that_cannot_be_run_is_named() -> Result<(), TestError> {
+    let directory = tempfile::tempdir()?;
+    let missing = directory.path().join("no-migrate-here");
+    let bench = LoggedWorkbench::open()?;
+
+    let error = bench
+        .workbench
+        .writable_stalled_migrations(
+            StallKey::ALL[0],
+            &MigrateBinary(missing.clone()),
+        )
+        .err()
+        .ok_or("it should fail")?;
+
+    let message = error.to_string();
+    assert!(
+        message.contains(&missing.display().to_string()),
+        "{message}"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_stall_key_names_its_colocation_and_shape() {
     let names: Vec<String> =
         StallKey::ALL.iter().map(ToString::to_string).collect();

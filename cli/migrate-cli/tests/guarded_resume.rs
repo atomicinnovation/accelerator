@@ -137,8 +137,9 @@ fn force_over_an_unreadable_jj_working_copy_records_no_run_base(
     Ok(())
 }
 
-/// A jj repository whose 0007 run has stalled, with the committed corpus as
-/// `base` and a sibling change beside it that adds `meta/sibling.md`.
+/// This test's writable copy of one of the run's stalls: a jj repository
+/// whose 0007 run has stalled, with the committed corpus as `base` and a
+/// sibling change beside it that adds `meta/sibling.md`.
 struct Stalled<'w> {
     workbench: &'w Workbench,
     _stalls: Held<'w, StalledMigrations>,

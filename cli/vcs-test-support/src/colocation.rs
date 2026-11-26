@@ -16,6 +16,14 @@ impl JjColocation {
             Self::Colocated => "--colocate",
         }
     }
+
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Pure => "pure",
+            Self::Colocated => "colocated",
+        }
+    }
 }
 
 #[cfg(test)]
@@ -30,5 +38,12 @@ mod tests {
     #[test]
     fn a_colocated_repository_is_initialised_colocating() {
         assert_eq!(JjColocation::Colocated.flag(), "--colocate");
+    }
+
+    #[test]
+    fn each_colocation_is_named_for_people() {
+        let names = JjColocation::ALL.map(JjColocation::name);
+
+        assert_eq!(names, ["pure", "colocated"]);
     }
 }

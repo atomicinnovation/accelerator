@@ -52,6 +52,25 @@ fn a_written_manifest_reads_back_unchanged() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_moved_build_s_manifest_names_its_stalls_where_they_now_are(
+) -> Result<(), TestError> {
+    let directory = tempfile::tempdir()?;
+    let built = directory.path().join("built");
+    let moved = directory.path().join("moved");
+    std::fs::create_dir(&built)?;
+    StalledMigrationManifest {
+        stalls: two_stalls(&built),
+    }
+    .write(&built)?;
+    std::fs::rename(&built, &moved)?;
+
+    let read = StalledMigrationManifest::read(&moved)?;
+
+    assert_eq!(read.stalls, two_stalls(&moved));
+    Ok(())
+}
+
+#[test]
 fn reading_a_directory_without_a_manifest_fails_naming_it(
 ) -> Result<(), TestError> {
     let directory = tempfile::tempdir()?;
@@ -74,7 +93,7 @@ fn a_manifest_line_naming_no_stall_key_is_refused() -> Result<(), TestError> {
     let directory = tempfile::tempdir()?;
     std::fs::write(
         directory.path().join("stalled-migrations.tsv"),
-        "pure-octopus\t/a\tb\ts\n",
+        "pure-octopus\tb\ts\n",
     )?;
 
     let error = StalledMigrationManifest::read(directory.path())

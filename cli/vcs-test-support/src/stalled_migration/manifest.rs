@@ -5,7 +5,6 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 
 use crate::stalled_migration::Stall;
 use crate::stalled_migration::StallKey;
@@ -25,14 +24,8 @@ impl StalledMigrationManifest {
     pub fn write(&self, base: &Path) -> Result<(), Error> {
         let mut text = String::new();
         for (key, stall) in &self.stalls {
-            writeln!(
-                text,
-                "{key}\t{}\t{}\t{}",
-                stall.root.display(),
-                stall.base,
-                stall.sibling
-            )
-            .map_err(|error| Error::message(error.to_string()))?;
+            writeln!(text, "{key}\t{}\t{}", stall.base, stall.sibling)
+                .map_err(|error| Error::message(error.to_string()))?;
         }
         fs::write(base.join(FILE), text)?;
         Ok(())
@@ -51,7 +44,7 @@ impl StalledMigrationManifest {
         }
         let stalls = fs::read_to_string(&path)?
             .lines()
-            .map(parse_line)
+            .map(|line| parse_line(base, line))
             .collect::<Result<BTreeMap<_, _>, _>>()?;
         if stalls.is_empty() {
             return Err(Error::message(format!(
@@ -63,23 +56,20 @@ impl StalledMigrationManifest {
     }
 }
 
-fn parse_line(line: &str) -> Result<(StallKey, Stall), Error> {
+fn parse_line(build: &Path, line: &str) -> Result<(StallKey, Stall), Error> {
     let mut fields = line.split('\t');
-    let (Some(key), Some(root), Some(base), Some(sibling), None) = (
-        fields.next(),
-        fields.next(),
-        fields.next(),
-        fields.next(),
-        fields.next(),
-    ) else {
+    let (Some(key), Some(base), Some(sibling), None) =
+        (fields.next(), fields.next(), fields.next(), fields.next())
+    else {
         return Err(Error::message(format!(
             "malformed stalled-migration manifest line: {line}"
         )));
     };
+    let key: StallKey = key.parse()?;
     Ok((
-        key.parse()?,
+        key,
         Stall {
-            root: PathBuf::from(root),
+            root: build.join(key.to_string()),
             base: base.to_owned(),
             sibling: sibling.to_owned(),
         },
