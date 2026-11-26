@@ -10,6 +10,7 @@ use config::ConfigAccess;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use config_adapters::ScreenedStore;
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
 /// The composed configuration service plus the discovered project root.
@@ -90,6 +91,7 @@ pub fn resolve_type_dir(
 /// A [`config::ConfigError`] when a doc-type directory is unsafe or a config
 /// level cannot be read.
 pub fn table_from_config(
+    catalogue: &DocTypeCatalogue,
     config: &dyn ConfigAccess,
 ) -> Result<Vec<(DocTypeKey, PathBuf)>, config::ConfigError> {
     let mut doc_paths = HashMap::new();
@@ -97,7 +99,9 @@ pub fn table_from_config(
         doc_paths
             .insert(resolved.path_key.to_owned(), PathBuf::from(resolved.dir));
     }
-    Ok(corpus_adapters::doc_type::table_from_paths(&doc_paths))
+    Ok(corpus_adapters::doc_type::table_from_paths(
+        catalogue, &doc_paths,
+    ))
 }
 
 #[cfg(test)]
@@ -112,6 +116,7 @@ mod tests {
     use config::Resolved;
     use config::Scalar;
     use config::Value;
+    use corpus::DocTypeCatalogue;
     use corpus::DocTypeKey;
 
     use super::{compose, resolve_type_dir, table_from_config};
@@ -163,7 +168,7 @@ mod tests {
         values.insert("paths.work".to_owned(), "tickets".to_owned());
         let config = FakeConfig(values);
 
-        let table = table_from_config(&config)?;
+        let table = table_from_config(&DocTypeCatalogue::built_in(), &config)?;
 
         assert_eq!(
             dir_for(&table, DocTypeKey::WORK_ITEMS),
@@ -179,7 +184,7 @@ mod tests {
     ) -> Result<(), ConfigError> {
         let config = FakeConfig(HashMap::new());
 
-        let table = table_from_config(&config)?;
+        let table = table_from_config(&DocTypeCatalogue::built_in(), &config)?;
 
         assert_eq!(
             dir_for(&table, DocTypeKey::WORK_ITEMS),
@@ -199,7 +204,10 @@ mod tests {
 
     #[test]
     fn an_overlapping_configuration_is_refused() {
-        let refused = table_from_config(&overlapping_config());
+        let refused = table_from_config(
+            &DocTypeCatalogue::built_in(),
+            &overlapping_config(),
+        );
 
         assert!(
             matches!(refused, Err(ConfigError::OverlappingDocRoots { .. })),

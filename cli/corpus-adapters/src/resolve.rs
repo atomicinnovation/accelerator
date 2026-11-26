@@ -34,14 +34,13 @@ pub enum Resolution {
 /// is known to be a slug or a path, so an invalid input never depends on the
 /// configuration or the filesystem.
 pub fn resolve_document(
+    catalogue: &DocTypeCatalogue,
     start: &Path,
     doc_type: &str,
     slug: &str,
     type_dir: impl FnOnce(DocTypeKey) -> Result<PathBuf, String>,
 ) -> Resolution {
-    let Some(key) =
-        DocTypeCatalogue::built_in().from_linkage_type_name(doc_type)
-    else {
+    let Some(key) = catalogue.from_linkage_type_name(doc_type) else {
         return Resolution::UnknownType(format!(
             "'{doc_type}' is not a registered document type"
         ));

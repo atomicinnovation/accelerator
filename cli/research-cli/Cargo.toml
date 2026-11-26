@@ -38,6 +38,7 @@ serde = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
 corpus = { path = "../corpus" }
 corpus-adapters = { path = "../corpus-adapters" }
+declarations = { path = "../declarations" }
 
 [dev-dependencies]
 kernel = { path = "../kernel" }

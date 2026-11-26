@@ -10,12 +10,13 @@ use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
 /// Builds the `(DocTypeKey, dir)` table from a config-keyed path map, keeping
-/// only the types whose configured directory is present.
+/// only the catalogue's types whose configured directory is present.
 #[must_use]
 pub fn table_from_paths<S: BuildHasher>(
+    catalogue: &DocTypeCatalogue,
     doc_paths: &HashMap<String, PathBuf, S>,
 ) -> Vec<(DocTypeKey, PathBuf)> {
-    DocTypeCatalogue::built_in()
+    catalogue
         .doc_types()
         .iter()
         .copied()
@@ -31,9 +32,10 @@ pub fn table_from_paths<S: BuildHasher>(
 #[must_use]
 pub fn infer<S: BuildHasher>(
     path: &Path,
+    catalogue: &DocTypeCatalogue,
     doc_paths: &HashMap<String, PathBuf, S>,
 ) -> Option<DocTypeKey> {
-    corpus::doc_type::infer(path, &table_from_paths(doc_paths))
+    corpus::doc_type::infer(path, &table_from_paths(catalogue, doc_paths))
 }
 
 #[cfg(test)]
@@ -41,9 +43,19 @@ mod tests {
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
 
+    use corpus::doc_type::DocType;
+    use corpus::DocTypeCatalogue;
     use corpus::DocTypeKey;
 
     use super::infer;
+
+    static NOTEBOOKS: DocType = DocType {
+        wire_token: "notebooks",
+        config_path_key: Some("notebooks"),
+        linkage_type_name: Some("notebook"),
+        label: "Notebooks",
+        ..DocType::FLAT_DEFAULTS
+    };
 
     fn paths() -> HashMap<String, PathBuf> {
         let mut paths = HashMap::new();
@@ -59,7 +71,11 @@ mod tests {
     #[test]
     fn infers_from_the_configured_directory() {
         assert_eq!(
-            infer(Path::new("meta/work/0042-foo.md"), &paths()),
+            infer(
+                Path::new("meta/work/0042-foo.md"),
+                &DocTypeCatalogue::built_in(),
+                &paths()
+            ),
             Some(DocTypeKey::WORK_ITEMS)
         );
     }
@@ -67,11 +83,40 @@ mod tests {
     #[test]
     fn prefers_the_longest_matching_directory() {
         let path = Path::new("meta/reviews/plans/2026-01-01-x-review-1.md");
-        assert_eq!(infer(path, &paths()), Some(DocTypeKey::PLAN_REVIEWS));
+        assert_eq!(
+            infer(path, &DocTypeCatalogue::built_in(), &paths()),
+            Some(DocTypeKey::PLAN_REVIEWS)
+        );
+    }
+
+    #[test]
+    fn infers_a_doc_type_the_catalogue_declares() {
+        let notebooks = DocTypeKey::declared(&NOTEBOOKS);
+        let catalogue = DocTypeCatalogue::new(vec![notebooks]);
+        let paths = HashMap::from([(
+            "notebooks".to_owned(),
+            PathBuf::from("meta/notebooks"),
+        )]);
+
+        assert_eq!(
+            catalogue.map(|catalogue| infer(
+                Path::new("meta/notebooks/first.md"),
+                &catalogue,
+                &paths
+            )),
+            Ok(Some(notebooks))
+        );
     }
 
     #[test]
     fn returns_none_for_an_unconfigured_path() {
-        assert_eq!(infer(Path::new("meta/notes/x.md"), &paths()), None);
+        assert_eq!(
+            infer(
+                Path::new("meta/notes/x.md"),
+                &DocTypeCatalogue::built_in(),
+                &paths()
+            ),
+            None
+        );
     }
 }
