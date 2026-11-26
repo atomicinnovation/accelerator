@@ -24,6 +24,7 @@ pub mod references;
 pub mod relative_links;
 pub mod resolve;
 pub mod scan;
+pub mod set;
 pub mod slug;
 pub mod store;
 pub mod typed_ref;
