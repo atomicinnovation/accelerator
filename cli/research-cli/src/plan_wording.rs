@@ -138,7 +138,12 @@ pub fn template_fallback(
     template: ConductTemplate,
     fallback: &TemplateFallback,
 ) -> String {
-    format!("{}: {fallback}", template.name())
+    format!(
+        "{}: configured template path '{}' not found, falling back to \
+         defaults",
+        template.name(),
+        fallback.configured.display()
+    )
 }
 
 #[cfg(test)]

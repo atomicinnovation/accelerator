@@ -777,8 +777,6 @@ impl core::cmp::PartialEq for config::service::TemplateFallback
 pub fn config::service::TemplateFallback::eq(&self, other: &config::service::TemplateFallback) -> bool
 impl core::fmt::Debug for config::service::TemplateFallback
 pub fn config::service::TemplateFallback::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for config::service::TemplateFallback
-pub fn config::service::TemplateFallback::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for config::service::TemplateFallback
 pub trait config::service::ConfigAccess
 pub fn config::service::ConfigAccess::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
@@ -1195,8 +1193,6 @@ impl core::cmp::Eq for config::service::TemplateFallback
 impl core::cmp::PartialEq for config::service::TemplateFallback
 pub fn config::service::TemplateFallback::eq(&self, other: &config::service::TemplateFallback) -> bool
 impl core::fmt::Debug for config::service::TemplateFallback
-pub fn config::service::TemplateFallback::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for config::service::TemplateFallback
 pub fn config::service::TemplateFallback::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for config::service::TemplateFallback
 pub const config::REMOVAL_RELEASE: &str

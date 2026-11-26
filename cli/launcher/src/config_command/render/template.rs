@@ -42,7 +42,13 @@ fn fallback_warnings(resolved: &ResolvedTemplate) -> Vec<String> {
     resolved
         .fallback
         .iter()
-        .map(|fallback| format!("Warning: {fallback}"))
+        .map(|fallback| {
+            format!(
+                "Warning: configured template path '{}' not found, falling \
+                 back to defaults",
+                fallback.configured.display()
+            )
+        })
         .collect()
 }
 

@@ -249,17 +249,6 @@ pub struct TemplateFallback {
     pub configured: PathBuf,
 }
 
-impl std::fmt::Display for TemplateFallback {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "configured template path '{}' not found, falling back to \
-             defaults",
-            self.configured.display()
-        )
-    }
-}
-
 /// What ejecting one template did (or would do), for the exit code and message.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum EjectOutcome {
