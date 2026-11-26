@@ -7,3 +7,4 @@ pub const research_declarations::topic::MANIFEST: &str
 pub const research_declarations::topic::OUTLINE: &str
 pub const research_declarations::topic::REPORTS: &str
 pub const research_declarations::topic::SYNTHESIS: &str
+pub static research_declarations::topic::SET: corpus::set::SetDeclaration

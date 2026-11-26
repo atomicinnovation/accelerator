@@ -265,6 +265,33 @@ pub fn corpus::cluster::normalize_target_key(raw: &str, project_root: &std::path
 pub fn corpus::cluster::resolve_cluster_key<E: corpus::cluster::ClusterEntry>(entry: &E, entries_by_path: &std::collections::hash::map::HashMap<std::path::PathBuf, &E>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, documents_by_address: &std::collections::hash::map::HashMap<corpus::linkage_address::LinkageAddress, std::path::PathBuf>, project_root: &std::path::Path, identity: &dyn corpus::id_convention::IdConvention) -> core::option::Option<alloc::string::String>
 pub fn corpus::cluster::target_path_from_entry(doc_type: corpus::DocTypeKey, target: core::option::Option<&str>, documents_by_address: &std::collections::hash::map::HashMap<corpus::linkage_address::LinkageAddress, std::path::PathBuf>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, identity: &dyn corpus::id_convention::IdConvention, project_root: &std::path::Path) -> core::option::Option<std::path::PathBuf>
 pub mod corpus::doc_type
+pub mod corpus::doc_type::built_in
+pub fn corpus::doc_type::built_in::doc_types() -> &'static [corpus::DocTypeKey]
+pub enum corpus::doc_type::CatalogueError
+pub corpus::doc_type::CatalogueError::MissingSetDeclaration
+pub corpus::doc_type::CatalogueError::MissingSetDeclaration::kind: corpus::DocTypeKey
+pub corpus::doc_type::CatalogueError::NotASet
+pub corpus::doc_type::CatalogueError::NotASet::kind: corpus::DocTypeKey
+pub corpus::doc_type::CatalogueError::SetDeclaredTwice
+pub corpus::doc_type::CatalogueError::SetDeclaredTwice::kind: corpus::DocTypeKey
+pub corpus::doc_type::CatalogueError::SharedIdentity
+pub corpus::doc_type::CatalogueError::SharedIdentity::identity: corpus::doc_type::Identity
+pub corpus::doc_type::CatalogueError::SharedIdentity::value: &'static str
+pub corpus::doc_type::CatalogueError::UnparseableSlot
+pub corpus::doc_type::CatalogueError::UnparseableSlot::cause: corpus::set::SlotPatternError
+pub corpus::doc_type::CatalogueError::UnparseableSlot::kind: corpus::DocTypeKey
+pub corpus::doc_type::CatalogueError::UnparseableSlot::pattern: &'static str
+impl core::clone::Clone for corpus::doc_type::CatalogueError
+pub fn corpus::doc_type::CatalogueError::clone(&self) -> corpus::doc_type::CatalogueError
+impl core::cmp::Eq for corpus::doc_type::CatalogueError
+impl core::cmp::PartialEq for corpus::doc_type::CatalogueError
+pub fn corpus::doc_type::CatalogueError::eq(&self, other: &corpus::doc_type::CatalogueError) -> bool
+impl core::error::Error for corpus::doc_type::CatalogueError
+impl core::fmt::Debug for corpus::doc_type::CatalogueError
+pub fn corpus::doc_type::CatalogueError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::doc_type::CatalogueError
+pub fn corpus::doc_type::CatalogueError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::doc_type::CatalogueError
 pub enum corpus::doc_type::Facet
 pub corpus::doc_type::Facet::ClusterSlug
 pub corpus::doc_type::Facet::Project
@@ -329,8 +356,7 @@ pub enum corpus::doc_type::Listing
 pub corpus::doc_type::Listing::Flat
 pub corpus::doc_type::Listing::Flat::drafts_subdirectory: core::option::Option<&'static str>
 pub corpus::doc_type::Listing::Flat::filename_filter: corpus::doc_type::FilenameFilter
-pub corpus::doc_type::Listing::Nested
-pub corpus::doc_type::Listing::Nested::root: &'static str
+pub corpus::doc_type::Listing::Set
 impl core::clone::Clone for corpus::doc_type::Listing
 pub fn corpus::doc_type::Listing::clone(&self) -> corpus::doc_type::Listing
 impl core::cmp::Eq for corpus::doc_type::Listing
@@ -340,20 +366,6 @@ impl core::fmt::Debug for corpus::doc_type::Listing
 pub fn corpus::doc_type::Listing::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for corpus::doc_type::Listing
 impl core::marker::StructuralPartialEq for corpus::doc_type::Listing
-pub struct corpus::doc_type::CatalogueError
-pub corpus::doc_type::CatalogueError::identity: corpus::doc_type::Identity
-pub corpus::doc_type::CatalogueError::value: &'static str
-impl core::clone::Clone for corpus::doc_type::CatalogueError
-pub fn corpus::doc_type::CatalogueError::clone(&self) -> corpus::doc_type::CatalogueError
-impl core::cmp::Eq for corpus::doc_type::CatalogueError
-impl core::cmp::PartialEq for corpus::doc_type::CatalogueError
-pub fn corpus::doc_type::CatalogueError::eq(&self, other: &corpus::doc_type::CatalogueError) -> bool
-impl core::error::Error for corpus::doc_type::CatalogueError
-impl core::fmt::Debug for corpus::doc_type::CatalogueError
-pub fn corpus::doc_type::CatalogueError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for corpus::doc_type::CatalogueError
-pub fn corpus::doc_type::CatalogueError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for corpus::doc_type::CatalogueError
 pub struct corpus::doc_type::DocType
 pub corpus::doc_type::DocType::carries_target_frontmatter: bool
 pub corpus::doc_type::DocType::cluster_anchor: bool
@@ -377,15 +389,16 @@ impl core::fmt::Debug for corpus::doc_type::DocType
 pub fn corpus::doc_type::DocType::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct corpus::doc_type::DocTypeCatalogue
 impl corpus::DocTypeCatalogue
-pub fn corpus::DocTypeCatalogue::built_in() -> Self
-impl corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::doc_types(&self) -> &[corpus::DocTypeKey]
 pub fn corpus::DocTypeCatalogue::from_config_path_key(&self, key: &str) -> core::option::Option<corpus::DocTypeKey>
 pub fn corpus::DocTypeCatalogue::from_linkage_type_name(&self, name: &str) -> core::option::Option<corpus::DocTypeKey>
 pub fn corpus::DocTypeCatalogue::from_wire_token(&self, token: &str) -> core::option::Option<corpus::DocTypeKey>
-pub fn corpus::DocTypeCatalogue::new(doc_types: alloc::vec::Vec<corpus::DocTypeKey>) -> core::result::Result<Self, corpus::doc_type::CatalogueError>
+pub fn corpus::DocTypeCatalogue::new(doc_types: &[corpus::DocTypeKey], set_declarations: &[corpus::doc_type::DeclaredSet]) -> core::result::Result<Self, corpus::doc_type::CatalogueError>
+pub fn corpus::DocTypeCatalogue::set_matcher(&self, kind: corpus::DocTypeKey) -> core::option::Option<&corpus::set::SetMatcher>
 impl core::clone::Clone for corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::clone(&self) -> corpus::DocTypeCatalogue
+impl core::default::Default for corpus::DocTypeCatalogue
+pub fn corpus::DocTypeCatalogue::default() -> corpus::DocTypeCatalogue
 impl core::fmt::Debug for corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct corpus::doc_type::DocTypeKey(_)
@@ -415,6 +428,7 @@ pub const fn corpus::DocTypeKey::declared(doc_type: &'static corpus::doc_type::D
 pub const fn corpus::DocTypeKey::facets(self) -> &'static [corpus::doc_type::Facet]
 pub const fn corpus::DocTypeKey::in_kanban(self) -> bool
 pub const fn corpus::DocTypeKey::in_lifecycle(self) -> bool
+pub const fn corpus::DocTypeKey::is_set(self) -> bool
 pub const fn corpus::DocTypeKey::is_virtual(self) -> bool
 pub const fn corpus::DocTypeKey::label(self) -> &'static str
 pub const fn corpus::DocTypeKey::library_placement(self) -> core::option::Option<corpus::doc_type::LibraryPlacement>
@@ -422,7 +436,6 @@ pub const fn corpus::DocTypeKey::lifecycle_rank(self) -> core::option::Option<u8
 pub const fn corpus::DocTypeKey::linkage_id_rule(self) -> corpus::linkage::LinkageIdRule
 pub const fn corpus::DocTypeKey::linkage_type_name(self) -> core::option::Option<&'static str>
 pub const fn corpus::DocTypeKey::listing(self) -> corpus::doc_type::Listing
-pub const fn corpus::DocTypeKey::nested_root_filename(self) -> core::option::Option<&'static str>
 pub const fn corpus::DocTypeKey::participates_in_lifecycle(self) -> bool
 pub const fn corpus::DocTypeKey::slug_rule(self) -> corpus::slug::SlugRule
 pub const fn corpus::DocTypeKey::wire_token(self) -> &'static str
@@ -453,6 +466,7 @@ pub fn corpus::doc_type::LibraryPlacement::fmt(&self, f: &mut core::fmt::Formatt
 impl core::marker::Copy for corpus::doc_type::LibraryPlacement
 impl core::marker::StructuralPartialEq for corpus::doc_type::LibraryPlacement
 pub fn corpus::doc_type::infer(path: &std::path::Path, table: &[(corpus::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<corpus::DocTypeKey>
+pub type corpus::doc_type::DeclaredSet = (corpus::DocTypeKey, &'static corpus::set::SetDeclaration)
 pub mod corpus::frontmatter
 pub enum corpus::frontmatter::FrontmatterState
 pub corpus::frontmatter::FrontmatterState::Absent
@@ -1040,6 +1054,93 @@ pub trait corpus::scan::DirectoryProbe
 pub fn corpus::scan::DirectoryProbe::is_dir(&self, path: &std::path::Path) -> bool
 pub trait corpus::scan::FileReader
 pub fn corpus::scan::FileReader::read(&self, path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
+pub mod corpus::set
+pub enum corpus::set::MemberKind
+pub corpus::set::MemberKind::Asset
+pub corpus::set::MemberKind::Document
+impl core::clone::Clone for corpus::set::MemberKind
+pub fn corpus::set::MemberKind::clone(&self) -> corpus::set::MemberKind
+impl core::cmp::Eq for corpus::set::MemberKind
+impl core::cmp::PartialEq for corpus::set::MemberKind
+pub fn corpus::set::MemberKind::eq(&self, other: &corpus::set::MemberKind) -> bool
+impl core::fmt::Debug for corpus::set::MemberKind
+pub fn corpus::set::MemberKind::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::set::MemberKind
+impl core::marker::StructuralPartialEq for corpus::set::MemberKind
+pub enum corpus::set::Presentation
+pub corpus::set::Presentation::EntryPoint
+pub corpus::set::Presentation::SetPage
+impl core::clone::Clone for corpus::set::Presentation
+pub fn corpus::set::Presentation::clone(&self) -> corpus::set::Presentation
+impl core::cmp::Eq for corpus::set::Presentation
+impl core::cmp::PartialEq for corpus::set::Presentation
+pub fn corpus::set::Presentation::eq(&self, other: &corpus::set::Presentation) -> bool
+impl core::fmt::Debug for corpus::set::Presentation
+pub fn corpus::set::Presentation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::set::Presentation
+impl core::marker::StructuralPartialEq for corpus::set::Presentation
+pub enum corpus::set::SetPlace
+pub corpus::set::SetPlace::Member(corpus::set::MemberKind)
+pub corpus::set::SetPlace::Root
+impl core::clone::Clone for corpus::set::SetPlace
+pub fn corpus::set::SetPlace::clone(&self) -> corpus::set::SetPlace
+impl core::cmp::Eq for corpus::set::SetPlace
+impl core::cmp::PartialEq for corpus::set::SetPlace
+pub fn corpus::set::SetPlace::eq(&self, other: &corpus::set::SetPlace) -> bool
+impl core::fmt::Debug for corpus::set::SetPlace
+pub fn corpus::set::SetPlace::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::set::SetPlace
+impl core::marker::StructuralPartialEq for corpus::set::SetPlace
+pub enum corpus::set::SlotPatternError
+pub corpus::set::SlotPatternError::AbsolutePath
+pub corpus::set::SlotPatternError::EmptySegment
+pub corpus::set::SlotPatternError::ParentSegment
+pub corpus::set::SlotPatternError::RecursiveWildcard
+impl core::clone::Clone for corpus::set::SlotPatternError
+pub fn corpus::set::SlotPatternError::clone(&self) -> corpus::set::SlotPatternError
+impl core::cmp::Eq for corpus::set::SlotPatternError
+impl core::cmp::PartialEq for corpus::set::SlotPatternError
+pub fn corpus::set::SlotPatternError::eq(&self, other: &corpus::set::SlotPatternError) -> bool
+impl core::error::Error for corpus::set::SlotPatternError
+impl core::fmt::Debug for corpus::set::SlotPatternError
+pub fn corpus::set::SlotPatternError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::set::SlotPatternError
+pub fn corpus::set::SlotPatternError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::set::SlotPatternError
+impl core::marker::StructuralPartialEq for corpus::set::SlotPatternError
+pub struct corpus::set::MemberSlot
+pub corpus::set::MemberSlot::kind: corpus::set::MemberKind
+pub corpus::set::MemberSlot::pattern: &'static str
+impl core::fmt::Debug for corpus::set::MemberSlot
+pub fn corpus::set::MemberSlot::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct corpus::set::SetDeclaration
+pub corpus::set::SetDeclaration::presentation: corpus::set::Presentation
+pub corpus::set::SetDeclaration::shape: corpus::set::SetShape
+impl core::fmt::Debug for corpus::set::SetDeclaration
+pub fn corpus::set::SetDeclaration::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct corpus::set::SetMatcher
+impl corpus::set::SetMatcher
+pub fn corpus::set::SetMatcher::classify(&self, set_relative: &str) -> core::option::Option<corpus::set::SetPlace>
+pub fn corpus::set::SetMatcher::may_contain_members(&self, set_relative_dir: &str) -> bool
+pub const fn corpus::set::SetMatcher::presentation(&self) -> corpus::set::Presentation
+pub const fn corpus::set::SetMatcher::root(&self) -> &'static str
+pub const fn corpus::set::SetMatcher::shape(&self) -> &'static corpus::set::SetShape
+impl core::clone::Clone for corpus::set::SetMatcher
+pub fn corpus::set::SetMatcher::clone(&self) -> corpus::set::SetMatcher
+impl core::fmt::Debug for corpus::set::SetMatcher
+pub fn corpus::set::SetMatcher::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct corpus::set::SetShape
+pub corpus::set::SetShape::member_slots: &'static [corpus::set::MemberSlot]
+pub corpus::set::SetShape::root: &'static str
+impl core::fmt::Debug for corpus::set::SetShape
+pub fn corpus::set::SetShape::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct corpus::set::SlotPattern
+impl corpus::set::SlotPattern
+pub fn corpus::set::SlotPattern::parse(pattern: &str) -> core::result::Result<Self, corpus::set::SlotPatternError>
+impl core::clone::Clone for corpus::set::SlotPattern
+pub fn corpus::set::SlotPattern::clone(&self) -> corpus::set::SlotPattern
+impl core::fmt::Debug for corpus::set::SlotPattern
+pub fn corpus::set::SlotPattern::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub mod corpus::slug
 pub enum corpus::slug::SlugRule
 pub corpus::slug::SlugRule::DateAndOptionalId
@@ -1395,15 +1496,16 @@ pub fn corpus::metadata::ArtifactMetadata::fmt(&self, f: &mut core::fmt::Formatt
 impl core::marker::StructuralPartialEq for corpus::metadata::ArtifactMetadata
 pub struct corpus::DocTypeCatalogue
 impl corpus::DocTypeCatalogue
-pub fn corpus::DocTypeCatalogue::built_in() -> Self
-impl corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::doc_types(&self) -> &[corpus::DocTypeKey]
 pub fn corpus::DocTypeCatalogue::from_config_path_key(&self, key: &str) -> core::option::Option<corpus::DocTypeKey>
 pub fn corpus::DocTypeCatalogue::from_linkage_type_name(&self, name: &str) -> core::option::Option<corpus::DocTypeKey>
 pub fn corpus::DocTypeCatalogue::from_wire_token(&self, token: &str) -> core::option::Option<corpus::DocTypeKey>
-pub fn corpus::DocTypeCatalogue::new(doc_types: alloc::vec::Vec<corpus::DocTypeKey>) -> core::result::Result<Self, corpus::doc_type::CatalogueError>
+pub fn corpus::DocTypeCatalogue::new(doc_types: &[corpus::DocTypeKey], set_declarations: &[corpus::doc_type::DeclaredSet]) -> core::result::Result<Self, corpus::doc_type::CatalogueError>
+pub fn corpus::DocTypeCatalogue::set_matcher(&self, kind: corpus::DocTypeKey) -> core::option::Option<&corpus::set::SetMatcher>
 impl core::clone::Clone for corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::clone(&self) -> corpus::DocTypeCatalogue
+impl core::default::Default for corpus::DocTypeCatalogue
+pub fn corpus::DocTypeCatalogue::default() -> corpus::DocTypeCatalogue
 impl core::fmt::Debug for corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct corpus::DocTypeKey(_)
@@ -1433,6 +1535,7 @@ pub const fn corpus::DocTypeKey::declared(doc_type: &'static corpus::doc_type::D
 pub const fn corpus::DocTypeKey::facets(self) -> &'static [corpus::doc_type::Facet]
 pub const fn corpus::DocTypeKey::in_kanban(self) -> bool
 pub const fn corpus::DocTypeKey::in_lifecycle(self) -> bool
+pub const fn corpus::DocTypeKey::is_set(self) -> bool
 pub const fn corpus::DocTypeKey::is_virtual(self) -> bool
 pub const fn corpus::DocTypeKey::label(self) -> &'static str
 pub const fn corpus::DocTypeKey::library_placement(self) -> core::option::Option<corpus::doc_type::LibraryPlacement>
@@ -1440,7 +1543,6 @@ pub const fn corpus::DocTypeKey::lifecycle_rank(self) -> core::option::Option<u8
 pub const fn corpus::DocTypeKey::linkage_id_rule(self) -> corpus::linkage::LinkageIdRule
 pub const fn corpus::DocTypeKey::linkage_type_name(self) -> core::option::Option<&'static str>
 pub const fn corpus::DocTypeKey::listing(self) -> corpus::doc_type::Listing
-pub const fn corpus::DocTypeKey::nested_root_filename(self) -> core::option::Option<&'static str>
 pub const fn corpus::DocTypeKey::participates_in_lifecycle(self) -> bool
 pub const fn corpus::DocTypeKey::slug_rule(self) -> corpus::slug::SlugRule
 pub const fn corpus::DocTypeKey::wire_token(self) -> &'static str
