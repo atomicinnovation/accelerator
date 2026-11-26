@@ -3525,6 +3525,34 @@ fn a_fallback_of_a_template_conduct_does_not_use_goes_unreported(
     Ok(())
 }
 
+fn a_plugin_with_templates(
+    project: &Project,
+    templates: &[&str],
+) -> Result<PathBuf, TestError> {
+    let plugin = project.root.join("plugin");
+    let profiles = "skills/research/profiles";
+    copy_tree(&installed_plugin().join(profiles), &plugin.join(profiles))?;
+    for name in templates {
+        fs::create_dir_all(plugin.join("templates"))?;
+        fs::write(plugin.join(format!("templates/{name}.md")), "# x\n")?;
+    }
+    Ok(plugin)
+}
+
+fn assert_starts_without_a_warning(
+    project: &Project,
+    plugin: &Path,
+) -> Result<(), TestError> {
+    let (plan, stderr) = project.plan_in(
+        &["--start"],
+        &[(PLUGIN_ROOT, plugin.to_str().ok_or("non-utf8")?)],
+    )?;
+
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    assert!(stderr.is_empty(), "{stderr}");
+    Ok(())
+}
+
 #[test]
 fn a_template_conduct_cannot_resolve_still_starts_without_a_warning(
 ) -> Result<(), TestError> {
@@ -3533,22 +3561,21 @@ fn a_template_conduct_cannot_resolve_still_starts_without_a_warning(
         &project,
         &[("topic-research-finding", "missing/finding.md")],
     )?;
-    let plugin_without_templates = project.root.join("plugin");
-    let profiles = "skills/research/profiles";
-    copy_tree(
-        &installed_plugin().join(profiles),
-        &plugin_without_templates.join(profiles),
-    )?;
+    let plugin_without_templates = a_plugin_with_templates(&project, &[])?;
 
-    let (plan, stderr) = project.plan_in(
-        &["--start"],
-        &[(
-            PLUGIN_ROOT,
-            plugin_without_templates.to_str().ok_or("non-utf8")?,
-        )],
-    )?;
+    assert_starts_without_a_warning(&project, &plugin_without_templates)
+}
 
-    assert_eq!(plan["warnings"], json!([]), "{plan}");
-    assert!(stderr.is_empty(), "{stderr}");
-    Ok(())
+#[test]
+fn a_template_found_in_no_tier_still_starts_without_a_warning(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(
+        &project,
+        &[("topic-research-finding", "missing/finding.md")],
+    )?;
+    let plugin_without_conduct_templates =
+        a_plugin_with_templates(&project, &["topic-brief"])?;
+
+    assert_starts_without_a_warning(&project, &plugin_without_conduct_templates)
 }
