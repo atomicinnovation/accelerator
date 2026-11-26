@@ -4,9 +4,10 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::config::WorkItemConfig;
-use crate::indexer::IndexEntry;
+use crate::indexer::{IndexEntry, Indexer};
 use corpus::cluster::ClusterEntry;
 use corpus::DocTypeKey;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -156,6 +157,40 @@ impl EmptyClusterFixture {
             work_item_cfg: &self.cfg,
         }
     }
+}
+
+pub async fn recompute_clusters(
+    indexer: &Indexer,
+    clusters: &RwLock<Vec<LifecycleCluster>>,
+) {
+    let snapshot = indexer.all().await;
+    let work_item_by_identity_key =
+        indexer.work_item_by_identity_key_snapshot().await;
+    let documents_by_address = indexer.documents_by_address_snapshot().await;
+    let work_item_cfg = indexer.work_item_cfg();
+    let cluster_ctx = ClusterContext::from_entries(
+        &snapshot,
+        &work_item_by_identity_key,
+        &documents_by_address,
+        indexer.project_root(),
+        &work_item_cfg,
+    );
+    let (new_clusters, completeness_backfill, cluster_key_backfill) =
+        compute_clusters_with_backfill(&snapshot, &cluster_ctx);
+    let linked_counts = crate::related::collect_linked_counts(
+        indexer,
+        &new_clusters,
+        &snapshot,
+    )
+    .await;
+    indexer
+        .apply_completeness_backfill(completeness_backfill)
+        .await;
+    indexer
+        .apply_cluster_key_backfill(cluster_key_backfill)
+        .await;
+    indexer.apply_linked_count_backfill(linked_counts).await;
+    *clusters.write().await = new_clusters;
 }
 
 pub fn compute_clusters(
@@ -943,5 +978,44 @@ mod tests {
         let (clusters, _, _) = run_clusters(&[a, b], &cfg);
         assert_eq!(clusters.len(), 1);
         assert_eq!(clusters[0].slug, "beta-slug");
+    }
+
+    fn work_item(id: &str) -> IndexEntry {
+        let mut item = entry_for_test(DocTypeKey::WORK_ITEMS, "item", 0, "I");
+        item.path = PathBuf::from(format!("/x/work/{id}-item.md"));
+        item.identity_key = Some(id.to_string());
+        item
+    }
+
+    async fn recomputed(
+        records: Vec<IndexEntry>,
+    ) -> Vec<(String, Vec<PathBuf>)> {
+        let indexer = Indexer::from_records(PathBuf::from("/x"), records).await;
+        let clusters = RwLock::new(Vec::new());
+        recompute_clusters(&indexer, &clusters).await;
+        clusters
+            .into_inner()
+            .iter()
+            .map(|c| {
+                (
+                    c.slug.clone(),
+                    c.entries.iter().map(|e| e.path.clone()).collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn a_roots_cluster_is_the_same_with_its_members_present() {
+        let item = work_item("0001");
+        let mut root = crate::test_support::dossier("dossier-a");
+        root.frontmatter = json!({ "parent": "0001" });
+        let member = crate::test_support::set_member_for_test(&root, "a.md");
+
+        let without = recomputed(vec![item.clone(), root.clone()]).await;
+        let with = recomputed(vec![item.clone(), root.clone(), member]).await;
+
+        assert_eq!(without, vec![("item".into(), vec![item.path, root.path])]);
+        assert_eq!(with, without);
     }
 }

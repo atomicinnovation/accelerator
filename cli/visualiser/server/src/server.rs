@@ -126,38 +126,8 @@ impl AppState {
             )
             .await,
         ));
-        let snapshot = indexer.all().await;
-        let work_item_by_identity_key =
-            indexer.work_item_by_identity_key_snapshot().await;
-        let documents_by_address =
-            indexer.documents_by_address_snapshot().await;
-        let work_item_cfg = indexer.work_item_cfg();
-        let cluster_ctx = crate::clusters::ClusterContext::from_entries(
-            &snapshot,
-            &work_item_by_identity_key,
-            &documents_by_address,
-            indexer.project_root(),
-            &work_item_cfg,
-        );
-        let (cluster_seed, completeness_backfill, cluster_key_backfill) =
-            crate::clusters::compute_clusters_with_backfill(
-                &snapshot,
-                &cluster_ctx,
-            );
-        let linked_counts = crate::related::collect_linked_counts(
-            &indexer,
-            &cluster_seed,
-            &snapshot,
-        )
-        .await;
-        indexer
-            .apply_completeness_backfill(completeness_backfill)
-            .await;
-        indexer
-            .apply_cluster_key_backfill(cluster_key_backfill)
-            .await;
-        indexer.apply_linked_count_backfill(linked_counts).await;
-        let clusters = Arc::new(RwLock::new(cluster_seed));
+        let clusters = Arc::new(RwLock::new(Vec::new()));
+        crate::clusters::recompute_clusters(&indexer, &clusters).await;
         let sse_hub = Arc::new(crate::sse_hub::SseHub::new(256));
         let activity_feed =
             Arc::new(crate::activity_feed::ActivityRingBuffer::new());

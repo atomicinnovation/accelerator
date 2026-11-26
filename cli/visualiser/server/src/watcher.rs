@@ -10,7 +10,7 @@ use tokio::sync::{Notify, RwLock};
 use tokio::task::JoinHandle;
 
 use crate::activity_feed::{ActivityEvent, ActivityRingBuffer};
-use crate::clusters::{compute_clusters_with_backfill, LifecycleCluster};
+use crate::clusters::{recompute_clusters, LifecycleCluster};
 use crate::config::TemplateTiers;
 use crate::file_driver::FileDriver;
 use crate::indexer::{IndexEntry, Indexer, FRONTMATTER_MALFORMED};
@@ -226,33 +226,7 @@ async fn on_path_changed(
     }
 
     let snapshot = indexer.all().await;
-    let work_item_by_identity_key =
-        indexer.work_item_by_identity_key_snapshot().await;
-    let documents_by_address = indexer.documents_by_address_snapshot().await;
-    let work_item_cfg = indexer.work_item_cfg();
-    let cluster_ctx = crate::clusters::ClusterContext::from_entries(
-        &snapshot,
-        &work_item_by_identity_key,
-        &documents_by_address,
-        indexer.project_root(),
-        &work_item_cfg,
-    );
-    let (new_clusters, completeness_backfill, cluster_key_backfill) =
-        compute_clusters_with_backfill(&snapshot, &cluster_ctx);
-    let linked_counts = crate::related::collect_linked_counts(
-        &indexer,
-        &new_clusters,
-        &snapshot,
-    )
-    .await;
-    indexer
-        .apply_completeness_backfill(completeness_backfill)
-        .await;
-    indexer
-        .apply_cluster_key_backfill(cluster_key_backfill)
-        .await;
-    indexer.apply_linked_count_backfill(linked_counts).await;
-    *clusters.write().await = new_clusters;
+    recompute_clusters(&indexer, &clusters).await;
 
     // The rescan reindexes every file, not just `path`, so it broadcasts every
     // change it applied: a change another file's rescan absorbs is otherwise

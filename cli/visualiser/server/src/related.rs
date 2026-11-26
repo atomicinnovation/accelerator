@@ -116,3 +116,107 @@ pub async fn collect_linked_counts(
     }
     counts
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clusters::recompute_clusters;
+    use crate::test_support::{dossier, entry_for_test, set_member_for_test};
+    use corpus::DocTypeKey;
+    use tokio::sync::RwLock;
+
+    struct Related {
+        indexer: Indexer,
+        clusters: Vec<LifecycleCluster>,
+    }
+
+    impl Related {
+        async fn of(records: Vec<IndexEntry>) -> Self {
+            let indexer =
+                Indexer::from_records(PathBuf::from("/x"), records).await;
+            let clusters = RwLock::new(Vec::new());
+            recompute_clusters(&indexer, &clusters).await;
+            Self {
+                indexer,
+                clusters: clusters.into_inner(),
+            }
+        }
+
+        async fn to(&self, entry: &IndexEntry) -> RelatedResolution {
+            resolve_related(&self.indexer, &self.clusters, entry).await
+        }
+    }
+
+    fn paths(entries: &[IndexEntry]) -> Vec<PathBuf> {
+        entries.iter().map(|e| e.path.clone()).collect()
+    }
+
+    fn work_item_0042() -> IndexEntry {
+        let mut item = entry_for_test(DocTypeKey::WORK_ITEMS, "x", 0, "X");
+        item.path = PathBuf::from("/x/work/0042-x.md");
+        item.identity_key = Some("0042".into());
+        item
+    }
+
+    fn set_with_a_member_parented_by_0042(
+    ) -> (IndexEntry, IndexEntry, IndexEntry) {
+        let root = dossier("dossier-a");
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.frontmatter = serde_json::json!({ "parent": "0042" });
+        member.work_item_refs = vec!["0042".into()];
+        let sibling = set_member_for_test(&root, "notes/b.md");
+        (root, member, sibling)
+    }
+
+    #[tokio::test]
+    async fn a_members_declared_parent_is_attributed_to_that_member() {
+        let item = work_item_0042();
+        let (root, member, sibling) = set_with_a_member_parented_by_0042();
+        let related = Related::of(vec![
+            item.clone(),
+            root.clone(),
+            member.clone(),
+            sibling.clone(),
+        ])
+        .await;
+
+        assert_eq!(
+            paths(&related.to(&member).await.declared_outbound),
+            vec![item.path.clone()]
+        );
+        assert!(related.to(&root).await.declared_outbound.is_empty());
+        assert!(related.to(&sibling).await.declared_outbound.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_work_item_names_a_member_parented_by_it_as_inbound() {
+        let item = work_item_0042();
+        let (root, member, sibling) = set_with_a_member_parented_by_0042();
+        let related =
+            Related::of(vec![item.clone(), root, member.clone(), sibling])
+                .await;
+
+        let inbound = related.to(&item).await.declared_inbound;
+
+        assert_eq!(paths(&inbound), vec![member.path]);
+        let wire = serde_json::to_value(&inbound[0]).unwrap();
+        assert_eq!(wire["setId"], "dossier-a");
+        assert_eq!(wire["setRelativePath"], "notes/a.md");
+    }
+
+    #[tokio::test]
+    async fn no_member_is_ever_an_inferred_item() {
+        let mut root = dossier("shared");
+        root.slug = Some("shared".into());
+        let member = set_member_for_test(&root, "shared.md");
+        let mut plan = entry_for_test(DocTypeKey::PLANS, "shared", 0, "P");
+        plan.path = PathBuf::from("/x/plans/2026-01-01-shared.md");
+        let related =
+            Related::of(vec![root.clone(), member.clone(), plan.clone()]).await;
+
+        for entry in [&root, &plan] {
+            let inferred = related.to(entry).await.inferred_cluster;
+            assert!(!paths(&inferred).contains(&member.path), "{inferred:?}");
+        }
+    }
+}

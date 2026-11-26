@@ -274,43 +274,8 @@ pub(crate) async fn doc_patch_frontmatter(
         // /api/lifecycle, /api/docs/work-items, and /api/related agree on
         // the same slug after a kanban status edit changes cluster
         // membership or cross-reference shape.
-        let snapshot = state.indexer.all().await;
-        let work_item_by_identity_key =
-            state.indexer.work_item_by_identity_key_snapshot().await;
-        let documents_by_address =
-            state.indexer.documents_by_address_snapshot().await;
-        let work_item_cfg = state.indexer.work_item_cfg();
-        let cluster_ctx = crate::clusters::ClusterContext::from_entries(
-            &snapshot,
-            &work_item_by_identity_key,
-            &documents_by_address,
-            state.indexer.project_root(),
-            &work_item_cfg,
-        );
-        let (new_clusters, completeness_backfill, cluster_key_backfill) =
-            crate::clusters::compute_clusters_with_backfill(
-                &snapshot,
-                &cluster_ctx,
-            );
-        let linked_counts = crate::related::collect_linked_counts(
-            &state.indexer,
-            &new_clusters,
-            &snapshot,
-        )
-        .await;
-        state
-            .indexer
-            .apply_completeness_backfill(completeness_backfill)
+        crate::clusters::recompute_clusters(&state.indexer, &state.clusters)
             .await;
-        state
-            .indexer
-            .apply_cluster_key_backfill(cluster_key_backfill)
-            .await;
-        state
-            .indexer
-            .apply_linked_count_backfill(linked_counts)
-            .await;
-        *state.clusters.write().await = new_clusters;
 
         // Use the etag from FileContent, not from the index after refresh. A concurrent
         // external edit between persist and refresh would change the on-disk etag, which
