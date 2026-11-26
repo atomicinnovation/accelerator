@@ -214,12 +214,11 @@ mod tests {
 
     use super::{derive, humanise_slug, SlugRule};
     use crate::doc_type::DocType;
-    use crate::doc_type::UNREMARKABLE;
 
     static REQUESTS_FOR_COMMENT: DocType = DocType {
         wire_token: "requests-for-comment",
         slug_rule: SlugRule::NumberedPrefix("RFC-"),
-        ..UNREMARKABLE
+        ..DocType::FLAT_DEFAULTS
     };
 
     #[test]

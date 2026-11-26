@@ -918,6 +918,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 name = "corpus"
 version = "1.24.0-pre.113"
 dependencies = [
+ "corpus",
  "kernel",
 ]
 

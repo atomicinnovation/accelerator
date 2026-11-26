@@ -21,9 +21,6 @@ pub use crate::doc_type::listing::FilenameFilter;
 pub use crate::doc_type::listing::Listing;
 
 #[cfg(test)]
-pub(crate) use crate::doc_type::declaration::UNREMARKABLE;
-
-#[cfg(test)]
 mod tests {
     use super::{DocTypeCatalogue, DocTypeKey};
 

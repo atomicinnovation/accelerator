@@ -184,53 +184,55 @@ impl fmt::Debug for DocTypeKey {
     }
 }
 
-#[cfg(test)]
-pub const UNREMARKABLE: DocType = DocType {
-    wire_token: "",
-    config_path_key: None,
-    linkage_type_name: None,
-    label: "",
-    in_lifecycle: false,
-    carries_target_frontmatter: false,
-    participates_in_lifecycle: false,
-    in_kanban: false,
-    is_virtual: false,
-    slug_rule: SlugRule::NoSlug,
-    cluster_key_rule: ClusterKeyRule::Unclustered,
-    lifecycle_rank: None,
-    completeness_mark: None,
-    linkage_id_rule: LinkageIdRule::Stem,
-    cluster_anchor: false,
-    library_placement: None,
-    facets: &[],
-    listing: Listing::Flat {
-        drafts_subdirectory: None,
-        filename_filter: crate::doc_type::FilenameFilter::Markdown,
-    },
-};
+#[cfg(feature = "test-support")]
+impl DocType {
+    pub const FLAT_DEFAULTS: Self = Self {
+        wire_token: "",
+        config_path_key: None,
+        linkage_type_name: None,
+        label: "",
+        in_lifecycle: false,
+        carries_target_frontmatter: false,
+        participates_in_lifecycle: false,
+        in_kanban: false,
+        is_virtual: false,
+        slug_rule: SlugRule::VerbatimStem,
+        cluster_key_rule: ClusterKeyRule::Unclustered,
+        lifecycle_rank: None,
+        completeness_mark: None,
+        linkage_id_rule: LinkageIdRule::Stem,
+        cluster_anchor: false,
+        library_placement: None,
+        facets: &[],
+        listing: Listing::Flat {
+            drafts_subdirectory: None,
+            filename_filter: crate::doc_type::FilenameFilter::Markdown,
+        },
+    };
+}
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
 
-    use super::{DocType, DocTypeKey, UNREMARKABLE};
+    use super::{DocType, DocTypeKey};
 
     static ALPHA: DocType = DocType {
         wire_token: "alpha",
         label: "Alpha",
-        ..UNREMARKABLE
+        ..DocType::FLAT_DEFAULTS
     };
 
     static ALPHA_AGAIN: DocType = DocType {
         wire_token: "alpha",
         label: "Alpha again",
-        ..UNREMARKABLE
+        ..DocType::FLAT_DEFAULTS
     };
 
     static BETA: DocType = DocType {
         wire_token: "beta",
         label: "Beta",
-        ..UNREMARKABLE
+        ..DocType::FLAT_DEFAULTS
     };
 
     #[test]

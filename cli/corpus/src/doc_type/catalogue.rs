@@ -117,36 +117,35 @@ fn refuse_shared(
 #[cfg(test)]
 mod tests {
     use super::{CatalogueError, DocTypeCatalogue, Identity};
-    use crate::doc_type::UNREMARKABLE;
     use crate::doc_type::{DocType, DocTypeKey};
 
     static GADGETS: DocType = DocType {
         wire_token: "gadgets",
         config_path_key: Some("gadgets"),
         linkage_type_name: Some("gadget"),
-        ..UNREMARKABLE
+        ..DocType::FLAT_DEFAULTS
     };
 
     static GADGETS_AGAIN: DocType = DocType {
         wire_token: "gadgets",
-        ..UNREMARKABLE
+        ..DocType::FLAT_DEFAULTS
     };
 
     static WIDGETS_LINKED_AS_GADGET: DocType = DocType {
         wire_token: "widgets",
         linkage_type_name: Some("gadget"),
-        ..UNREMARKABLE
+        ..DocType::FLAT_DEFAULTS
     };
 
     static WIDGETS_CONFIGURED_AS_GADGETS: DocType = DocType {
         wire_token: "widgets",
         config_path_key: Some("gadgets"),
-        ..UNREMARKABLE
+        ..DocType::FLAT_DEFAULTS
     };
 
     static UNLINKED_WIDGETS: DocType = DocType {
         wire_token: "widgets",
-        ..UNREMARKABLE
+        ..DocType::FLAT_DEFAULTS
     };
 
     fn catalogue_of(
