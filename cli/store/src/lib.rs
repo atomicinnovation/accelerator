@@ -5,9 +5,10 @@
 //!
 //! - [`atomic_write`], for the config and corpus writers, fsyncs the staged
 //!   bytes and the publishing rename, so a committed write survives a crash.
-//! - [`replace_without_sync`] fsyncs neither. It is for scratch state that can
-//!   be rebuilt, where a write lost to an OS crash costs nothing and a flush
-//!   would only add latency.
+//! - [`replace_without_sync`] fsyncs neither, and [`create_without_sync`] is
+//!   [`atomic_create`] without its directory fsync. They are for scratch
+//!   state that can be rebuilt, where a write lost to an OS crash costs
+//!   nothing and a flush would only add latency.
 //!
 //! Infrastructure only: of the workspace crates it depends on `kernel` alone,
 //! for naming constants. Every consumer translates [`WriteError`] and
@@ -176,10 +177,32 @@ pub fn atomic_create(
     bounds: &WriteBounds<'_>,
     mode: NewFileMode,
 ) -> Result<(), WriteError> {
-    let parent = ensure_contained(path, bounds)?;
-    fs::create_dir_all(&parent).map_err(|error| io(&parent, &error))?;
-    let file_name = path.file_name().ok_or_else(|| unsafe_path(path))?;
-    let target = parent.join(file_name);
+    let target = create(path, bytes, bounds, mode)?;
+    sync_parent_dir(&target, sync_directory)
+}
+
+/// [`atomic_create`] without the directory fsync: an existing target is
+/// still left untouched, but an OS crash may lose the creation.
+///
+/// # Errors
+/// Returns any error [`atomic_create`] returns but
+/// [`WriteError::NotDurable`].
+pub fn create_without_sync(
+    path: &Path,
+    bytes: &[u8],
+    bounds: &WriteBounds<'_>,
+    mode: NewFileMode,
+) -> Result<(), WriteError> {
+    create(path, bytes, bounds, mode).map(drop)
+}
+
+fn create(
+    path: &Path,
+    bytes: &[u8],
+    bounds: &WriteBounds<'_>,
+    mode: NewFileMode,
+) -> Result<PathBuf, WriteError> {
+    let (parent, target) = contained_target(path, bounds)?;
     let staged = stage(&parent, &target, bytes, mode)?;
     staged.persist_noclobber(&target).map_err(|error| {
         if error.error.kind() == ErrorKind::AlreadyExists {
@@ -190,7 +213,7 @@ pub fn atomic_create(
             classify_persist_error(&target, &error.error)
         }
     })?;
-    sync_parent_dir(&target, sync_directory)
+    Ok(target)
 }
 
 /// Resolves `path` against `bounds` and returns the canonical directory a temp
@@ -456,10 +479,11 @@ mod tests {
     use tempfile::TempDir;
 
     use super::{
-        atomic_create, atomic_write, classify_persist_error, ensure_contained,
-        is_atomic_temporary, read_within, replace_without_sync,
-        require_owner_only_permissions, stage, write_with_directory_sync,
-        DirectorySync, NewFileMode, WriteBounds, WriteError,
+        atomic_create, atomic_write, classify_persist_error,
+        create_without_sync, ensure_contained, is_atomic_temporary,
+        read_within, replace_without_sync, require_owner_only_permissions,
+        stage, write_with_directory_sync, DirectorySync, NewFileMode,
+        WriteBounds, WriteError,
     };
     use crate::test_support::ReadOnlyDir;
 
@@ -532,6 +556,57 @@ mod tests {
             Err(WriteError::UnsafePath { .. })
         ));
         assert!(!outside.join("state").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn a_creation_without_sync_is_whole_and_contained() -> Result<(), TestError>
+    {
+        let project = TempDir::new()?;
+        let permitted = project.path().join("permitted");
+        let target = permitted.join("state");
+        create_without_sync(
+            &target,
+            b"new",
+            &bounds(&permitted, project.path()),
+            NewFileMode::Set(0o640),
+        )?;
+        assert_eq!(fs::read(&target)?, b"new");
+        assert_eq!(mode_of(&target)?, 0o640);
+        assert_eq!(temp_names(&permitted)?, vec!["state".to_owned()]);
+
+        let outside = project.path().join("outside");
+        fs::create_dir_all(&outside)?;
+        std::os::unix::fs::symlink(&outside, permitted.join("link"))?;
+        assert!(matches!(
+            create_without_sync(
+                &permitted.join("link/state"),
+                b"x",
+                &bounds(&permitted, project.path()),
+                NewFileMode::Set(0o640),
+            ),
+            Err(WriteError::UnsafePath { .. })
+        ));
+        assert!(!outside.join("state").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn a_creation_without_sync_never_replaces() -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let target = project.path().join("state");
+        fs::write(&target, b"theirs")?;
+
+        let created = create_without_sync(
+            &target,
+            b"ours",
+            &bounds(project.path(), project.path()),
+            NewFileMode::Set(0o640),
+        );
+
+        assert!(matches!(created, Err(WriteError::AlreadyExists { .. })));
+        assert_eq!(fs::read(&target)?, b"theirs");
+        assert_eq!(temp_names(project.path())?, vec!["state".to_owned()]);
         Ok(())
     }
 

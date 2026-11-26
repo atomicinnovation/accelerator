@@ -1297,6 +1297,33 @@ mod an_unsynced_store_writes_as_the_file_store_does {
     }
 
     #[test]
+    fn a_target_that_is_a_symlink_out_of_the_root_is_refused(
+    ) -> Result<(), TestError> {
+        let outside = tempfile::tempdir()?;
+        let escaped = outside.path().join("item.md");
+        fs::write(&escaped, "outside")?;
+        for_each_store(|store, root| {
+            let path = root.join("item.md");
+            std::os::unix::fs::symlink(&escaped, &path)?;
+
+            let write = store.write(&path, b"new");
+            let create = store.create_new(&path, b"held");
+
+            assert!(
+                matches!(write, Err(StoreError::UnsafePath { .. })),
+                "{write:?}"
+            );
+            assert!(
+                matches!(create, Err(StoreError::UnsafePath { .. })),
+                "{create:?}"
+            );
+            Ok(())
+        })?;
+        assert_eq!(fs::read_to_string(&escaped)?, "outside");
+        Ok(())
+    }
+
+    #[test]
     fn removing_deletes_a_file_and_accepts_an_absent_one(
     ) -> Result<(), TestError> {
         for_each_store(|store, root| {
