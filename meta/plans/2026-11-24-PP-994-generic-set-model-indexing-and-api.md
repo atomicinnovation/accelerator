@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-26T00:20:47+00:00"
+last_updated: "2026-11-26T14:46:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -66,7 +66,7 @@ The plan has two stages, as the work item prescribes:
    not overlap) and ADR-0080 (domain declarations crates) are accepted,
    the member API specification is written, and PP-994's Drafting Notes
    carry the decisions line dated 2026-11-26.
-2. **Stage two (Phases 2–12): implementation. Next: Phase 2.** Each phase
+2. **Stage two (Phases 2–12): implementation. Next: Phase 4.** Each phase
    is test-first and mergeable on its own with `mise run` green.
 
 ## Sizing consequence and the decision not to split
@@ -1253,19 +1253,37 @@ pub struct DocTypeCatalogue { doc_types: Vec<DocTypeKey> }
 
 #### Automated Verification:
 
-- [ ] The characterisation test passes before and after:
+- [x] The characterisation test passes before and after:
       `mise run test:unit:cli --filter 'binary_id(corpus::built_in_doc_type_facts)'`
-- [ ] The whole cli workspace passes: `mise run test:unit:cli`,
+- [x] The whole cli workspace passes: `mise run test:unit:cli`,
       `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
-- [ ] `mise run cli:check` and `mise run server:check`
-- [ ] `mise run public-api:update` regenerates
+- [x] `mise run cli:check` and `mise run server:check`
+- [x] `mise run public-api:update` regenerates
       `cli/corpus/tests/fixtures/public-api.txt`, and the diff is reviewed
       as the intended surface change.
-- [ ] `mise run`
+- [x] `mise run`
 
 #### Manual Verification:
 
 - [ ] None beyond review: no behaviour changes.
+
+### Implementation notes
+
+- **Method names.** `nested_manifest_filename()` is renamed
+  `nested_root_filename()` with its field, alongside `wire_str()` →
+  `wire_token()`. `DocTypeKey`'s `Debug` prints the wire token.
+- **Transitional comparisons.** A `match` over several types became guard
+  arms, `kind if [A, B].contains(&kind) =>`, ending in `_`; `canonical_rank`
+  became a ranked table and `derive_completeness` one `|=` per mark. Phase
+  4 replaces them all.
+- **Catalogue errors.** `CatalogueError { identity: Identity, value }`
+  names the clashing identity (`WireToken`, `LinkageTypeName`,
+  `ConfigPathKey`) and its value.
+- **cargo-pup.** The corpus domain rule permits only `crate::` imports, so
+  the `doc_type` submodules import each other through
+  `crate::doc_type::…`, one item per `use`.
+- **`mise run`** exited 0, with `test:unit:cli` coverage at lines 94.48%,
+  functions 93.90%, regions 93.24%.
 
 ---
 
