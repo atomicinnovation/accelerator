@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           # OS-disambiguated so the ubuntu/macos legs never share a
@@ -63,7 +63,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes acl
 
+      - name: Restore passed test lanes
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/mise-task-cache
+          key: mise-task-cache-test-unit-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: mise-task-cache-test-unit-${{ runner.os }}-${{ runner.arch }}-
+
+      # main never restores a result, so an input missing from a lane's cache
+      # key can pass a pull request but not main.
       - name: Run unit tests
+        env:
+          MISE_TASK_CACHE_DIR: ${{ runner.temp }}/mise-task-cache
+          MISE_TASK_CACHE: ${{ github.event_name == 'push' && 'write-only' || 'read-write' }}
         run: mise run test:unit
 
   test-integration:
@@ -87,7 +99,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           cache_key_prefix: mise-test-integration-${{ matrix.os }}-v1
@@ -125,7 +137,19 @@ jobs:
       - name: Report the runner's CPU counts
         run: mise run host:cpu-counts
 
+      - name: Restore passed test lanes
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/mise-task-cache
+          key: mise-task-cache-test-integration-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: mise-task-cache-test-integration-${{ runner.os }}-${{ runner.arch }}-
+
+      # main never restores a result, so an input missing from a lane's cache
+      # key can pass a pull request but not main.
       - name: Run integration tests
+        env:
+          MISE_TASK_CACHE_DIR: ${{ runner.temp }}/mise-task-cache
+          MISE_TASK_CACHE: ${{ github.event_name == 'push' && 'write-only' || 'read-write' }}
         run: mise run test:integration
 
   test-e2e:
@@ -145,7 +169,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           experimental: true
@@ -157,7 +181,19 @@ jobs:
         with:
           workspaces: cli
 
+      - name: Restore passed test lanes
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/mise-task-cache
+          key: mise-task-cache-test-e2e-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: mise-task-cache-test-e2e-${{ runner.os }}-${{ runner.arch }}-
+
+      # main never restores a result, so an input missing from a lane's cache
+      # key can pass a pull request but not main.
       - name: Run E2E tests
+        env:
+          MISE_TASK_CACHE_DIR: ${{ runner.temp }}/mise-task-cache
+          MISE_TASK_CACHE: ${{ github.event_name == 'push' && 'write-only' || 'read-write' }}
         run: mise run test:e2e
 
   test-visual-regression:
@@ -171,7 +207,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           experimental: true
@@ -197,7 +233,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           experimental: true
@@ -228,7 +264,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           # Own cache namespace: this job's cache carries the rust toolchain the
@@ -268,7 +304,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           # Own toolchain-cache namespace, distinct from every other cargo job
@@ -302,7 +338,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           cache_key_prefix: mise-supply-chain-v1
@@ -328,7 +364,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           cache_key_prefix: mise-architecture-v1
@@ -379,7 +415,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           # Own toolchain-cache namespace, distinct from every other cargo job.
@@ -411,7 +447,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           experimental: true
@@ -453,7 +489,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           cache_key_prefix: mise-measure-v1
@@ -481,7 +517,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           experimental: true
@@ -532,7 +568,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           experimental: true
@@ -605,7 +641,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           experimental: true
@@ -682,7 +718,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           experimental: true
@@ -825,7 +861,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           experimental: true
@@ -950,7 +986,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
-          version: "2026.10.8"
+          version: "2026.11.14"
           install: true
           cache: true
           experimental: true

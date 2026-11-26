@@ -171,6 +171,85 @@ Running a test runner directly is a last resort, for diagnosis. For `cli/`,
 `cargo nextest run` directly still passes: with nothing handed over, each
 test builds its fixtures privately and logs nothing.
 
+### Skipping unchanged test lanes
+
+Every test leaf in the `test` roll-up extends a task template that
+declares the files it reads as `sources` and turns on mise's experimental
+[artifact cache](https://mise.jdx.dev/tasks/caching.html) with
+`outputs = []`, which caches a lane's pass and its log rather than any
+files. The templates live in `.config/mise/conf.d/test-inputs.toml`, which
+mise merges into `mise.toml`.
+
+A lane's cache key covers the contents of its sources, the mise tool
+versions, the OS and architecture, `git --version`, and the environment
+variables listed under `[task_config] global_env` that change what a test
+does, such as `ACCELERATOR_COVERAGE` and `UPDATE_GOLDEN`. When every part
+of the key matches an earlier pass, the lane prints
+`sources up-to-date, skipping` or `restored result from cache <key>`
+and replays the stored log instead of running, the way Turborepo does.
+Because mise keeps one entry per key, switching back to a branch you
+already tested restores its results too. `test:integration:deny` also
+keys on the UTC date, because it fails once an advisory suppression passes
+its review-by date.
+
+The cache lives under mise's cache directory (`mise cache path`), and
+entries unused for 14 days are dropped (`task.cache_max_age`). There is no
+remote cache. CI keeps each test job's cache directory in the GitHub
+Actions cache: a pull request restores the results of lanes whose key it
+has not changed, and a push to `main` runs every lane
+(`MISE_TASK_CACHE=write-only`) and stores fresh results.
+
+| Template | Lanes | Reruns on |
+|---|---|---|
+| `build-system-inputs` | `test:unit:tasks` | Anything but `meta/`, apart from `meta/measurements/` |
+| `cli-workspace-inputs` | `test:unit:cli` | `cli/` (not the frontend), `templates/`, `meta/`, project config, a few skill files, release keys and pins |
+| `frontend-inputs` | `test:unit:frontend`, `:frontend-licenses` | The frontend, plus the three fixtures its tests read from elsewhere |
+| `visualiser-inputs` | `test:unit:visualiser`, `test:integration:visualiser`, `test:e2e:visualiser` | `cli/`, the frontend, `templates/` |
+| `plugin-inputs` | every other `test:integration:*` lane | `cli/` (not the frontend), `tests/`, `skills/`, `templates/`, `hooks/`, plugin manifest, project config, committed `bin/` files, release keys and pins |
+| `test-support-inputs` | `test:unit:vcs`, `test:integration:dev` | Their own test directories and the VCS masks |
+| `design-automation-inputs` | `test:unit:design-automation` | The Playwright executor and the four files its suites read |
+
+Every template except `build-system-inputs`, which already covers the
+whole repository, starts with `{{vars.test_harness}}`: `tasks/**/*.py`
+(`invoke` imports every task module), the mise and uv config and
+lockfiles, and `tests/conftest.py`.
+
+A set of paths that more than one template uses is named once under
+`[vars]` in the same file, as a brace glob such as
+`"{keys/accelerator-release.pub,pins.toml}"`. A template includes it as
+`"{{vars.release_trust}}"` or excludes it as `"!{{vars.release_trust}}"`.
+Patterns are read in order and the last one to match a path wins, so a
+narrower exclusion must come after the broader inclusion it trims.
+
+- **A missing input is a stale pass.** When a test starts reading a file
+  outside its template, add the file to the template, or to the named
+  set if every template using that set needs it. A template can't extend
+  another template, and a lane's own `sources` replaces its template's
+  list rather than adding to it. A push to `main`, which never restores,
+  is the backstop.
+- **Never open a glob with `{{`.** mise renders `sources` as a template,
+  so a nested brace at the start of a group, such as `{{a,b},c}`, is read
+  as a template tag and fails. Nesting later in the group, as in
+  `{a,b-{c,d}}`, is fine.
+- **mise does not read `.gitignore` here,** so a path a run writes must be
+  excluded in the template, or it shows up as lanes that never skip.
+- **The visualiser e2e lane is never cached.** Its kanban specs rewrite
+  `cli/visualiser/server/tests/fixtures/meta/work/*.md` mid-run and
+  restore them at teardown, and mise won't store a pass during which a
+  source changed. Under `mise run test`, `test:unit:visualiser` reads
+  those fixtures while the e2e lane is rewriting them, so it reruns every
+  time too; run on its own, as CI's unit job runs it, it caches. Making
+  the e2e suite work on a copy of its fixtures would fix both.
+- **Content, not timestamps:** the key hashes file contents, so a checkout
+  or formatter that rewrites a file unchanged keeps its lanes cached.
+- **Failures and filters:** a failed run is never stored, and `--filter`
+  is part of the key, so a filtered pass never stands in for the full lane.
+- **Rerunning anyway:** `mise run --force <task>` runs the lane and stores
+  the new result; `--task-cache off` (or `MISE_TASK_CACHE=off`) ignores the
+  cache entirely. `mise run --dry-run --task-cache-explain <task>` lists
+  what went into a lane's key. Use `--force` when a lane depends on
+  something the key can't see, such as a host tool mise doesn't install.
+
 ### Surviving thin shell
 
 The shell surface is two thin-wrapper files, enumerated in

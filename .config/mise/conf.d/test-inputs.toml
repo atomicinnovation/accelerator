@@ -1,0 +1,143 @@
+[task_config]
+global_env = [
+  "CI",
+  "GITHUB_ACTIONS",
+  "ImageOS",
+  "ImageVersion",
+  "LC_ALL",
+  "ACCELERATOR_BIN",
+  "ACCELERATOR_PLUGIN_ROOT",
+  "ACCELERATOR_COVERAGE",
+  "ACCELERATOR_LOG",
+  "ACCELERATOR_DESIGN_BROWSER_EXECUTABLE",
+  "UPDATE_GOLDEN",
+  "REGENERATE_GOLDENS",
+  "UPDATE_DOWNGRADE_GOLDENS",
+  "RESEARCH_DIFFERENTIAL_SEED",
+  "RESEARCH_DIFFERENTIAL_EXHAUSTIVE",
+]
+
+[vars]
+test_harness = "{mise.toml,mise.lock,mise.local.toml,.config/mise/**/*,pyproject.toml,uv.lock,tasks/**/*.py,tests/conftest.py}"
+cli_artefacts = "cli/{target,.pup,shortcut-client/tests/captures,visualiser/server/tests/fixtures/.accelerator}/**"
+e2e_rewritten_fixtures = "cli/visualiser/server/tests/fixtures/meta/**"
+frontend = "cli/visualiser/frontend/**/*"
+frontend_artefacts = "cli/visualiser/frontend/{node_modules/**,dist/**,test-results/**,playwright-report/**,*.tsbuildinfo,.e2e-port,.e2e-fixture-snapshot.json}"
+project_config = "{.accelerator/**/*,.claude/accelerator.md,.claude/accelerator.local.md}"
+project_scratch = ".accelerator/tmp/**"
+release_trust = "{keys/accelerator-release.pub,pins.toml}"
+committed_bin = "bin/accelerator{,-verify.vendored.sha256,-verify-{darwin,linux}-{arm64,x64}}"
+python_caches = "**/{__pycache__,.pytest_cache}/**"
+
+[task_templates.build-system-inputs]
+sources = [
+  "**/*",
+  "!{.git,.jj,.venv,.idea,.playwright-mcp,.accelerator-measure,workspaces}/**",
+  "!**/*-workspace/**",
+  "!meta/**",
+  "meta/measurements/**/*",
+  "!{{vars.cli_artefacts}}",
+  "!{{vars.e2e_rewritten_fixtures}}",
+  "!cli/visualiser/frontend/{node_modules/**,playwright-report/**,.e2e-fixture-snapshot.json}",
+  "!docs-site/{node_modules,.astro,src/content/docs/reference/skills}/**",
+  "!**/{dist,target,test-results}/**",
+  "!**/{*.tsbuildinfo,.e2e-port,.conduct-run.json,.DS_Store,*.swp,*.debug.tar.gz}",
+  "!{{vars.project_scratch}}",
+  "!.claude/{scheduled_tasks.lock,settings.local.json}",
+  "!bin/**",
+  "{{vars.committed_bin}}",
+  "!{{vars.python_caches}}",
+]
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
+
+[task_templates.cli-workspace-inputs]
+sources = [
+  "{{vars.test_harness}}",
+  "cli/**/*",
+  "!{{vars.cli_artefacts}}",
+  "!{{vars.e2e_rewritten_fixtures}}",
+  "!{{vars.frontend}}",
+  "templates/**/*",
+  "meta/**/*",
+  "!meta/eval-workspaces/**",
+  "{{vars.project_config}}",
+  "!{{vars.project_scratch}}",
+  ".accelerator/tmp/.gitignore",
+  "skills/config/migrate/SKILL.md",
+  "skills/research/profiles/**/*",
+  "skills/design/inventory-design/scripts/playwright/lib/__fixtures__/**/*",
+  "{{vars.release_trust}}",
+  ".gitignore",
+]
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
+
+[task_templates.frontend-inputs]
+sources = [
+  "{{vars.test_harness}}",
+  "{{vars.frontend}}",
+  "!{{vars.frontend_artefacts}}",
+  "cli/corpus/tests/fixtures/topic-research-status-vocab.json",
+  "cli/visualiser/server/tests/fixtures/id-tokens.json",
+  "meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-standalone.html",
+  "tests/unit/frontend/**/*",
+  "!{{vars.python_caches}}",
+]
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
+
+[task_templates.visualiser-inputs]
+sources = [
+  "{{vars.test_harness}}",
+  "cli/**/*",
+  "!{{vars.cli_artefacts}}",
+  "!{{vars.frontend_artefacts}}",
+  "templates/**/*",
+]
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
+
+[task_templates.plugin-inputs]
+sources = [
+  "{{vars.test_harness}}",
+  "cli/**/*",
+  "!{{vars.cli_artefacts}}",
+  "!{{vars.e2e_rewritten_fixtures}}",
+  "!{{vars.frontend}}",
+  "{tests,skills,templates,hooks,.claude-plugin}/**/*",
+  "!skills/**/{dist,target}/**",
+  "!**/*.debug.tar.gz",
+  "{{vars.project_config}}",
+  "!{{vars.project_scratch}}",
+  ".accelerator/tmp/.gitignore",
+  "{{vars.release_trust}}",
+  ".gitignore",
+  ".accelerator-dev-launcher",
+  "{{vars.committed_bin}}",
+  "!{{vars.python_caches}}",
+]
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
+
+[task_templates.test-support-inputs]
+sources = [
+  "{{vars.test_harness}}",
+  "tests/{unit/vcs,integration/dev}/**/*",
+  "cli/vcs-test-support/fixtures/masks.toml",
+  "!{{vars.python_caches}}",
+]
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
+
+[task_templates.design-automation-inputs]
+sources = [
+  "{{vars.test_harness}}",
+  "skills/design/inventory-design/scripts/playwright/**/*",
+  "skills/design/inventory-design/PROTOCOL.md",
+  "cli/design/src/executor/forwardable.rs",
+  "cli/network/tests/fixtures/host-classification-vectors.json",
+  "cli/design/tests/fixtures/access-policy-vectors.json",
+]
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
