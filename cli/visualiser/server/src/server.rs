@@ -24,6 +24,8 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tracing::info;
 
+use corpus::DocTypeCatalogue;
+
 use crate::config::{Config, WorkItemConfig};
 use crate::shutdown::ShutdownReason;
 
@@ -38,6 +40,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct AppState {
     pub cfg: Arc<Config>,
+    pub doc_types: Arc<DocTypeCatalogue>,
     pub kanban_columns: Arc<Vec<crate::config::KanbanColumn>>,
     /// Resolved idle auto-shutdown window in milliseconds, or
     /// `config::DISABLED_IDLE_LIMIT_MS` when idle shutdown is disabled.
@@ -76,8 +79,12 @@ impl AppState {
     ) -> Result<Arc<Self>, AppStateError> {
         let kanban_columns = Arc::new(cfg.resolve_kanban_columns()?);
         let idle_limit_ms = cfg.resolve_idle_limit_ms()?;
+        let doc_types = match cfg.doc_types.clone() {
+            Some(doc_types) => doc_types,
+            None => declarations::catalogue()?,
+        };
         crate::file_driver::refuse_overlapping_doc_roots(
-            &cfg.doc_types,
+            &doc_types,
             &cfg.doc_paths,
         )?;
         let cfg = Arc::new(cfg);
@@ -90,7 +97,7 @@ impl AppState {
             .map(|p| vec![p])
             .unwrap_or_default();
         let driver = Arc::new(crate::file_driver::LocalFileDriver::new(
-            &cfg.doc_types,
+            &doc_types,
             &cfg.doc_paths,
             template_roots,
             work_root,
@@ -99,7 +106,7 @@ impl AppState {
         let indexer = Arc::new(
             crate::indexer::Indexer::build(
                 driver.clone(),
-                cfg.doc_types.clone(),
+                doc_types.clone(),
                 cfg.project_root.clone(),
                 work_item_cfg,
             )
@@ -172,6 +179,7 @@ impl AppState {
             ));
         Ok(Arc::new(Self {
             cfg,
+            doc_types,
             kanban_columns,
             idle_limit_ms,
             file_driver: driver,
@@ -199,6 +207,8 @@ pub enum AppStateError {
     Config(#[from] crate::config::ConfigError),
     #[error("invalid configuration: {0}")]
     DocRoots(#[from] config::ConfigError),
+    #[error("invalid doc type declarations: {0}")]
+    DocTypes(#[from] corpus::doc_type::CatalogueError),
 }
 
 #[derive(Debug, Serialize)]
@@ -694,7 +704,7 @@ mod tests {
             owner_start_time: None,
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
-            doc_types: crate::test_support::built_in_catalogue(),
+            doc_types: Some(crate::test_support::built_in_catalogue()),
             templates: HashMap::new(),
             work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,

@@ -28,7 +28,7 @@ async fn served_with_notebooks() -> (tempfile::TempDir, Arc<AppState>) {
     .unwrap();
     let mut cfg = common::seeded_cfg(tmp.path());
     cfg.doc_paths.insert("notebooks".into(), notebooks);
-    cfg.doc_types = common::catalogue_with(&[&NOTEBOOKS]);
+    cfg.doc_types = Some(common::catalogue_with(&[&NOTEBOOKS]));
     let state = AppState::build(cfg, Arc::new(Activity::new()))
         .await
         .unwrap();
@@ -82,4 +82,20 @@ async fn a_declared_doc_type_s_documents_are_found_by_title() {
     assert_eq!(results.len(), 1, "got {results:?}");
     assert_eq!(results[0]["docType"], "notebooks");
     assert_eq!(results[0]["slug"], "field-observations");
+}
+
+#[tokio::test]
+async fn a_config_carrying_no_catalogue_serves_the_assembled_one() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut cfg = common::seeded_cfg(tmp.path());
+    cfg.doc_types = None;
+
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        state.doc_types.doc_types(),
+        declarations::catalogue().unwrap().doc_types()
+    );
 }

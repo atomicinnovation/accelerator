@@ -26,8 +26,8 @@ pub struct Config {
     pub owner_start_time: Option<u64>,
     pub log_path: PathBuf,
     pub doc_paths: HashMap<String, PathBuf>,
-    #[serde(skip, default = "built_in_doc_types")]
-    pub doc_types: Arc<DocTypeCatalogue>,
+    #[serde(skip)]
+    pub doc_types: Option<Arc<DocTypeCatalogue>>,
     pub templates: HashMap<String, TemplateTiers>,
     /// The work-item ID scheme composed in-process; never deserialised.
     #[serde(skip)]
@@ -53,10 +53,6 @@ pub struct Config {
     /// non-JetBrains presets.
     #[serde(default)]
     pub editor_project: Option<String>,
-}
-
-fn built_in_doc_types() -> Arc<DocTypeCatalogue> {
-    Arc::new(DocTypeCatalogue::built_in())
 }
 
 /// A single kanban board column, as resolved at boot.

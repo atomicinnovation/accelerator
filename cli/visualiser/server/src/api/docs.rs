@@ -31,7 +31,6 @@ pub(crate) async fn docs_list(
     Query(q): Query<DocsListQuery>,
 ) -> Result<Response, ApiError> {
     let kind = state
-        .cfg
         .doc_types
         .from_wire_token(&q.type_)
         .ok_or(ApiError::InvalidDocType(q.type_.clone()))?;

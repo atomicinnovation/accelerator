@@ -181,6 +181,7 @@ dependencies = [
  "config-adapters",
  "corpus",
  "corpus-adapters",
+ "declarations",
  "document",
  "file-rotate",
  "form_urlencoded",

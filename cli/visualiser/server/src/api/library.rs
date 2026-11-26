@@ -87,12 +87,10 @@ pub(crate) async fn library_structure(
     State(state): State<Arc<AppState>>,
     axum::extract::RawQuery(raw): axum::extract::RawQuery,
 ) -> Json<LibraryStructureResponse> {
-    let selection = parse_selection_query(
-        &state.cfg.doc_types,
-        raw.as_deref().unwrap_or(""),
-    );
+    let selection =
+        parse_selection_query(&state.doc_types, raw.as_deref().unwrap_or(""));
     let agg = state.indexer.library_aggregates(&selection).await;
-    Json(build_structure(&state.cfg, &agg))
+    Json(build_structure(&state.cfg, &state.doc_types, &agg))
 }
 
 /// Parses repeated query keys of the form `selection[<type>][<facet>]=<option>`
@@ -136,9 +134,9 @@ pub(crate) fn parse_selection_query(
 
 fn build_structure(
     cfg: &crate::config::Config,
+    catalogue: &DocTypeCatalogue,
     agg: &LibraryAggregates,
 ) -> LibraryStructureResponse {
-    let catalogue = &cfg.doc_types;
     let phases = PHASES
         .iter()
         .map(|(phase, id, label)| Phase {

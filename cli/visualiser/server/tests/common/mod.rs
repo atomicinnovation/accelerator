@@ -29,7 +29,8 @@ pub fn set_mtime_ms(path: &Path, ms: i64) -> std::io::Result<()> {
 // that declare a doc type of their own call it.
 #[allow(dead_code)]
 pub fn catalogue_with(extra: &[&'static DocType]) -> Arc<DocTypeCatalogue> {
-    let doc_types = DocTypeCatalogue::built_in()
+    let doc_types = declarations::catalogue()
+        .unwrap()
         .doc_types()
         .iter()
         .copied()
@@ -130,7 +131,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
         owner_start_time: None,
         log_path: tmp.join("server.log"),
         doc_paths,
-        doc_types: corpus::DocTypeCatalogue::built_in().into(),
+        doc_types: Some(corpus::DocTypeCatalogue::built_in().into()),
         templates,
         work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,

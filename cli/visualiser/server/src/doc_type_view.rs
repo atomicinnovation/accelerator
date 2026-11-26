@@ -33,9 +33,12 @@ pub struct DocTypeView {
 }
 
 #[must_use]
-pub fn describe_types(cfg: &crate::config::Config) -> Vec<DocTypeView> {
-    let mut out = Vec::with_capacity(cfg.doc_types.doc_types().len());
-    for &key in cfg.doc_types.doc_types() {
+pub fn describe_types(
+    doc_types: &corpus::DocTypeCatalogue,
+    cfg: &crate::config::Config,
+) -> Vec<DocTypeView> {
+    let mut out = Vec::with_capacity(doc_types.doc_types().len());
+    for &key in doc_types.doc_types() {
         let dir_path = key
             .config_path_key()
             .and_then(|k| cfg.doc_paths.get(k).cloned());
