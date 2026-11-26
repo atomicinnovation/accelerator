@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-24T01:35:00+00:00"
+last_updated: "2026-11-26T03:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1782,41 +1782,83 @@ this plan.
 
 ### Recorded Figures
 
-Before record: `build_2026-11-23T140904Z_engywook_warm-no-op_devtools_isolated`
-(unless a rebaseline replaces it). After record: _to fill_.
+**Rebaseline (2026-11-26).** The branch was rebased onto `main` at
+`ea6af4ec`, which added 10 changed files under `cli/` that are not
+PP-943's, among them `work-adapters/tests/sync_create.rs` (+516),
+`sync_settled.rs` and `Cargo.lock`. The author confirmed a rebaseline.
+PP-943 is not on `main`, so the before record was taken at `403318ab`, the
+commit below PP-943's first, whose code equals `main`'s. The after record
+was taken at the branch head, `f85cbd26`, as PP-943 is not merged.
+
+Before record: `build_2026-11-26T012117Z_engywook_warm-no-op_devtools_isolated`
+at `403318ab`. After record:
+`build_2026-11-26T013622Z_engywook_warm-no-op_devtools_isolated` at
+`f85cbd26`. Both ran on AC power with the IDE closed, which the author
+accepted, so neither records `ide` or `fsnotifier`; idle load was 21.6%
+before and 8.9% after. Two earlier after records were discarded: one ran on
+battery, and one had a run fail under 77% idle load. Alone-run logs are in
+`.accelerator-measure/alone/`.
+
+Thresholds re-apply the half-ratio rule to the new before medians.
 
 | Figure | Before | After | Threshold | Status |
 |---|---|---|---|---|
-| `guarded_resume` test-seconds + family build | 197.5 | | ≤ ½ before | ⚪ not measured |
-| `guarded_resume` slowest test | 28.2 | | < 20 | ⚪ not measured |
-| `rekey_run` kill test | 23.3 | | ≤ ½ before | ⚪ not measured |
-| `rekey_run` edit-refusal test (14 halts after, 13 before) | 17.9 | | ≤ ½ before | ⚪ not measured |
-| `matrix_private_build` alone (step's matrix build beside) | 7.5 | | ≤ 3.75 | ⚪ not measured |
-| `matrix_private_build` under the suite | 33.2 | | ≤ 33.2 | ⚪ not measured |
-| Nextest-phase median | 125.9 | | ≤ 125.9 or within [117.2, 134.3] | ⚪ not measured |
+| `guarded_resume` test-seconds + family build | 212.1 | 147.3 | ≤ 106.05 | 🔴 missed |
+| `guarded_resume` slowest test | 30.6 | 16.9 | < 20 | 🟢 met |
+| `rekey_run` kill test, charged with its check | 24.4 | 21.3 | ≤ 12.2 | 🔴 missed |
+| `rekey_run` edit-refusal test, charged with its check (14 halts after, 13 before) | 18.2 | 11.5 | ≤ 9.1 | 🔴 missed |
+| `matrix_private_build` alone | 6.6 | 3.2 (step's matrix build 3.1) | ≤ 3.3 | 🟢 met |
+| `matrix_private_build` under the suite | 33.8 | 34.9 | ≤ 33.8 | 🔴 missed |
+| Nextest-phase median | 131.2 | 121.5 | ≤ 131.2 or within noise | 🟢 met |
 
-Also to record:
+Alone medians, before → after:
 
-- each target's alone and under-suite medians for the after record;
-- the family build time added to `guarded_resume`'s figure;
-- each after run's last three finishers and phase end;
-- each run's three per-family build lines, showing which family the build
-  step waited on;
-- the three landing commits (phases 3, 4 and 6): phase 3 is
-  `mwtvsvpx`, phase 4 is `mvpknsxp` and phase 6 is `xurnrnyp`.
+| Target | Before | After |
+|---|---|---|
+| `guarded_resume` test-seconds (+ family build after) | 107.2 | 69.9 |
+| `guarded_resume` slowest test | 12.9 | 6.6 |
+| `rekey_run` kill test, charged | 11.5 | 4.7 |
+| `rekey_run` edit-refusal test, charged | 6.1 | 3.4 |
+| `matrix_private_build` | 6.6 | 3.2 |
+
+Every alone figure is under half its before median; under the suite, only
+the slowest-test ceiling and the matrix's alone row are met. The checks
+cost a large share of each charged figure under the suite: the kill test
+took 13.7 s and its copied-repository check 7.7 s, the edit-refusal test's
+check 2.8 s, and `guarded_resume`'s two reused-state tests 14.3 s and
+13.4 s.
+
+- **Family builds** (after record medians): the matrix 5.1 s, the status-log set 4.3 s and the stalled-migration set 1.6 s, so
+  the build step waited on the matrix in every run. The stalled-migration
+  set built in 1.1 s in the alone runs.
+- **Phase ends:** before 134.8 / 138.1 / 141.6 s, with
+  `matrix_private_build`, the kill test and the edit-refusal test last in
+  every run. After 128.9 / 129.6 / 138.7 s, with the kill test last and
+  `matrix_private_build` second; the edit-refusal test left the tail.
+- **Comparison:** `compare-builds` reads `conditions match`; the nextest
+  phase fell 9.7 s (×0.926) and the task 8.1 s, both beyond noise.
+- **Test mapping:** `cargo nextest list` at `403318ab` and at the after
+  commit matches the phase 3, 4 and 6 tables: `guarded_resume` 13 → 15,
+  `rekey_run` 29 → 40, `matrix_private_build` 1 → 1, with no test renamed or
+  removed.
+- **Landing commits:** phase 3 is `mwtvsvpx`, phase 4 is `mvpknsxp` and
+  phase 6 is `xurnrnyp`. `mise run test:unit:cli` passed at each (8349,
+  8349 and 8367 tests).
 
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] `compare-builds`' first line reads `conditions match`.
-- [ ] `compare-builds` reports the nextest phase no longer than before, or
+- [x] `compare-builds`' first line reads `conditions match`.
+- [x] `compare-builds` reports the nextest phase no longer than before, or
       within noise.
-- [ ] `mise run test:unit:cli` passes at each of the three landing commits.
+- [x] `mise run test:unit:cli` passes at each of the three landing commits.
 
 #### Manual Verification
 
 - [ ] Every row of Recorded Figures is filled and meets its threshold.
+      Every row is filled; four miss, and go to the author under the
+      half-ratio review rule.
 - [ ] A reviewer confirms the test-mapping tables against both `nextest
       list` outputs.
 
