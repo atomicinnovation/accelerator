@@ -121,6 +121,10 @@ it, so a remote title edit goes undetected until this story lands.
   digest-recipe marker. 0228 (config key model) is done and 0229 (pull scope)
   is ready; both are orthogonal.
 - Blocks: none.
+- Coordinated: 0320 — Linear Push Corrupts Markdown Content escapes the
+  description on the `sync` push path. Whichever lands second adapts: the
+  description-sending path keeps routing through 0320's escaper, and 0320's
+  equivalence fixtures run against the current digest recipe.
 
 ## Assumptions
 

@@ -51,6 +51,29 @@ fn create_emits_the_created_keyword_and_identifier() {
 }
 
 #[test]
+fn an_unreadable_body_file_names_its_path() {
+    let server = MockHTTPServer::start();
+    install(&server, "create-201");
+    let dir = support::scratch(support::CONFIG);
+    let path = dir.path().join("missing.md");
+    let path = path.to_str().expect("utf-8 path");
+
+    let output = support::run(
+        dir.path(),
+        &server,
+        &["create", "--title", "T", "--body-file", path],
+    );
+
+    assert_eq!(output.status.code(), Some(100));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("E_CREATE_NO_FILE") && stderr.contains(path),
+        "stderr: {stderr}"
+    );
+    assert_eq!(server.hits(&RequestKey::post("/graphql")), 0);
+}
+
+#[test]
 fn create_with_an_unusable_identifier_fails_closed() {
     let server = MockHTTPServer::start();
     install(&server, "create-malformed-identifier-201");

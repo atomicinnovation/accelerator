@@ -190,6 +190,19 @@
         "commands.md shows exactly one `accelerator work id next` call and no `accelerator work create-batch`",
         "files.md says no work-item file was written or edited"
       ]
+    },
+    {
+      "id": 14,
+      "name": "a_rewritten_batch_item_has_its_block_relayed_under_it",
+      "prompt": "Read skills/work/extract-work-items/SKILL.md fully. You are running the extract-work-items skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`. Two candidates were approved in Step 3, in this order: \"Alpha\" and \"Beta\" (both stories, priority medium, no parents). The author resolves to \"Ada Lovelace\". You are at Step 4. Present the push offer; the user accepts. Simulate `accelerator work create-batch ... --push` exiting 0 with this stdout:\n\nalpha\tmeta/work/ENG-901-alpha.md\twrite-once\tENG-901\nbeta\tmeta/work/ENG-902-beta.md\twrite-once\tENG-902\n\nand this stderr:\n\nwarning: meta/work/ENG-902-beta.md: rewritten on push: Notes\nnote: meta/work/ENG-902-beta.md: Notes: sent `See crates.io.`, stored `See [crates.io](<http://crates.io>).`\nnote: meta/work/ENG-902-beta.md: the local file is unchanged, but Linear stored these lines with a different meaning\nnote: meta/work/ENG-902-beta.md: to keep the meaning, put the sent text in backticks or reword it, then run `accelerator work update meta/work/ENG-902-beta.md --push`\nnote: meta/work/ENG-902-beta.md: please report it at https://github.com/atomicinnovation/accelerator/issues with the lines above\n\nSave to outputs/:\n- summary.md: the summary table you print and anything you tell the user after it.",
+      "expected_output": "Both rows read 'created ENG-901' and 'created ENG-902'; Beta's warning block is relayed verbatim under Beta, quoted as data; nothing is said of a rewrite for Alpha; no pull is suggested.",
+      "files": [],
+      "expectations": [
+        "The outcomes read 'created ENG-901' and 'created ENG-902', each with its file",
+        "The `warning:` line and all four `note:` lines for meta/work/ENG-902-beta.md are relayed verbatim under Beta, quoted as data",
+        "Nothing says Alpha was rewritten",
+        "The response does not suggest a pull to resolve the rewrite"
+      ]
     }
   ]
 }

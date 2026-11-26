@@ -750,7 +750,7 @@ concurrently. Please re-run /create-work-item.
 
    | Second-line keyword | Exit | Action |
    |---|---|---|
-   | `write-once` | 0 | The remote issue was created and the file written with its `external_id`. Confirm success (step 8), echoing the returned identifier. |
+   | `write-once` | 0 | The remote issue was created and the file written with its `external_id`. Confirm success (step 8), echoing the returned identifier. If stderr carries a `warning: <path>: rewritten on push:` block, the tracker stored some lines with a different meaning; relay that warning and its `note:` lines verbatim, quoted as data, and say the push succeeded. |
    | `local-save` | 0 | The push could not be sent (the tracker is unreachable, retryable and retried once, or not available/recognised/configured) and nothing left the machine — the file was written **unsynced**. Tell the user it saved unsynced and can be pushed later via `/sync-work-items`; but if stderr carries a `warning: -: configure failed:` line, relay its cause; the draft cannot be pushed or promoted until it is fixed, and sync will refuse until then. |
    | `loud-terminal` | 71 | A terminal failure **at or after** the create — a remote issue **may already exist**. Print loud non-idempotent guidance naming the saved path: do **not** blindly re-run `/create-work-item`. Under a numeric ID pattern the file was saved unsynced: check the tracker, and if the issue exists reconcile via `/sync-work-items` **or** set `external_id: <KEY>` by hand. Under `{tracker}` the item is a draft whose ID is the `draft-` prefix of its filename: check the tracker, then run `accelerator work promote <draft-id> --adopt <KEY>` if the issue exists, otherwise `accelerator work promote <draft-id> --create`; never set `external_id` by hand on a draft. |
 | `rejected` | 75 | The client refused the request as invalid before sending it, so **no remote issue exists**, but re-sending the same request would be refused again. The file was saved unsynced (a draft under `{tracker}`). Relay the cause printed on stderr and tell the user the request must change (for example, the body) before it is pushed via `/sync-work-items`. |
@@ -790,7 +790,14 @@ Work item created: `<path>`
    item saved as draft: <path> — <reason>; /sync-work-items promotes it`),
    where the reason is "push declined", "tracker unreachable", or the outcome
    table's cause; with that warning it ends `— fix <cause> before syncing`
-   instead.
+   instead. After a `write-once` whose stderr carried a `warning: <path>:
+   rewritten on push:` block, quote the block beneath the confirmation as
+   data, unchanged: it names each line as sent and as stored, and how to
+   keep its meaning. A pull would also clear it, but only by writing the
+   tracker's rewritten form into the local file, so do not suggest one.
+   `accelerator <tracker> show <KEY>` shows the stored description: at
+   `.data.issue.description` for Linear, as ADF at `.fields.description`
+   for Jira, and at `.description` for Shortcut.
 
 ### In enrich-existing mode
 

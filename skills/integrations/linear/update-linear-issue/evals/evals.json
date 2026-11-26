@@ -1,0 +1,17 @@
+{
+  "evals": [
+    {
+      "id": 1,
+      "name": "a_body_file_update_is_previewed_and_sent_escaped_not_verbatim",
+      "prompt": "Read skills/integrations/linear/update-linear-issue/SKILL.md fully. You are running the update-linear-issue skill.\n\nThe user invokes: `/update-linear-issue ENG-12 --body-file notes.md`\n\nnotes.md holds:\n\n## Notes\n\nPublished to crates.io first.\n\n1. Ship it.\n\nWhen asked to confirm, the user replies `y`. Simulate `accelerator linear update` exiting 0 and printing `updated\tENG-12`.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Write no file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order, including the preview and the confirmation question.",
+      "expected_output": "The preview, under the proposed-write heading, shows issueUpdate on ENG-12 with notes.md's contents; the confirmation question is asked; the update is sent with --body-file and without --verbatim; the result is confirmed with a pointer to /show-linear-issue ENG-12.",
+      "files": [],
+      "expectations": [
+        "response.md shows a preview under `Proposed Linear write — review before sending` naming `issueUpdate`, ENG-12 and the contents of notes.md",
+        "response.md asks to confirm before any `accelerator linear update` runs",
+        "commands.md shows exactly one `accelerator linear update ENG-12 --body-file notes.md`, with no `--verbatim`",
+        "response.md confirms the update and suggests `/show-linear-issue ENG-12`"
+      ]
+    }
+  ]
+}

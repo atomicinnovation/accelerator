@@ -252,54 +252,14 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
     let args = create_args_from_cli(cli_args);
     let root = config_adapters::FileConfigStore::discover_root(&start);
 
-    match create::run(
+    create::run(
         &start,
         service,
         &store,
         &args,
         &tracker_registry::ConfiguredTrackers::new(service, root),
-    ) {
-        create::RunOutcome::Created { path, push } => {
-            println!(
-                "{}",
-                path.as_deref()
-                    .map(Path::display)
-                    .map_or_else(String::new, |shown| shown.to_string())
-            );
-            let Some(report) = push else {
-                return ExitCode::SUCCESS;
-            };
-            println!(
-                "{}\t{}",
-                report.outcome.keyword(),
-                report.external_id.as_deref().unwrap_or("")
-            );
-            if let Some(warning) = &report.warning {
-                eprintln!("{warning}");
-            }
-            if let Some(cause) = &report.cause {
-                eprintln!("Error: {cause}");
-            }
-            ExitCode::from(report.outcome.exit_code())
-        }
-        create::RunOutcome::Previewed(line) => {
-            println!("{line}");
-            ExitCode::SUCCESS
-        }
-        create::RunOutcome::PreviewFailed { message, code } => {
-            eprintln!("Error: {message}");
-            ExitCode::from(code)
-        }
-        create::RunOutcome::Pending(message) => {
-            eprintln!("Error: {message}");
-            ExitCode::from(exit_codes::UNRESOLVED)
-        }
-        create::RunOutcome::Failed(message) => {
-            eprintln!("Error: {message}");
-            ExitCode::from(exit_codes::of_failure(&message))
-        }
-        create::RunOutcome::Refused(refusal) => refusal.report(),
-    }
+    )
+    .report(&mut std::io::stdout().lock(), &mut std::io::stderr().lock())
 }
 
 fn run_create_batch(args: &cli::CreateBatchArgs) -> ExitCode {
@@ -364,43 +324,13 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
     };
     let service: &dyn ConfigAccess = &composed.service;
     let root = config_adapters::FileConfigStore::discover_root(&start);
-    match update::run(
+    update::run(
         &start,
         service,
         cli_args,
         &tracker_registry::ConfiguredTrackers::new(service, root),
-    ) {
-        update::RunOutcome::Updated => ExitCode::SUCCESS,
-        update::RunOutcome::Failed(message) => {
-            eprintln!("{message}");
-            ExitCode::FAILURE
-        }
-        update::RunOutcome::PushNotAvailable(message) => {
-            eprintln!("{message}");
-            ExitCode::from(exit_codes::NOT_AVAILABLE)
-        }
-        update::RunOutcome::PushUnrecognised(message) => {
-            eprintln!("{message}");
-            ExitCode::from(exit_codes::UNRECOGNISED)
-        }
-        update::RunOutcome::PushUnconfigured(message) => {
-            eprintln!("{message}");
-            ExitCode::from(exit_codes::UNCONFIGURED)
-        }
-        update::RunOutcome::PushRetryable(message) => {
-            eprintln!("{message}");
-            ExitCode::from(exit_codes::RETRYABLE)
-        }
-        update::RunOutcome::PushTerminal(message) => {
-            eprintln!("{message}");
-            ExitCode::from(exit_codes::TERMINAL)
-        }
-        update::RunOutcome::PushRejected(message) => {
-            eprintln!("{message}");
-            ExitCode::from(exit_codes::REJECTED)
-        }
-        update::RunOutcome::Refused(refusal) => refusal.report(),
-    }
+    )
+    .report(&mut std::io::stdout().lock(), &mut std::io::stderr().lock())
 }
 
 fn run_link_external_id(path: &Path, external_id: &str) -> ExitCode {
@@ -504,29 +434,8 @@ fn run_promote(args: &cli::PromoteArgs) -> ExitCode {
     let service: &dyn ConfigAccess = &composed.service;
     let root = config_adapters::FileConfigStore::discover_root(&start);
     let registry = tracker_registry::ConfiguredTrackers::new(service, root);
-    match promote::run(&start, service, args, &registry) {
-        promote::PromoteOutcome::Reported {
-            lines,
-            remedy,
-            code,
-        } => {
-            for line in lines {
-                println!("{line}");
-            }
-            if let Some(remedy) = remedy {
-                eprintln!("Error: {remedy}");
-            }
-            ExitCode::from(code)
-        }
-        promote::PromoteOutcome::NotADraft(message) => {
-            eprintln!("{message}");
-            ExitCode::from(exit_codes::USAGE)
-        }
-        promote::PromoteOutcome::Failed { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
-    }
+    promote::run(&start, service, args, &registry)
+        .report(&mut std::io::stdout().lock(), &mut std::io::stderr().lock())
 }
 
 fn run_rekey(args: &cli::RekeyArgs) -> ExitCode {

@@ -35,6 +35,7 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::corpus_trust::refuse_untrusted_under;
 use work_adapters::frontmatter_strings::FrontmatterStrings;
 use work_adapters::sync::baseline::Baseline;
+use work_adapters::sync::baseline::Entry;
 use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::digest::split_frontmatter_and_body;
 use work_adapters::sync::fetch;
@@ -256,7 +257,7 @@ fn cell(value: Option<&str>) -> &str {
 #[must_use]
 pub fn render_table(
     items: &[&ScannedItem],
-    labels: Option<&BTreeMap<String, &'static str>>,
+    labels: Option<&BTreeMap<String, String>>,
 ) -> String {
     let show_title = items.iter().any(|item| item.title.is_some());
     let show_kind = items.iter().any(|item| item.kind.is_some());
@@ -301,14 +302,19 @@ pub fn render_table(
             row.push(cell(item.priority.as_deref()).to_owned());
         }
         if let Some(labels) = labels {
-            row.push((*labels.get(&item.id).unwrap_or(&ABSENT)).to_owned());
+            row.push(
+                labels
+                    .get(&item.id)
+                    .map_or(ABSENT, String::as_str)
+                    .to_owned(),
+            );
         }
         lines.push(format!("| {} |", row.join(" | ")));
     }
     lines.join("\n")
 }
 
-fn tree_line(item: &ScannedItem, label: Option<&&'static str>) -> String {
+fn tree_line(item: &ScannedItem, label: Option<&String>) -> String {
     let kind = cell(item.kind.as_deref());
     let status = cell(item.status.as_deref());
     let title = cell(item.title.as_deref());
@@ -327,7 +333,7 @@ fn tree_line(item: &ScannedItem, label: Option<&&'static str>) -> String {
 #[must_use]
 pub fn render_hierarchy(
     items: &[&ScannedItem],
-    labels: Option<&BTreeMap<String, &'static str>>,
+    labels: Option<&BTreeMap<String, String>>,
     scheme: &IdScheme,
 ) -> String {
     let canonical_id: BTreeMap<String, &ScannedItem> = items
@@ -392,7 +398,7 @@ pub fn render_hierarchy(
 fn render_children(
     parent: &str,
     children: &BTreeMap<String, Vec<&ScannedItem>>,
-    labels: Option<&BTreeMap<String, &'static str>>,
+    labels: Option<&BTreeMap<String, String>>,
     lines: &mut Vec<String>,
     depth: usize,
     scheme: &IdScheme,
@@ -516,15 +522,18 @@ fn local_items(items: &[ScannedItem]) -> Vec<LocalItem> {
 /// other item is presence-only (no remote read), matching the skill's floor.
 /// With a baseline, the classifier upgrades tracked items to the five-state
 /// vocabulary; `remote-absent`/`indeterminate` degrade back to presence-only.
+/// An item in `rewrites` carries a push the tracker still holds rewritten,
+/// accepted or not.
 #[must_use]
 pub fn sync_column(
     items: &[ScannedItem],
     states: &BTreeMap<String, SyncState>,
-) -> BTreeMap<String, &'static str> {
+    rewrites: &BTreeMap<String, RewriteStanding>,
+) -> BTreeMap<String, String> {
     items
         .iter()
         .map(|item| {
-            let rendered = if is_draft(item) {
+            let state = if is_draft(item) {
                 label(RenderableState::Draft)
             } else {
                 sync_label(
@@ -532,7 +541,46 @@ pub fn sync_column(
                     item.external_id.as_ref(),
                 )
             };
+            let rendered = match rewrites.get(&item.id) {
+                Some(RewriteStanding::Rewritten) => {
+                    format!("{state} · rewritten on push")
+                }
+                Some(RewriteStanding::Accepted) => {
+                    format!("{state} · rewrite accepted")
+                }
+                None => state.to_owned(),
+            };
             (item.id.clone(), rendered)
+        })
+        .collect()
+}
+
+/// How the rewrite a push left on an item stands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RewriteStanding {
+    Rewritten,
+    Accepted,
+}
+
+/// The items whose baseline entry carries a rewrite mark, by how each
+/// stands.
+#[must_use]
+pub fn rewrites_on_push(
+    baseline: &Baseline,
+) -> BTreeMap<String, RewriteStanding> {
+    baseline
+        .ids()
+        .into_iter()
+        .filter_map(|id| {
+            let Some(Entry::Split(entry)) = baseline.get(&id) else {
+                return None;
+            };
+            let standing = if entry.mark().mark()?.is_accepted() {
+                RewriteStanding::Accepted
+            } else {
+                RewriteStanding::Rewritten
+            };
+            Some((id, standing))
         })
         .collect()
 }
@@ -542,7 +590,7 @@ pub fn sync_column(
 pub fn render(
     items: &[ScannedItem],
     filter: &Filter,
-    labels: Option<&BTreeMap<String, &'static str>>,
+    labels: Option<&BTreeMap<String, String>>,
     hierarchy: bool,
     scheme: &IdScheme,
 ) -> String {
@@ -633,7 +681,7 @@ fn classify_labels(
     root: &Path,
     registry: &dyn crate::tracker_registry::TrackerRegistry,
     items: &[ScannedItem],
-) -> Option<BTreeMap<String, &'static str>> {
+) -> Option<BTreeMap<String, String>> {
     let integration =
         crate::config::effective_nonempty(config, "work.integration")
             .unwrap_or_default();
@@ -651,27 +699,31 @@ fn classify_labels(
     if baseline_path.is_none() && !items.iter().any(is_draft) {
         return None;
     }
-    let states = baseline_path
-        .and_then(|path| resolve_states(registry, &integration, &path, items))
-        .unwrap_or_default();
-    Some(sync_column(items, &states))
+    let Some(path) = baseline_path else {
+        return Some(sync_column(items, &BTreeMap::new(), &BTreeMap::new()));
+    };
+    let content = std::fs::read_to_string(&path).ok();
+    let (baseline, _) = Baseline::read(content.as_deref());
+    let states =
+        resolve_states(registry, &integration, &path, &baseline, items)
+            .unwrap_or_default();
+    Some(sync_column(items, &states, &rewrites_on_push(&baseline)))
 }
 
 fn resolve_states(
     registry: &dyn crate::tracker_registry::TrackerRegistry,
     integration: &str,
     baseline_path: &Path,
+    baseline: &Baseline,
     items: &[ScannedItem],
 ) -> Option<BTreeMap<String, SyncState>> {
     use vcs_adapters::library::InProcessProbe;
     use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
     let tracker = registry.resolve(integration).ok()?;
-    let content = std::fs::read_to_string(baseline_path).ok();
-    let (baseline, _) = Baseline::read(content.as_deref());
     let root = baseline_path.parent()?;
     let status = VcsWorkingCopyStatus::probed_from(root, &InProcessProbe);
     let locals = local_items(items);
-    Some(classify(&locals, tracker.as_ref(), &baseline, &status))
+    Some(classify(&locals, tracker.as_ref(), baseline, &status))
 }
 
 pub enum RunOutcome {
@@ -785,7 +837,7 @@ mod tests {
         states.insert("0002".to_owned(), SyncState::LocallyModified);
         states.insert("0003".to_owned(), SyncState::RemotelyModified);
         states.insert("0004".to_owned(), SyncState::Conflict);
-        let labels = sync_column(&items, &states);
+        let labels = sync_column(&items, &states, &BTreeMap::new());
         let selected: Vec<&ScannedItem> = items.iter().collect();
 
         let table = render_table(&selected, Some(&labels));
@@ -965,11 +1017,45 @@ mod tests {
         let states =
             BTreeMap::from([("draft-k7mq3x".to_owned(), SyncState::Synced)]);
 
-        let column = sync_column(&items, &states);
+        let column = sync_column(&items, &states, &BTreeMap::new());
 
         assert_eq!(column["0001"], "🟢 synced");
         assert_eq!(column["0002"], "⚪ unsynced");
         assert_eq!(column["draft-k7mq3x"], "🟠 draft");
+    }
+
+    #[test]
+    fn list_shows_a_marked_item_as_rewritten_on_push() {
+        let unmarked = "\"digest_recipe\":1,\"local_body_hash\":\"b\",\
+            \"local_fields_hash\":\"f\",\"local_frontmatter_hash\":\"m\",\
+            \"local_hash\":\"l\",\"local_synced_at\":0,\
+            \"remote_body_hash\":\"rb\",\"remote_fields_hash\":\"rf\",\
+            \"remote_hash\":\"r\",\"remote_updated_at\":\"\"";
+        let (baseline, _) = Baseline::read(Some(&format!(
+            "{{\"timestamp\":0,\"items\":{{\
+             \"0001\":{{{unmarked},\"rewritten_on_push\":{{\"lines\":[{{\
+             \"section\":\"Notes\",\"sent\":\"a\",\"stored\":\"b\"}}],\
+             \"more\":0}}}},\"0002\":{{{unmarked}}},\
+             \"0003\":{{{unmarked},\"rewritten_on_push\":{{\"accepted\":true,\
+             \"lines\":[{{\"section\":\"Notes\",\"sent\":\"a\",\"stored\":\"b\"}}],\
+             \"more\":0}}}}}}}}"
+        )));
+        let items = vec![
+            with_external(item("0001"), "ENG-1"),
+            with_external(item("0002"), "ENG-2"),
+            with_external(item("0003"), "ENG-3"),
+        ];
+        let states = BTreeMap::from([
+            ("0001".to_owned(), SyncState::Synced),
+            ("0002".to_owned(), SyncState::Synced),
+            ("0003".to_owned(), SyncState::Synced),
+        ]);
+
+        let column = sync_column(&items, &states, &rewrites_on_push(&baseline));
+
+        assert_eq!(column["0001"], "🟢 synced · rewritten on push");
+        assert_eq!(column["0002"], "🟢 synced");
+        assert_eq!(column["0003"], "🟢 synced · rewrite accepted");
     }
 
     struct NoTracker;
@@ -1134,7 +1220,7 @@ mod tests {
         ]);
 
         let mut baseline = Baseline::read(None).0;
-        baseline.set(
+        baseline.seed(
             "0001",
             Entry::persisted_legacy(
                 stamp.clone(),
@@ -1150,7 +1236,7 @@ mod tests {
                     Some("Item\nremote body\n"),
                 )
                 .unwrap();
-        baseline.set(
+        baseline.seed(
             "0002",
             Entry::recorded(
                 work_adapters::sync::baseline::SyncStamps {
@@ -1200,7 +1286,7 @@ mod tests {
             },
         )]);
         let mut baseline = Baseline::read(None).0;
-        baseline.set(
+        baseline.seed(
             "0001",
             Entry::persisted_legacy(
                 stamp,
@@ -1372,7 +1458,7 @@ mod tests {
             ),
             ("0002", "a-different-hash".to_owned()),
         ] {
-            baseline.set(
+            baseline.seed(
                 id,
                 Entry::persisted_legacy(
                     stamp.clone(),
@@ -1553,7 +1639,7 @@ mod tests {
         let items = vec![parent];
         let selected: Vec<&ScannedItem> = items.iter().collect();
         let mut labels = BTreeMap::new();
-        labels.insert("0042".to_owned(), "🟢 synced");
+        labels.insert("0042".to_owned(), "🟢 synced".to_owned());
 
         let tree = render_hierarchy(&selected, Some(&labels), &scheme());
 

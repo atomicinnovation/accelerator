@@ -50,6 +50,8 @@ tracing = { workspace = true }
 time = { workspace = true }
 
 [dev-dependencies]
+adf = { path = "../adf" }
+work-adapters = { path = "../work-adapters", features = ["test-support"] }
 tempfile = { workspace = true }
 store = { path = "../store", features = ["test-support"] }
 graphql-test-support = { path = "../graphql-test-support" }

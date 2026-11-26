@@ -219,6 +219,7 @@ dependencies = [
 name = "accelerator-work"
 version = "1.24.0-pre.113"
 dependencies = [
+ "adf",
  "clap",
  "config",
  "config-adapters",
@@ -3253,6 +3254,7 @@ dependencies = [
  "config-adapters",
  "graphql-test-support",
  "http-test-support",
+ "markdown",
  "remote-projection",
  "reqwest",
  "rustls",
@@ -3339,6 +3341,8 @@ checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 name = "markdown"
 version = "1.24.0-pre.113"
 dependencies = [
+ "document",
+ "icu_properties",
  "pulldown-cmark",
 ]
 
@@ -5324,6 +5328,8 @@ dependencies = [
 name = "tracker-test-support"
 version = "1.24.0-pre.113"
 dependencies = [
+ "document",
+ "markdown",
  "tracker",
 ]
 
@@ -5967,6 +5973,7 @@ dependencies = [
 name = "work-adapters"
 version = "1.24.0-pre.113"
 dependencies = [
+ "adf",
  "config",
  "corpus",
  "corpus-adapters",
@@ -5977,6 +5984,7 @@ dependencies = [
  "jira-client",
  "kernel",
  "linear-client",
+ "markdown",
  "rand 0.9.5",
  "remote-projection",
  "reqwest",
@@ -5995,6 +6003,7 @@ dependencies = [
  "vcs-adapters",
  "vcs-test-support",
  "work",
+ "work-adapters",
 ]
 
 [[package]]

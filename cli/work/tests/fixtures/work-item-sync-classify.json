@@ -607,6 +607,7 @@
       "equivalence": "equivalent",
       "fields": "same",
       "expect": "synced/record",
+      "body_agreement": "agreed",
       "expect_comparison_called": true
     },
     {
@@ -654,6 +655,7 @@
       "equivalence": "equivalent",
       "fields": "same",
       "expect": "synced/record",
+      "body_agreement": "agreed",
       "expect_comparison_called": true
     },
     {
@@ -678,6 +680,7 @@
       "equivalence": "equivalent",
       "fields": "same",
       "expect": "synced/record",
+      "body_agreement": "agreed",
       "expect_comparison_called": true
     },
     {
@@ -818,6 +821,7 @@
       },
       "equivalence": "equivalent",
       "expect": "synced/record",
+      "body_agreement": "agreed",
       "expect_comparison_called": true
     },
     {
@@ -842,6 +846,7 @@
       "equivalence": "equivalent",
       "fields": "same",
       "expect": "locally-modified/record",
+      "body_agreement": "agreed",
       "expect_comparison_called": true
     },
     {
@@ -866,6 +871,7 @@
       "equivalence": "equivalent",
       "fields": "different",
       "expect": "locally-modified/retitle",
+      "body_agreement": "agreed",
       "expect_comparison_called": true
     },
     {
@@ -985,6 +991,7 @@
       "equivalence": "equivalent",
       "fields": "different",
       "expect": "synced/record",
+      "body_agreement": "agreed",
       "expect_comparison_called": true
     },
     {

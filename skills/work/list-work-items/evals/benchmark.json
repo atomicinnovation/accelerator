@@ -2,14 +2,15 @@
   "metadata": {
     "skill_name": "list-work-items",
     "skill_path": "skills/work/list-work-items",
-    "executor_model": "claude-sonnet-5-5",
-    "analyzer_model": "claude-sonnet-5-5",
-    "timestamp": "2026-11-17T00:00:00Z",
+    "executor_model": "claude-opus-5-5",
+    "analyzer_model": "claude-opus-5-5",
+    "timestamp": "2026-11-25T00:00:00Z",
     "evals_run": [
-      "1"
+      "1",
+      "2"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:6ce0254aee74195c85a116b39f825efcbb78fe973fbd6e17c679bce839c57695"
+    "skill_digest": "sha256:f3a10c6f2a83042227477e1e91b879840e77ab96409a71bb06217f88ab00cf32"
   },
   "runs": [
     {
@@ -27,26 +28,67 @@
         {
           "text": "response.md shows the table with both rows, 0001 and 2, as the CLI printed it",
           "passed": true,
-          "evidence": "response.md has a table with rows '| 0001 | Dark mode | story | ready | high |' and '| 2 | Export to CSV | task | draft | medium |'."
+          "evidence": "| 0001 | Dark mode | story | ready | high |\n| 2 | Export to CSV | task | draft | medium |"
         },
         {
           "text": "response.md relays the warning's remedy, naming `/rekey-work-items`, after the listing",
           "passed": true,
-          "evidence": "After the table: 'To fix it, run `/rekey-work-items`.'"
+          "evidence": "**Warning:** ... Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them (placed after the table)"
         },
         {
           "text": "response.md says that creating or resolving work items is refused until the remedy is followed",
           "passed": true,
-          "evidence": "'Until you do, creating or resolving work items is refused.'"
+          "evidence": "Until you follow that remedy, creating or resolving work items is refused."
         },
         {
           "text": "commands.md shows exactly one `accelerator work list` and no `accelerator work rekey`",
           "passed": true,
-          "evidence": "commands.md item 12 is the only `accelerator work list` and no rekey command appears."
+          "evidence": "12. `accelerator work list` — exit 0 (the only `work list`; no `accelerator work rekey` run)"
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:6ce0254aee74195c85a116b39f825efcbb78fe973fbd6e17c679bce839c57695"
+      "skill_digest": "sha256:721159720fe833b1822606786f59b138863b7b7dbe2243f3dda49ccff523cf5c"
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "rewritten_and_accepted_rewrites_are_relayed_in_the_sync_column",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "response.md shows all three rows with their Sync labels as the CLI printed them, including ` · rewritten on push` and ` · rewrite accepted`",
+          "passed": true,
+          "evidence": "Table has PP-12 '🟢 synced · rewritten on push', PP-14 '🟢 synced · rewrite accepted', PP-15 '🔵 locally modified'."
+        },
+        {
+          "text": "response.md points at `/sync-work-items` for PP-12's changed lines and how to fix its body",
+          "passed": true,
+          "evidence": "\"Run `/sync-work-items` to see which lines changed and how to fix the body.\""
+        },
+        {
+          "text": "response.md does not tell the user to fix or push PP-14",
+          "passed": true,
+          "evidence": "\"PP-14 shows \\\"rewrite accepted\\\": ... so nothing needs fixing.\""
+        },
+        {
+          "text": "response.md does not suggest a pull for either item",
+          "passed": true,
+          "evidence": "No mention of pull anywhere in response.md; only /sync-work-items for PP-12 to see changed lines."
+        },
+        {
+          "text": "commands.md shows exactly one `accelerator work list`",
+          "passed": true,
+          "evidence": "Single entry: \"1. `accelerator work list` — exit 0\"."
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:f3a10c6f2a83042227477e1e91b879840e77ab96409a71bb06217f88ab00cf32"
     }
   ],
   "run_summary": {
@@ -60,6 +102,8 @@
     }
   },
   "notes": [
-    "Run with_skill on 2026-11-17: the executor was barred from the evals and simulated every accelerator call; a separate grader judged each expectation from its outputs alone."
+    "Run with_skill on 2026-11-17: the executor was barred from the evals and simulated every accelerator call; a separate grader judged each expectation from its outputs alone.",
+    "Eval 1 was re-run with_skill on 2026-11-24, by claude-opus-5-5, after the Sync column came to carry ` · rewritten on push`: the executor was barred from the evals and benchmark files and simulated every accelerator call; a separate grader judged each expectation from its outputs alone. It passes in full.",
+    "Eval 2 was added and run with_skill on 2026-11-25, by claude-opus-5-5, after the skill came to relay a rewrite Linear cannot avoid and the `--accept-rewrite` step (PR #264 review): executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. It passes in full. Eval 1 was not re-run, as none touches the rewrite relay."
   ]
 }

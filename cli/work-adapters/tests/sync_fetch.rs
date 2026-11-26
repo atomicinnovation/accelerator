@@ -134,7 +134,7 @@ fn unmoved_tracker() -> RecordingTracker {
 
 fn baseline_with_local_hash(local_hash: &str) -> Baseline {
     let mut baseline = Baseline::read(None).0;
-    baseline.set(
+    baseline.seed(
         "0001",
         work_adapters::sync::baseline::Entry::persisted_legacy(
             RemoteTimestamp::Reported(UNMOVED_STAMP.to_owned()),
@@ -179,7 +179,7 @@ fn showed(tracker: &RecordingTracker) -> bool {
 fn split_baseline(local_content: &str) -> Baseline {
     let digester = BaselineDigester::new(&PlainDialect, &CommonMarkBody);
     let mut baseline = Baseline::read(None).0;
-    baseline.set(
+    baseline.seed(
         "0001",
         work_adapters::sync::baseline::Entry::recorded(
             work_adapters::sync::baseline::SyncStamps {
@@ -289,7 +289,7 @@ fn an_empty_hash_forces_the_show_despite_an_unchanged_stamp() {
         .expect("digests");
     recorded.split.local = None;
     let mut baseline = Baseline::read(None).0;
-    baseline.set(
+    baseline.seed(
         "0001",
         work_adapters::sync::baseline::Entry::recorded(
             work_adapters::sync::baseline::SyncStamps {
@@ -345,7 +345,7 @@ fn a_stamp_that_does_not_prove_unchanged_costs_exactly_one_show() {
     };
     let tracker = RecordingTracker::holding(vec![(id, issue)]);
     let mut baseline = Baseline::read(None).0;
-    baseline.set(
+    baseline.seed(
         "0001",
         work_adapters::sync::baseline::Entry::persisted_legacy(
             RemoteTimestamp::Reported("2026-06-01".to_owned()),

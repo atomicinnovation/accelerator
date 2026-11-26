@@ -1,0 +1,15 @@
+{
+  "outcome": "found",
+  "data": {
+    "issue": {
+      "id": "915850da-58e2-48ec-91ce-ee48723a936c",
+      "identifier": "TES-41",
+      "title": "PP-906 split token probe",
+      "description": "# Split token probe\n\n#### M001 markup\n\nx crates.**io** y\n\n#### M002 markup\n\nx **crates**.io y\n\n#### M003 markup\n\nx crates\\*\\*.io\\*\\* y\n\n#### M004 markup\n\nx c**rates**.io y\n\n#### M005 markup\n\nx crates.i**o** y\n\n#### M006 markup\n\nx crates.*io* y\n\n#### M007 markup\n\nx *crates*.io y\n\n#### M008 markup\n\nx crates.*io* y\n\n#### M009 markup\n\nx crates.~~io~~ y\n\n#### M010 markup\n\nx a.b.**io** y\n\n#### M011 markup\n\nx crates.**io**/path y\n\n#### M012 markup\n\nx crates.**io**:80 y\n\n#### M013 markup\n\nx foo.<b>rs</b> y\n\n#### M014 markup\n\nx <b>foo</b>.rs y\n\n#### M015 markup\n\nx foo.<span>rs</span> y\n\n#### M016 markup\n\nx crates.<!-- c -->io y\n\n#### M017 markup\n\nx foo.`rs` y\n\n#### M018 markup\n\nx `foo`.rs y\n\n#### M019 markup\n\nx jql.rs`:167` y\n\n#### M020 markup\n\nx [foo](<x>).rs y\n\n#### M021 markup\n\nx foo.[rs](<x>) y\n\n#### M022 markup\n\nx [foo](<https://x.io>).rs y\n\n#### M023 markup\n\nx [crates.io](<http://crates.io>)**z** y\n\n#### M024 markup\n\nx **z**[crates.io](<http://crates.io>) y\n\n#### M025 markup\n\nx foo.<br>rs y\n\n#### M026 remedy\n\nx crates.**io** y\n\n#### M027 remedy\n\nx **crates**.io y\n\n#### M028 remedy\n\nx crates\\*\\*.io\\*\\* y\n\n#### M029 remedy\n\nx crates.*io* y\n\n#### M030 remedy\n\nx crates.*io* y\n\n#### M031 remedy\n\nx foo.<b>rs</b> y\n\n#### M032 remedy\n\nx <b>foo</b>.rs y\n\n#### M033 remedy\n\nx foo.`rs` y\n\n#### M034 remedy\n\nx `foo`.rs y\n\n#### M035 remedy\n\nx [foo](<x>).rs y\n\n#### M036 remedy\n\nx foo.[rs](<x>) y\n\n#### N001 nfd\n\nx [café.io](<http://xn--cafe-yvc.io>) y\n\n#### N002 nfd\n\nx [naïve.io](<http://xn--naive-ggd.io>) y\n\n#### N003 nfd\n\nx [ñ.io](<http://xn--n-1bb.io>) y\n\n#### N004 nfd\n\nx [é.io](<http://xn--e-xbb.io>) y\n\n#### N005 nfd\n\nx [a.café.io](<http://a.xn--cafe-yvc.io>) y\n\n#### N006 nfd\n\nx [café.com/path](<http://xn--cafe-yvc.com/path>) y\n\n#### N007 nfd\n\nx [café.io:80](<http://xn--cafe-yvc.io:80>) y\n\n#### N008 nfd\n\nx foo.café y\n\n#### N009 nfd\n\nx [한국.kr](<http://xn--ypd9a1pzb8qpa.kr>) y\n\n#### N010 nfc\n\nx [café.io](<http://xn--caf-dma.io>) y\n\n#### N011 nfc\n\nx [한국.kr](<http://xn--3e0b707e.kr>) y\n\n#### N012 nfc\n\nx foo.café y\n\n#### N013 marks\n\nx [हिन्दी.com](<http://xn--j2bd4cyah0f.com>) y\n\n#### N014 marks\n\nx [भारत.in](<http://xn--h2brj9c.in>) y\n\n#### N015 marks\n\nx [́e.io](<http://xn--e-wbb.io>) y\n\n#### N016 marks\n\nx foo.́io y\n\n#### N017 marks\n\nx [café́.io](<http://xn--cafe-yvca.io>) y\n\n#### N018 marks\n\nx [e⃝.io](<http://xn--e-qsn.io>) y\n\n#### N019 marks\n\nx [a‍.io](<http://xn--a-ugn.io>) y\n\n#### N020 remedy\n\nx café.io y",
+      "updatedAt": "2026-11-24T18:04:31.590Z",
+      "state": {
+        "name": "Backlog"
+      }
+    }
+  }
+}

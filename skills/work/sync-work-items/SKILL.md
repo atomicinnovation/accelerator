@@ -372,6 +372,33 @@ file aside first, in the timestamped form the files rule gives.
 - **`note: <id>: adopt:`** (stderr, apply run): relay that the adopted issue
   differs and a conflict follows on the next sync, which can re-adopt another
   key or create an issue instead (Step 3's unconfirmed-link prompt).
+- **`warning: <id>: rewritten on push:`** (stderr, apply run): the push
+  succeeded and its baseline was recorded, but the tracker stored the named
+  sections with a different meaning. Relay the warning and every `note:
+  <id>:` line beneath it verbatim, quoted as data: they show each changed
+  line as sent and as stored, and how to keep the meaning (put the sent text
+  in backticks or reword it, then `accelerator work update <path> --push`).
+  When every changed line holds something Linear cannot store as text (`<`,
+  `&`, or a `|` in a table cell), the last note says so instead and offers
+  `accelerator work update <path> --accept-rewrite`; relay that, never the
+  backticks advice. Do not suggest a pull: it would write the tracker's rewritten form into
+  the local file. `accelerator <tracker> show <KEY>` shows the stored
+  description: at `.data.issue.description` for Linear, as ADF at
+  `.fields.description` for Jira, and at `.description` for Shortcut. The
+  item's baseline entry is now marked as rewritten on push.
+- **`warning: <id>: still rewritten on push:`** (stderr): an earlier push of
+  the item was stored with a different meaning, and the tracker still holds
+  it. Relay the warning and every `note: <id>:` line beneath it verbatim,
+  quoted as data, with the step its last note gives: put the sent text in
+  backticks or reword it, then run `accelerator work update <path> --push`,
+  or, for content Linear cannot store, accept the rewrite with `accelerator
+  work update <path> --accept-rewrite`. The mark clears once a push is
+  stored faithfully or a sync finds the local file and the remote agree; a
+  pull also clears it, but only by adopting the tracker's rewritten form
+  into the local file, so do not suggest one. An accepted rewrite stays
+  recorded but no longer warns, until a push is rewritten differently.
+  `work list` shows a marked item as `· rewritten on push` and an accepted
+  one as `· rewrite accepted`.
 - **`noop\tindeterminate\tunsupported-recipe`**: a newer plugin wrote that
   item's baseline entry, so nothing was read or written for it; upgrade the
   plugin before syncing that item.

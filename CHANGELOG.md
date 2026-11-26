@@ -367,9 +367,42 @@
   plans the refused create; a `--pull-only` preview plans no creates and
   still exits 70. A create with a `--resolve` order previews as before.
   Scripts that parse `work sync` exit codes need updating.
+- **`linear create` and `linear update` escape the description for Linear.**
+  A backslash goes before each `.` or `)` that Linear's parser would read as
+  a link (`crates.io`, `server.pid`) or as an ordered-list marker (a wrapped
+  line holding only `0160.`), and Linear stores the text without it. Pass
+  `--verbatim` to send the description exactly as given.
 
 ### Added
 
+- **`linear update --body-file <PATH>` sends a Markdown file as the
+  description**, as `linear create`, `jira update` and `shortcut update`
+  already accept. It cannot be combined with `--description`. A file that
+  cannot be read is refused before any request with `E_UPDATE_NO_FILE`,
+  exiting 115, and both `E_UPDATE_NO_FILE` and `linear create`'s
+  `E_CREATE_NO_FILE` now name the path. `/update-linear-issue` accepts the
+  flag.
+- **A push the tracker stores with a different meaning is reported.** After
+  every body push to Jira, Linear or Shortcut, from `work sync`, `work
+  promote`, `work create --push`, `work create-batch --push` and `work update
+  --push`, the description read back is compared with the one sent. When the
+  tracker turned text into a link or a wrapped number into a list, stderr
+  carries `warning: <id>: rewritten on push: <sections>`, a note per changed
+  line as sent and as stored (up to five, each line break shown as `⏎`),
+  and how to keep the meaning. The push still succeeds, its baseline is
+  recorded as before, and the exit code is unchanged. `/sync-work-items`, `/create-work-item` and
+  `/extract-work-items` relay the block. The item's entry in
+  `last-sync.json` keeps a `rewritten_on_push` mark until a push is stored
+  faithfully or a sync finds the local file and the remote agree: every
+  later sync and `work update --push` print `warning: <id>: still rewritten
+  on push: <sections>` with the same lines, and `work list` shows the item
+  as `· rewritten on push`. A pull clears it only by writing the tracker's
+  rewritten form into the local file. When every changed line holds
+  something Linear cannot store as text (`<`, `&`, or a `|` in a table
+  cell), the notice says so instead of suggesting backticks, and
+  `accelerator work update <path> --accept-rewrite` accepts the rewrite:
+  the mark stays, `work list` shows `· rewrite accepted`, and nothing warns
+  until a push is rewritten differently.
 - **`/create-work-item --id <ID>` names the new item's ID.** Given as the
   argument's leading or trailing `--id`, or at the start of the reply to the
   welcome text, the ID is settled with `work id check` before drafting. An
@@ -1087,6 +1120,14 @@
 
 ### Fixed
 
+- **Pushing to Linear no longer turns dotted tokens into links or wrapped
+  numbers into lists.** `work create --push`, `work update --push`,
+  `work sync` and draft promotion escape each description as
+  `linear create` and `linear update` do, so a pushed `crates.io` stays plain
+  text and a continuation line holding only `0160.` stays in its paragraph.
+  Local files and sync baselines are unchanged; run
+  `accelerator work update <path> --push` to repair an item Linear already
+  rewrote.
 - **New work items always carry `tags`.** `/create-work-item`,
   `/extract-work-items` and `/sync-work-items` (through `work create`,
   `work create-batch` and `work sync`) wrote no `tags` key for an item
@@ -1294,6 +1335,14 @@
 
 ### Migrations
 
+- **Everyone who syncs a repository should upgrade together.** Any baseline
+  write by an earlier release — `work sync`, `work update --push`,
+  `work create --push`, promotion or rename — drops every `rewritten_on_push`
+  mark and every unknown key in the committed `last-sync.json`, though no
+  item's sync state. An earlier release also still pushes descriptions to
+  Linear unescaped, so it corrupts them again without any warning and records
+  the corrupted read-back as an unmarked baseline. Once everyone has upgraded,
+  repair such an item with `accelerator work update <path> --push`.
 - **After upgrading, check the work items with `accelerator work list`.**
   It lists them and warns when the corpus would be refused, or refuses
   with `E_WORK_ID_PATTERN_INVALID` when `work.id_pattern` itself must be

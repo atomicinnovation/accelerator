@@ -213,6 +213,8 @@
                     allowed_only: Some([
                         "^(std|core|alloc)(::|$)",
                         "^tracker(::|$)",
+                        "^markdown::linear(::|$)",
+                        "^document::markdown(::|$)",
                         "^crate(::|$)",
                     ]),
                     denied: None,

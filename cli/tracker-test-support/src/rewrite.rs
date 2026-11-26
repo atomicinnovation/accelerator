@@ -1,6 +1,13 @@
 //! The cosmetic rewrites Linear applies to a Markdown description it stores,
 //! each as a pure function a recording tracker can apply.
 
+use std::fmt::Write as _;
+
+use markdown::linear::dotted_tokens;
+
+use crate::linear_autolinker::linear_leaves_bare;
+use crate::linear_autolinker::linked_span;
+
 /// One rewrite Linear was observed to make to a description it stores.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Rewrite {
@@ -14,8 +21,9 @@ pub enum Rewrite {
     AngleBracketDestinations,
     /// A bare `https://…` becomes `[u](<u>)`.
     AutolinkUrls,
-    /// A bare `name.tld` becomes `[name.tld](<http://name.tld>)`. Unlike
-    /// the others, this changes meaning: the text becomes a link.
+    /// A bare `name.tld` becomes `[name.tld](<http://name.tld>)` when `tld`
+    /// is in the IANA root zone, unless Linear leaves it bare. Unlike the
+    /// others, this changes meaning: the text becomes a link.
     AutolinkDottedTokens,
     /// `- a` → `* a`; task items keep `-`.
     StarBullets,
@@ -179,16 +187,30 @@ fn autolink_urls(line: &str) -> String {
 }
 
 fn autolink_dotted_tokens(line: &str) -> String {
-    link_words(line, |word| {
-        let (name, tld) = word.rsplit_once('.')?;
-        let named = !name.is_empty()
-            && name
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
-        let top_level =
-            tld.len() >= 2 && tld.chars().all(|c| c.is_ascii_lowercase());
-        (named && top_level).then(|| format!("[{word}](<http://{word}>)"))
-    })
+    let mut out = String::new();
+    let mut copied = 0;
+    for token in dotted_tokens(line) {
+        if token.start < copied || linear_leaves_bare(line, token.clone()) {
+            continue;
+        }
+        let span = linked_span(line, token);
+        let text = &line[span.clone()];
+        let lead = &line[copied..span.start];
+        let _ = write!(
+            out,
+            "{}[{text}](<http://{text}>)",
+            escaping_image_marker(lead)
+        );
+        copied = span.end;
+    }
+    out.push_str(&line[copied..]);
+    out
+}
+
+/// A link straight after `!` would read as an image, so Linear escapes it.
+fn escaping_image_marker(lead: &str) -> String {
+    lead.strip_suffix('!')
+        .map_or_else(|| lead.to_owned(), |lead| format!("{lead}\\!"))
 }
 
 fn star_bullet(line: &str) -> String {

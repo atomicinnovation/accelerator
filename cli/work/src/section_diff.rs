@@ -107,6 +107,49 @@ pub fn differing_sections(
     out
 }
 
+/// The body sections whose meaning differs between `local` and `remote`,
+/// each as its own side wrote it, untrimmed, so a section can be read again.
+///
+/// A section with no counterpart under its heading pairs with the remote
+/// section left unmatched at the same position, so a heading the remote
+/// rewrote is one change rather than a deletion and an insertion.
+#[must_use]
+pub fn differing_sections_as_written(
+    local: &ComparableItem<'_>,
+    remote: &ComparableItem<'_>,
+) -> Vec<SectionDiff> {
+    let local_sections = KeyedSection::all(local);
+    let remote_sections = KeyedSection::all(remote);
+    let mut unmatched_remote = remote_sections.iter().filter(|section| {
+        !local_sections
+            .iter()
+            .any(|candidate| candidate.pairs_with(section))
+    });
+    let mut out = Vec::new();
+    for section in &local_sections {
+        let counterpart = remote_sections
+            .iter()
+            .find(|candidate| candidate.pairs_with(section))
+            .or_else(|| unmatched_remote.next());
+        if counterpart.is_some_and(|other| other.meaning == section.meaning) {
+            continue;
+        }
+        out.push(SectionDiff {
+            name: section.name(),
+            local: section.written_text(),
+            remote: counterpart
+                .map(KeyedSection::written_text)
+                .unwrap_or_default(),
+        });
+    }
+    out.extend(unmatched_remote.map(|section| SectionDiff {
+        name: section.name(),
+        local: String::new(),
+        remote: section.written_text(),
+    }));
+    out
+}
+
 /// A section identified by its heading's meaning and its occurrence among
 /// sections sharing that heading.
 struct KeyedSection<'a> {
@@ -164,6 +207,21 @@ impl<'a> KeyedSection<'a> {
         )
     }
 
+    /// The section's source between its first and last non-blank lines,
+    /// every line otherwise as written.
+    fn written_text(&self) -> String {
+        let source = self
+            .displayed
+            .source
+            .trim_start_matches(['\n', '\r'])
+            .trim_end_matches(['\n', '\r']);
+        if source.is_empty() {
+            String::new()
+        } else {
+            format!("{source}\n")
+        }
+    }
+
     fn displayed_text(&self) -> String {
         trim_lines(self.displayed.source)
             .trim_start_matches('\n')
@@ -179,6 +237,7 @@ mod tests {
     use corpus::body::SourcedBlock;
 
     use super::differing_sections;
+    use super::differing_sections_as_written;
     use super::frontmatter_and_body;
     use super::ComparableItem;
     use super::SectionDiff;
@@ -406,5 +465,92 @@ mod tests {
         let diffs = differing_sections(&local, &item("", &remote));
         assert_eq!(names(&diffs), vec!["Notes"]);
         assert_eq!(diffs[0].local, "## Notes\nlocal as written\n");
+    }
+
+    #[test]
+    fn a_section_as_written_keeps_its_indentation_and_trailing_spaces() {
+        let local = body(vec![paragraph("- owned by\n  0160.")]);
+        let remote = body(vec![paragraph("* owned by\n  160. ")]);
+        let diffs = differing_sections_as_written(
+            &item("", &local),
+            &item("", &remote),
+        );
+        assert_eq!(diffs[0].local, "- owned by\n  0160.\n");
+        assert_eq!(diffs[0].remote, "* owned by\n  160. \n");
+    }
+
+    #[test]
+    fn a_section_as_written_drops_its_surrounding_blank_lines() {
+        let local = body(vec![(
+            Block::Paragraph(vec![text("local")]),
+            "\n\nlocal\n\n\n".to_owned(),
+        )]);
+        let remote = body(vec![paragraph("remote")]);
+        let diffs = differing_sections_as_written(
+            &item("", &local),
+            &item("", &remote),
+        );
+        assert_eq!(diffs[0].local, "local\n");
+    }
+
+    #[test]
+    fn a_section_whose_heading_was_rewritten_pairs_with_the_remote_section_at_its_position(
+    ) {
+        let local = body(vec![
+            titled("Summary"),
+            paragraph("same"),
+            titled("Changes to config.rs"),
+            paragraph("text"),
+        ]);
+        let remote = body(vec![
+            titled("Summary"),
+            paragraph("same"),
+            heading(
+                vec![
+                    text("Changes to "),
+                    Inline::Text("[config.rs]".to_owned()),
+                ],
+                "## Changes to [config.rs](<http://config.rs>)\n",
+            ),
+            paragraph("text"),
+        ]);
+        let diffs = differing_sections_as_written(
+            &item("", &local),
+            &item("", &remote),
+        );
+        assert_eq!(names(&diffs), vec!["Changes to config.rs"]);
+        assert_eq!(diffs[0].local, "## Changes to config.rs\ntext\n");
+        assert_eq!(
+            diffs[0].remote,
+            "## Changes to [config.rs](<http://config.rs>)\ntext\n"
+        );
+    }
+
+    #[test]
+    fn a_section_only_the_remote_holds_is_listed_as_written() {
+        let local = body(vec![titled("Summary"), paragraph("same")]);
+        let remote = body(vec![
+            titled("Summary"),
+            paragraph("same"),
+            titled("Added"),
+            paragraph("  theirs"),
+        ]);
+        let diffs = differing_sections_as_written(
+            &item("", &local),
+            &item("", &remote),
+        );
+        assert_eq!(names(&diffs), vec!["Added"]);
+        assert_eq!(diffs[0].local, "");
+        assert_eq!(diffs[0].remote, "## Added\n  theirs\n");
+    }
+
+    #[test]
+    fn frontmatter_is_not_a_section_as_written() {
+        let same = body(vec![paragraph("text")]);
+        assert!(differing_sections_as_written(
+            &item("status: draft\n", &same),
+            &item("status: ready\n", &same)
+        )
+        .is_empty());
     }
 }

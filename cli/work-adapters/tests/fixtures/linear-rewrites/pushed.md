@@ -111,3 +111,74 @@ Run `cargo nextest
 
 The tier infrastructure and the migration of existing evals — both owned by
 0160.
+
+## X10 File names whose extension is a TLD
+
+Remove server.pid and foo.md first.
+
+## X11 File name with a line number
+
+See jql.rs:167 for the filter.
+
+## X12 File name whose extension is not a TLD
+
+Edit foo.toml before the release.
+
+## X13 Version and abbreviation
+
+Upgrade to v1.2.3 first, e.g. tomorrow.
+
+## X14 Multi-part tokens
+
+Both a.b.c and a.b.io resolve.
+
+## X15 Mixed case
+
+Published to Crates.IO last week.
+
+## X16 Sentence-final dotted token
+
+Published to crates.io.
+
+## X17 Bracketed dotted token
+
+Published (crates.io) last week.
+
+## X18 Path ending in a dotted token
+
+Edit src/client.rs today.
+
+## X19 Email address
+
+Mail a@b.io today.
+
+## X20 Wrapped parenthesised number holding only the number
+
+- The tier infrastructure and the migration of existing evals — both owned by
+  0160)
+- Running evals on every CI build.
+
+## X21 Dotted token between inline HTML tags
+
+Published to <span>crates.io</span> last week.
+
+## X22 Dotted token in bold and in a heading
+
+Published to **crates.io** last week.
+
+### Notes on crates.io
+
+## X23 Dotted token in a table cell
+
+| Registry | Use |
+| - | - |
+| crates.io | Rust |
+
+## X24 Wrapped number in a blockquote
+
+> The tier infrastructure and the migration of existing evals — both owned by
+> 0160.
+
+## X25 Quoted scheme URL
+
+See "https://crates.io/x" and URL:https://crates.io for details.

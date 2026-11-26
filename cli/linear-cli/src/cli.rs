@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use clap::ArgGroup;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
@@ -42,6 +43,9 @@ pub enum Command {
 }
 
 #[derive(Args)]
+#[command(group = ArgGroup::new("description_input")
+    .args(["file", "body_file"])
+    .multiple(true))]
 pub struct CreateArgs {
     /// A work-item file whose frontmatter and body seed the issue.
     pub file: Option<PathBuf>,
@@ -51,23 +55,39 @@ pub struct CreateArgs {
     /// A Markdown body file for the no-file mode.
     #[arg(long)]
     pub body_file: Option<PathBuf>,
+    /// Send the description exactly as given, without the escaping that keeps
+    /// Linear from reading dotted tokens as links or wrapped numbers as lists.
+    /// For capturing what Linear's parser does.
+    #[arg(long, requires = "description_input")]
+    pub verbatim: bool,
     #[arg(long, short)]
     pub quiet: bool,
 }
 
 #[derive(Args)]
+#[command(group = ArgGroup::new("description_source")
+    .args(["description", "body_file"])
+    .multiple(false))]
 pub struct UpdateArgs {
     pub id: String,
     #[arg(long)]
     pub title: Option<String>,
     #[arg(long)]
     pub description: Option<String>,
+    /// A Markdown file sent as the description.
+    #[arg(long)]
+    pub body_file: Option<PathBuf>,
     #[arg(long)]
     pub state: Option<String>,
     #[arg(long)]
     pub assignee_id: Option<String>,
     #[arg(long)]
     pub priority: Option<i64>,
+    /// Send the description exactly as given, without the escaping that keeps
+    /// Linear from reading dotted tokens as links or wrapped numbers as lists.
+    /// For capturing what Linear's parser does.
+    #[arg(long, requires = "description_source")]
+    pub verbatim: bool,
     #[arg(long, short)]
     pub quiet: bool,
 }
@@ -76,6 +96,7 @@ impl UpdateArgs {
     pub const fn names_no_field(&self) -> bool {
         self.title.is_none()
             && self.description.is_none()
+            && self.body_file.is_none()
             && self.state.is_none()
             && self.assignee_id.is_none()
             && self.priority.is_none()

@@ -145,7 +145,7 @@ impl IntendedBaseline {
             RemoteHash::Known(read_back) => read_back.updated.clone(),
             RemoteHash::Unknown => RemoteTimestamp::NotRead,
         };
-        let classification = classify(
+        let classified = classify(
             &Subject {
                 external_id: Some(key),
                 presence: RemotePresence::Present,
@@ -159,7 +159,7 @@ impl IntendedBaseline {
             promoted,
             comparison,
         )?;
-        Ok(classification.state())
+        Ok(classified.classification.state())
     }
 
     /// The fingerprints the next sync compares the promoted item against.

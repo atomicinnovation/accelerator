@@ -971,6 +971,37 @@ fn create_notices(report: &RunReport) -> Vec<String> {
         .collect()
 }
 
+/// Each push this run made that the tracker stored with a different
+/// meaning: an item under its id, a promotion under the key it took, each
+/// naming its file relative to `repo_root`.
+fn rewrite_warnings(
+    report: &RunReport,
+    integration: &str,
+    repo_root: &Path,
+) -> Vec<String> {
+    let items = report.reported.iter().filter_map(|item| {
+        item.rewrite
+            .as_ref()
+            .map(|notice| (item.planned.id().to_owned(), notice))
+    });
+    let promotions = report.promotions.iter().filter_map(|row| {
+        row.rewrite
+            .as_ref()
+            .map(|notice| (notice.external_id.as_str().to_owned(), notice))
+    });
+    items
+        .chain(promotions)
+        .flat_map(|(label, notice)| {
+            crate::report_records::rewrite_lines_under(
+                repo_root,
+                notice,
+                &label,
+                integration,
+            )
+        })
+        .collect()
+}
+
 fn exit_code_for_report(report: &RunReport) -> u8 {
     let failures = report
         .failures()
@@ -2522,6 +2553,11 @@ fn report_finished_run(
     for notice in create_notices(report) {
         console.warn(notice);
     }
+    for warning in
+        rewrite_warnings(report, context.integration, context.repo_root)
+    {
+        console.warn(warning);
+    }
     for warning in unretired_adoption_warnings(report) {
         console.warn(warning);
     }
@@ -2604,17 +2640,22 @@ mod tests {
     use work::sync::SyncDirection;
 
     use super::build_selection;
+    use super::create_notices;
     use super::highest_precedence_code;
     use super::leftover_marker_warnings;
     use super::partition_candidates;
     use super::render_report;
     use super::resolve_targets;
+    use super::rewrite_warnings;
     use super::unbounded_gate_fires;
     use super::unretired_adoption_warnings;
     use super::TargetResolutionFailure;
     use crate::exit_codes;
     use crate::resolve::RunOutcome;
     use work::inventory::UnidentifiedReason;
+    use work_adapters::sync::push_fidelity::ChangedLine;
+    use work_adapters::sync::push_fidelity::RewriteNotice;
+    use work_adapters::sync::push_fidelity::RewrittenLines;
     use work_adapters::sync::report::CorpusScope;
 
     #[test]
@@ -3135,6 +3176,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }
     }
 
@@ -3155,6 +3197,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }
     }
 
@@ -3175,6 +3218,174 @@ mod tests {
                  linked, so remove the marker by hand"
                 .to_owned()]
         );
+    }
+
+    fn rewritten_at(path: &str, key: &str) -> RewriteNotice {
+        RewriteNotice {
+            kind: work_adapters::sync::push_fidelity::RewriteKind::OnPush,
+            path: PathBuf::from(path),
+            external_id: ExternalId::new(key.to_owned()),
+            lines: RewrittenLines::bounded(vec![ChangedLine {
+                section: "Notes".to_owned(),
+                sent: "See crates.io.".to_owned(),
+                stored: "See [crates.io](<http://crates.io>).".to_owned(),
+            }]),
+        }
+    }
+
+    fn subject_of(line: &str) -> Option<&str> {
+        line.strip_prefix("warning: ")
+            .or_else(|| line.strip_prefix("note: "))
+            .and_then(|rest| rest.split_once(": "))
+            .map(|(subject, _)| subject)
+    }
+
+    #[test]
+    fn a_create_with_nothing_to_settle_prints_both_notices() {
+        let report = report_of(vec![ReportedItem {
+            notice: Some(
+                work_adapters::sync::report::CreateNotice::NothingToSettle,
+            ),
+            rewrite: Some(rewritten_at("/repo/meta/work/0001-a.md", "ENG-1")),
+            ..reported("0001", SyncState::Unsynced, Action::CreateFromLocal)
+        }]);
+
+        assert_eq!(
+            create_notices(&report),
+            vec!["warning: 0001: --resolve 0001=create had no pending push \
+                  to settle"
+                .to_owned()]
+        );
+        let rewrites = rewrite_warnings(&report, "linear", Path::new("/repo"));
+        assert_eq!(rewrites[0], "warning: 0001: rewritten on push: Notes");
+    }
+
+    #[test]
+    fn sync_warns_of_a_standing_rewrite_without_the_push_notes() {
+        let report = report_of(vec![ReportedItem {
+            rewrite: Some(RewriteNotice {
+                kind:
+                    work_adapters::sync::push_fidelity::RewriteKind::StillOnPush,
+                lines: RewrittenLines {
+                    more: 3,
+                    ..rewritten_at("/repo/meta/work/0001-a.md", "ENG-1").lines
+                },
+                ..rewritten_at("/repo/meta/work/0001-a.md", "ENG-1")
+            }),
+            ..reported("0001", SyncState::Synced, Action::Noop)
+        }]);
+
+        let lines = rewrite_warnings(&report, "linear", Path::new("/repo"));
+
+        assert_eq!(
+            lines,
+            [
+                "warning: 0001: still rewritten on push: Notes",
+                "note: 0001: Notes: sent `See crates.io.`, stored `See \
+                 [crates.io](<http://crates.io>).`",
+                "note: 0001: … and 3 more changed lines; `accelerator linear \
+                 show ENG-1` shows the stored description",
+                "note: 0001: to keep the meaning, put the sent text in \
+                 backticks or reword it, then run `accelerator work update \
+                 meta/work/0001-a.md --push`",
+            ]
+        );
+    }
+
+    #[test]
+    fn every_note_carries_its_warnings_subject() {
+        for ids in [vec!["0001"], vec!["0001", "0002"]] {
+            let report = report_of(
+                ids.iter()
+                    .map(|id| ReportedItem {
+                        rewrite: Some(rewritten_at(
+                            &format!("/repo/meta/work/{id}-a.md"),
+                            "ENG-1",
+                        )),
+                        ..reported(
+                            id,
+                            SyncState::LocallyModified,
+                            Action::Push(work::sync::FieldDelivery::Send),
+                        )
+                    })
+                    .collect(),
+            );
+
+            let lines = rewrite_warnings(&report, "linear", Path::new("/repo"));
+
+            let mut subject = None;
+            for line in &lines {
+                if line.starts_with("warning: ") {
+                    subject = subject_of(line);
+                } else {
+                    assert_eq!(subject_of(line), subject, "{line}");
+                }
+            }
+            assert_eq!(
+                lines
+                    .iter()
+                    .filter(|line| line.starts_with("warning: "))
+                    .count(),
+                ids.len()
+            );
+        }
+    }
+
+    #[test]
+    fn a_clearing_command_names_the_item_path() {
+        let report = report_of(vec![ReportedItem {
+            rewrite: Some(rewritten_at(
+                "/repo/meta/work/0001-search.md",
+                "ENG-1",
+            )),
+            ..reported(
+                "0001",
+                SyncState::LocallyModified,
+                Action::Push(work::sync::FieldDelivery::Send),
+            )
+        }]);
+
+        let lines = rewrite_warnings(&report, "linear", Path::new("/repo"));
+
+        let clearing = lines
+            .iter()
+            .find(|line| line.starts_with("note: 0001: to keep the meaning"))
+            .expect("a clearing note");
+        assert!(
+            clearing.ends_with(
+                "`accelerator work update meta/work/0001-search.md --push`"
+            ),
+            "{clearing}"
+        );
+    }
+
+    #[test]
+    fn a_rewritten_promotion_is_warned_under_its_key() {
+        let report = RunReport {
+            promotions: vec![work_adapters::promotion::PromotionRow {
+                draft: "draft-k7mq3x".to_owned(),
+                path: PathBuf::from("/repo/meta/work/drafts/draft-k7mq3x-a.md"),
+                outcome: work_adapters::promotion::PromotionOutcome::Promoted(
+                    work::promotion::Promotion::Completed(
+                        ExternalId::new("ENG-43".to_owned()),
+                        SyncState::Synced,
+                    ),
+                ),
+                details: Vec::new(),
+                rewrite: Some(rewritten_at(
+                    "/repo/meta/work/ENG-43-a.md",
+                    "ENG-43",
+                )),
+            }],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        let lines = rewrite_warnings(&report, "linear", Path::new("/repo"));
+
+        assert_eq!(lines[0], "warning: ENG-43: rewritten on push: Notes");
+        assert!(lines.iter().any(|line| line.contains(
+            "`accelerator work update meta/work/ENG-43-a.md --push`"
+        )));
     }
 
     #[test]
@@ -3398,6 +3609,7 @@ mod tests {
                 SyncState::Synced,
             )),
             details: Vec::new(),
+            rewrite: None,
         };
         let failure = SettledRunFailure {
             error: work_adapters::sync::run::RunError::KeyedReadCapped,
@@ -4008,6 +4220,7 @@ mod tests {
                 path: draft_path(draft),
                 outcome,
                 details: Vec::new(),
+                rewrite: None,
             }
         }
 
@@ -4987,6 +5200,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }
     }
 
@@ -5009,6 +5223,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }
     }
 
@@ -5048,6 +5263,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }]);
 
         let rendered = render_report(
@@ -6132,6 +6348,51 @@ mod tests {
     }
 
     #[test]
+    fn a_sync_whose_push_is_rewritten_warns_on_stderr_and_exits_zero() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::rewriting(
+            Vec::new(),
+            tracker_test_support::Rewrite::AutolinkDottedTokens,
+        ));
+        let crate::create::RunOutcome::Created {
+            path: Some(path), ..
+        } = create_pushed(dir.path(), &tracker)
+        else {
+            panic!("the create did not write its item");
+        };
+        let mut content = std::fs::read_to_string(&path).expect("the item");
+        content.push_str("\nPublished to crates.io first.\n");
+        std::fs::write(&path, content).expect("the edit");
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .and_then(|file| {
+                file.set_modified(
+                    std::time::SystemTime::now()
+                        + std::time::Duration::from_secs(60),
+                )
+            })
+            .expect("the edit postdates the create's watermark");
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+        let warning = run
+            .err
+            .lines()
+            .position(|line| line.contains(": rewritten on push: "))
+            .unwrap_or_else(|| panic!("no rewrite warning: {}", run.err));
+        assert!(
+            run.err.lines().nth(warning + 1).is_some_and(|line| {
+                line.contains("sent `Published to crates.io first.`")
+            }),
+            "{}",
+            run.err
+        );
+    }
+
+    #[test]
     fn a_create_then_sync_reports_synced() {
         let dir = sync_repo();
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
@@ -6419,7 +6680,7 @@ mod tests {
             .digests(local, Some(remote_body))
             .expect("the item is well formed");
         baseline
-            .set(
+            .seed(
                 "0001",
                 work_adapters::sync::baseline::Entry::recorded(
                     work_adapters::sync::baseline::SyncStamps {
@@ -6487,11 +6748,9 @@ mod tests {
             )
             .digests(&content, Some(remote_body))
             .expect("the pulled item is well formed");
-        let Some(work_adapters::sync::baseline::Entry::Split {
-            legacy,
-            split,
-            ..
-        }) = loaded.get("0001")
+        let Some((legacy, split)) = loaded
+            .get("0001")
+            .and_then(|entry| entry.legacy().zip(entry.split()))
         else {
             panic!("expected a recipe-1 entry for 0001");
         };
@@ -6873,7 +7132,7 @@ mod tests {
                 .digests(&local, Some("Title\nOld body\n"))
                 .expect("the item is well formed");
             baseline
-                .set(
+                .seed(
                     id,
                     work_adapters::sync::baseline::Entry::recorded(
                         work_adapters::sync::baseline::SyncStamps {

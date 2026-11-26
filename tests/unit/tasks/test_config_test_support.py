@@ -1,9 +1,11 @@
-"""Tests for the ``config/test-support`` guard in
+"""Tests for the guarded ``test-support`` features in
 ``tasks/lint/config_test_support.py``.
 
-The feature builds test-only key descriptors that bypass the catalogue, so
-only ``config`` and ``config-adapters`` may enable it, and only as a
-dev-dependency: a consumer's tests must exercise real keys.
+``config/test-support`` builds test-only key descriptors that bypass the
+catalogue, so only ``config`` and ``config-adapters`` may enable it.
+``work-adapters/test-support`` seeds baseline entries around the rule that
+keeps their rewrite marks, so only ``work-adapters`` and ``accelerator-work``
+may enable it. Either only as a dev-dependency.
 
 Synthetic ``cargo metadata`` packages exercise every branch, and a real-tree
 assertion proves the shipped workspace is clean.
@@ -25,9 +27,11 @@ def _package(
     }
 
 
-def _config(kind: str | None, *, rename: str | None = None) -> dict:
+def _config(
+    kind: str | None, *, rename: str | None = None, name: str = "config"
+) -> dict:
     return {
-        "name": "config",
+        "name": name,
         "kind": kind,
         "rename": rename,
         "features": ["test-support"],
@@ -98,8 +102,56 @@ def test_forwarding_through_a_renamed_dependency_is_flagged() -> None:
     ]
 
 
+def _work_adapters(kind: str | None) -> dict:
+    return _config(kind, name="work-adapters")
+
+
+def test_work_adapters_and_the_work_cli_may_enable_its_feature() -> None:
+    packages = [
+        _package(
+            "work-adapters", [_work_adapters("dev")], {"test-support": []}
+        ),
+        _package("accelerator-work", [_work_adapters("dev")]),
+    ]
+    assert config_test_support.violations(packages) == []
+
+
+def test_another_crate_enabling_the_work_adapters_feature_is_flagged() -> None:
+    packages = [_package("accelerator-migrate", [_work_adapters("dev")])]
+    assert config_test_support.violations(packages) == [
+        "accelerator-migrate enables work-adapters/test-support"
+    ]
+
+
+def test_the_work_cli_enabling_it_outside_dev_is_flagged() -> None:
+    packages = [_package("accelerator-work", [_work_adapters(None)])]
+    assert config_test_support.violations(packages) == [
+        "accelerator-work enables work-adapters/test-support outside "
+        "[dev-dependencies]"
+    ]
+
+
+def test_forwarding_the_work_adapters_feature_is_flagged() -> None:
+    packages = [
+        _package(
+            "accelerator-work",
+            features={"testing": ["work-adapters/test-support"]},
+        )
+    ]
+    assert config_test_support.violations(packages) == [
+        "accelerator-work forwards work-adapters/test-support through "
+        "feature 'testing'"
+    ]
+
+
 def test_the_shipped_workspace_is_clean() -> None:
     packages = workspace_packages()
     names = {package["name"] for package in packages}
-    assert {"config", "config-adapters", "jira-cli"} <= names
+    assert {
+        "config",
+        "config-adapters",
+        "jira-cli",
+        "work-adapters",
+        "accelerator-work",
+    } <= names
     assert config_test_support.violations(packages) == []

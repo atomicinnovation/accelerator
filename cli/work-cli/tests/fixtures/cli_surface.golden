@@ -138,6 +138,7 @@ Options:
       --append <APPENDS>          A `KEY=VALUE` pair appending `VALUE` to list-typed field `KEY` (`blocks`, `blocked_by`, `derived_from`, `relates_to`); repeatable
       --remove <REMOVES>          A `KEY=VALUE` pair removing `VALUE` from list-typed field `KEY`; repeatable
       --push                      Replace the item's remote issue with its whole rendered content before writing the edit locally. Refused when the item has no `external_id` — see `create --push` for an unsynced item. Unlike `create --push`, a failed push leaves the local file untouched: exit 70 (retryable, unchanged), 71 (terminal, baseline entry cleared so the next `sync` reconciles it as a conflict) or 75 (rejected before sending, unchanged)
+      --accept-rewrite            Accept the rewrite the tracker left on this item's last push as the tracker's to keep, so sync stops warning of it until a push is rewritten differently. Refused when no rewrite is recorded; changes nothing but the sync baseline
   -h, --help                      Print help
 
 === accelerator-work link-external-id --help ===

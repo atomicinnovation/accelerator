@@ -10,6 +10,7 @@ use crate::classify::Operation;
 use crate::classify::Outcome;
 use crate::client::refuse_identifier_op;
 use crate::client::LinearClient;
+use crate::description::Description;
 use crate::failure::LinearFailure;
 use crate::transition::StateId;
 
@@ -22,7 +23,7 @@ const UPDATE: &str = "mutation($id: String!, $input: IssueUpdateInput!) {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct UpdateFields<'a> {
     pub title: Option<&'a str>,
-    pub description: Option<&'a str>,
+    pub description: Option<Description<'a>>,
     pub state_id: Option<&'a StateId>,
     pub assignee_id: Option<&'a str>,
     pub priority: Option<i64>,
@@ -32,7 +33,11 @@ impl UpdateFields<'_> {
     fn input(&self) -> Map<String, Value> {
         let named = [
             ("title", self.title.map(Value::from)),
-            ("description", self.description.map(Value::from)),
+            (
+                "description",
+                self.description
+                    .map(|description| Value::from(description.wire())),
+            ),
             ("stateId", self.state_id.map(|id| Value::from(id.as_str()))),
             ("assigneeId", self.assignee_id.map(Value::from)),
             ("priority", self.priority.map(Value::from)),

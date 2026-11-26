@@ -67,6 +67,9 @@ use crate::sync::digest;
 use crate::sync::pending_push;
 use crate::sync::pending_push::Marker;
 use crate::sync::pending_push::MarkerError;
+use crate::sync::push_fidelity::RewriteNotice;
+use crate::sync::push_verdict::PushOrigin;
+use crate::sync::push_verdict::PushVerdict;
 use work::identity_run::IdentityRunGuard;
 
 /// The file store every creation strategy writes through.
@@ -132,7 +135,7 @@ pub enum DraftPromotionOutcome {
     Refused {
         warning: String,
     },
-    Attempted(PromotionRow),
+    Attempted(Box<PromotionRow>),
 }
 
 pub type DraftPromotion<'a> =
@@ -163,6 +166,9 @@ pub struct PushReport {
     /// A line stderr carries as it is, beside an outcome that is not a
     /// failure.
     pub warning: Option<String>,
+    /// This create's push, when the tracker stored it with a different
+    /// meaning.
+    pub rewrite: Option<Box<RewriteNotice>>,
 }
 
 /// What a creation strategy left on disk, and what became of its push.
@@ -210,6 +216,7 @@ fn pushed(
             cause,
             details: Vec::new(),
             warning: None,
+            rewrite: None,
         }),
     }
 }
@@ -367,6 +374,7 @@ struct LegacyPush {
     cause: Option<String>,
     tracker: Option<Box<dyn RemoteTracker>>,
     marker: Option<PathBuf>,
+    origin: PushOrigin,
 }
 
 impl LegacyPush {
@@ -380,6 +388,7 @@ impl LegacyPush {
             cause,
             tracker: None,
             marker: None,
+            origin: PushOrigin::CreatedEarlier,
         }
     }
 }
@@ -575,6 +584,7 @@ fn push_legacy_item(
             cause: None,
             tracker: (pushing.tracker)().ok(),
             marker: Some(marker_path),
+            origin: PushOrigin::CreatedEarlier,
         }),
         PushNext::Proceed => {
             pending_push::prepare_dir(&state.root, &state.name)
@@ -635,6 +645,7 @@ fn send_legacy_create(
                 cause: None,
                 tracker: Some(tracker),
                 marker: Some(marker.path.clone()),
+                origin: PushOrigin::Created,
             })
         }
         RemoteCreate::TrackerUnreachable => {
@@ -660,17 +671,16 @@ fn send_legacy_create(
     }
 }
 
-fn read_back_of(
+fn remote_hash_of(
     digester: &BaselineDigester<'_>,
-    tracker: &dyn RemoteTracker,
-    key: &ExternalId,
+    issue: Option<&tracker::RemoteIssue>,
 ) -> RemoteHash {
-    tracker.show(key).map_or(RemoteHash::Unknown, |issue| {
+    issue.map_or(RemoteHash::Unknown, |issue| {
         let (hash, fingerprints) = digester.remote(&issue.body);
         RemoteHash::Known(ReadBack {
             hash,
             fingerprints: Some(fingerprints),
-            updated: issue.updated,
+            updated: issue.updated.clone(),
         })
     })
 }
@@ -683,6 +693,7 @@ fn record_baseline_after_create(
     item_id: &str,
     local: LocalDigests,
     remote: RemoteHash,
+    verdict: &PushVerdict,
 ) -> Result<(), String> {
     let path = state.baseline_path();
     let dir = path.parent().unwrap_or(creation.repo_root).to_path_buf();
@@ -697,6 +708,7 @@ fn record_baseline_after_create(
         },
         &store,
         creation.now,
+        verdict.mark_change(),
     )
     .map_err(|error| error.to_string())
 }
@@ -838,17 +850,25 @@ pub fn create_local_item(
             Some(cause),
         ));
     }
-    let (local, remote) = match push.tracker.as_deref() {
+    let (local, remote, verdict) = match push.tracker.as_deref() {
         Some(tracker) => {
             let digester = BaselineDigester::new(tracker, creation.parser);
             let (legacy, fingerprints) =
                 digester.local(&item).map_err(|error| error.to_string())?;
+            let issue = tracker.show(&key).ok();
+            let verdict = PushVerdict::judged(
+                push.origin,
+                digester.comparison(),
+                &item,
+                issue.as_ref().map(|issue| issue.body.as_str()),
+            );
             (
                 LocalDigests {
                     legacy,
                     fingerprints: Some(fingerprints),
                 },
-                read_back_of(&digester, tracker, &key),
+                remote_hash_of(&digester, issue.as_ref()),
+                verdict,
             )
         }
         None => (
@@ -858,9 +878,17 @@ pub fn create_local_item(
                 fingerprints: None,
             },
             RemoteHash::Unknown,
+            PushVerdict::unread(push.origin),
         ),
     };
-    record_baseline_after_create(creation, pushing.state, &id, local, remote)?;
+    record_baseline_after_create(
+        creation,
+        pushing.state,
+        &id,
+        local,
+        remote,
+        &verdict,
+    )?;
     if let Some(path) = push.marker {
         LegacyMarker {
             store: (creation.store_at)(
@@ -870,12 +898,21 @@ pub fn create_local_item(
         }
         .spend();
     }
-    Ok(pushed(
-        Some(target),
-        PushOutcome::WriteOnce,
-        Some(&key),
-        None,
+    let rewrite = verdict.into_notice(&target, &key);
+    Ok(with_rewrite(
+        pushed(Some(target), PushOutcome::WriteOnce, Some(&key), None),
+        rewrite,
     ))
+}
+
+fn with_rewrite(
+    mut created: CreationOutcome,
+    rewrite: Option<RewriteNotice>,
+) -> CreationOutcome {
+    if let Some(report) = created.push.as_mut() {
+        report.rewrite = rewrite.map(Box::new);
+    }
+    created
 }
 
 /// How an earlier create of the same content is still pending.
@@ -1226,7 +1263,8 @@ pub fn create_tracker_keyed_item(
             saved
         }
         DraftPromotionOutcome::Attempted(row) => {
-            promotion_outcome(row, creation, &draft)
+            let rewrite = row.rewrite.clone();
+            with_rewrite(promotion_outcome(*row, creation, &draft), rewrite)
         }
     })
 }

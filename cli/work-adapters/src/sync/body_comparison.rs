@@ -118,6 +118,45 @@ impl<'a> BodyComparison<'a> {
         )
     }
 
+    /// The body sections of `local_body` whose meaning, once pushed,
+    /// differs from `remote_body`'s, each as its side wrote it.
+    #[must_use]
+    pub fn differing_sections_as_written(
+        &self,
+        local_body: &str,
+        remote_body: &str,
+    ) -> Vec<SectionDiff> {
+        let local_shown = self.parser.parse(local_body);
+        let local_compared =
+            self.parser.parse(&self.dialect.as_pushed(local_body));
+        let remote = self.parser.parse(remote_body);
+        work::section_diff::differing_sections_as_written(
+            &ComparableItem {
+                frontmatter: "",
+                shown: &local_shown,
+                compared: &local_compared,
+            },
+            &ComparableItem {
+                frontmatter: "",
+                shown: &remote,
+                compared: &remote,
+            },
+        )
+    }
+
+    /// Whether `left` and `right`, each as the tracker would store it once
+    /// pushed, mean the same.
+    pub(crate) fn reads_alike(&self, left: &str, right: &str) -> bool {
+        equivalent(
+            &self.parser.parse(&self.dialect.as_pushed(left)),
+            &self.parser.parse(&self.dialect.as_pushed(right)),
+        )
+    }
+
+    pub(crate) fn rejects(&self, body: &str) -> bool {
+        self.dialect.rejects(body)
+    }
+
     fn canonical_hash(&self, markdown: &str) -> String {
         digest::sha256_hex(
             self.parser

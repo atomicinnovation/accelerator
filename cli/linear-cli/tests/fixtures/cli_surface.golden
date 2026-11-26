@@ -26,6 +26,7 @@ Arguments:
 Options:
       --title <TITLE>          The issue title (the no-file mode)
       --body-file <BODY_FILE>  A Markdown body file for the no-file mode
+      --verbatim               Send the description exactly as given, without the escaping that keeps Linear from reading dotted tokens as links or wrapped numbers as lists. For capturing what Linear's parser does
   -q, --quiet                  
   -h, --help                   Print help
 
@@ -40,9 +41,11 @@ Arguments:
 Options:
       --title <TITLE>              
       --description <DESCRIPTION>  
+      --body-file <BODY_FILE>      A Markdown file sent as the description
       --state <STATE>              
       --assignee-id <ASSIGNEE_ID>  
       --priority <PRIORITY>        
+      --verbatim                   Send the description exactly as given, without the escaping that keeps Linear from reading dotted tokens as links or wrapped numbers as lists. For capturing what Linear's parser does
   -q, --quiet                      
   -h, --help                       Print help
 

@@ -73,6 +73,12 @@ accelerator linear create <work-item-file>
 
 The subcommand prints its outcome as a trailing `<keyword>\t<identifier>` line.
 
+The body is escaped for Linear before it is sent: a backslash goes before each
+`.` or `)` that Linear's parser would read as a link or an ordered list, and
+Linear stores the text without it. The work-item file is unchanged. The
+subcommand's `--verbatim` flag sends the body as given; it exists only for
+capturing what Linear's parser does, so this skill never passes it.
+
 ## Step 5: Gate the writeback on the keyword
 
 Branch on the keyword — the writeback is **fail-closed**, so a non-`created`

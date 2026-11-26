@@ -6,8 +6,10 @@
 
 use corpus::lock::ExclusiveLock;
 use corpus_adapters::CommonMarkBody;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use ::config::ConfigAccess;
 use ::config::ReadTemplate;
@@ -118,6 +120,8 @@ pub enum RunOutcome {
     Created {
         path: Option<PathBuf>,
         push: Option<PushReport>,
+        /// The lines stderr carries about a push that applied.
+        warnings: Vec<String>,
     },
     Previewed(String),
     PreviewFailed {
@@ -130,6 +134,64 @@ pub enum RunOutcome {
     /// Refused before anything was written, with the line and exit code the
     /// refusal carries.
     Refused(Refusal),
+}
+
+impl RunOutcome {
+    /// Prints this outcome as `accelerator work create` does, returning the
+    /// code it exits with.
+    pub fn report(self, out: &mut dyn Write, err: &mut dyn Write) -> ExitCode {
+        match self {
+            Self::Created {
+                path,
+                push,
+                warnings,
+            } => {
+                let _ = writeln!(
+                    out,
+                    "{}",
+                    path.as_deref()
+                        .map(Path::display)
+                        .map_or_else(String::new, |shown| shown.to_string())
+                );
+                let Some(report) = push else {
+                    return ExitCode::SUCCESS;
+                };
+                let _ = writeln!(
+                    out,
+                    "{}\t{}",
+                    report.outcome.keyword(),
+                    report.external_id.as_deref().unwrap_or("")
+                );
+                if let Some(warning) = &report.warning {
+                    let _ = writeln!(err, "{warning}");
+                }
+                if let Some(cause) = &report.cause {
+                    let _ = writeln!(err, "Error: {cause}");
+                }
+                for warning in &warnings {
+                    let _ = writeln!(err, "{warning}");
+                }
+                ExitCode::from(report.outcome.exit_code())
+            }
+            Self::Previewed(line) => {
+                let _ = writeln!(out, "{line}");
+                ExitCode::SUCCESS
+            }
+            Self::PreviewFailed { message, code } => {
+                let _ = writeln!(err, "Error: {message}");
+                ExitCode::from(code)
+            }
+            Self::Pending(message) => {
+                let _ = writeln!(err, "Error: {message}");
+                ExitCode::from(exit_codes::UNRESOLVED)
+            }
+            Self::Failed(message) => {
+                let _ = writeln!(err, "Error: {message}");
+                ExitCode::from(exit_codes::of_failure(&message))
+            }
+            Self::Refused(refusal) => refusal.report_to(err),
+        }
+    }
 }
 
 const SLUG_MAX_LEN: usize = 60;
@@ -688,13 +750,13 @@ fn attempt_promotion(
         records,
     };
     let result = promote(draft, &PromotionMode::Standard, &ports, identity_run);
-    DraftPromotionOutcome::Attempted(PromotionRow::of(
+    DraftPromotionOutcome::Attempted(Box::new(PromotionRow::of(
         draft,
         draft_path,
         result,
         &ports,
         workspace.state_dir(),
-    ))
+    )))
 }
 
 /// What `run` takes from its caller beyond the request: the tracker, the
@@ -802,6 +864,26 @@ fn preview_requested_id(
     }
 }
 
+/// The stderr block for a create's push that the tracker stored with a
+/// different meaning, naming the item's path.
+#[must_use]
+pub fn rewrite_warnings(
+    push: Option<&PushReport>,
+    config: &dyn ConfigAccess,
+) -> Vec<String> {
+    push.and_then(|report| report.rewrite.as_ref())
+        .map(|notice| {
+            let integration = effective_nonempty(config, "work.integration")
+                .unwrap_or_default();
+            crate::report_records::rewrite_lines(
+                notice,
+                &notice.path.display().to_string(),
+                &integration,
+            )
+        })
+        .unwrap_or_default()
+}
+
 #[must_use]
 pub fn run_with(
     start: &Path,
@@ -842,9 +924,11 @@ pub fn run_with(
         &mut |_| Ok(()),
         &identity_run,
     ) {
-        Ok(CreationOutcome { path, push }) => {
-            RunOutcome::Created { path, push }
-        }
+        Ok(CreationOutcome { path, push }) => RunOutcome::Created {
+            warnings: rewrite_warnings(push.as_ref(), config),
+            path,
+            push,
+        },
         Err(CreateFailure::Pending { message, .. }) => {
             RunOutcome::Pending(message)
         }
@@ -994,6 +1078,7 @@ mod tests {
         let RunOutcome::Created {
             path: Some(draft),
             push: Some(report),
+            ..
         } = outcome
         else {
             panic!("a refused root still saves the draft");
@@ -1072,6 +1157,7 @@ mod tests {
         let RunOutcome::Created {
             path: Some(path),
             push: None,
+            ..
         } = outcome
         else {
             panic!("an offline create under {{tracker}} writes a draft");
@@ -1197,6 +1283,7 @@ mod tests {
             RunOutcome::Created {
                 path,
                 push: Some(report),
+                ..
             } => (path, report),
             RunOutcome::Failed(message) | RunOutcome::Pending(message) => {
                 panic!("the create failed: {message}")
@@ -1221,6 +1308,210 @@ mod tests {
                 matches!(call, tracker_test_support::Call::Create { .. })
             })
             .count()
+    }
+
+    #[test]
+    fn create_push_escapes_for_linear_alone() {
+        use crate::test_support::real_trackers::Tracker;
+        use crate::test_support::real_trackers::NEEDS_BOTH_ESCAPES;
+
+        for tracker in Tracker::ALL {
+            let repo = PushingRepo::configured(&[
+                ("work.integration", tracker.integration()),
+                ("paths.integrations", "integrations"),
+            ]);
+            repo.holding("body.md", NEEDS_BOTH_ESCAPES);
+            let mut served = tracker.serve("A tabled idea", NEEDS_BOTH_ESCAPES);
+            let args = CreateArgs {
+                body_file: Some(repo.path("body.md")),
+                ..PushingRepo::args(true)
+            };
+
+            let (path, report) = created(run(
+                repo.root.path(),
+                &repo.config,
+                &crate::test_support::PluginWorkItemTemplate,
+                &args,
+                &FixedRegistry::holding_boxed(served.client()),
+            ));
+
+            assert_eq!(report.outcome, PushOutcome::WriteOnce, "{tracker:?}");
+            let written = std::fs::read_to_string(path.expect("the item"))
+                .expect("the item reads");
+            let body = document::split(&written).expect("a body").body;
+            assert_eq!(
+                body.trim_end(),
+                NEEDS_BOTH_ESCAPES.trim_end(),
+                "{tracker:?}"
+            );
+            assert_eq!(
+                served.sent_descriptions(),
+                [tracker.expected_description(&body)],
+                "{tracker:?}"
+            );
+        }
+    }
+
+    fn linking_tracker() -> Rc<RecordingTracker> {
+        Rc::new(RecordingTracker::rewriting(
+            Vec::new(),
+            tracker_test_support::Rewrite::AutolinkDottedTokens,
+        ))
+    }
+
+    fn dotted_args(repo: &PushingRepo, id: Option<&str>) -> CreateArgs {
+        repo.holding("body.md", "Published to crates.io first.\n");
+        CreateArgs {
+            body_file: Some(repo.path("body.md")),
+            id: id.map(str::to_owned),
+            ..PushingRepo::args(true)
+        }
+    }
+
+    #[test]
+    fn create_push_notices_a_rewritten_read_back() {
+        for repo in [PushingRepo::new(), PushingRepo::tracker_owned()] {
+            let args = dotted_args(&repo, None);
+
+            let (path, report) =
+                created(repo.run_args(&args, &linking_tracker(), None));
+
+            assert_eq!(report.outcome, PushOutcome::WriteOnce);
+            let notice = report.rewrite.expect("the create was rewritten");
+            assert_eq!(Some(notice.path), path);
+            assert_eq!(notice.external_id.as_str(), KEY);
+            assert_eq!(
+                notice.lines.lines[0].stored,
+                "Published to [crates.io](<http://crates.io>) first."
+            );
+        }
+    }
+
+    #[test]
+    fn a_rewritten_create_push_prints_its_path_and_warns_on_stderr() {
+        let repo = PushingRepo::tracker_owned();
+        let args = dotted_args(&repo, None);
+
+        let printed = crate::test_support::printed(|out, err| {
+            repo.run_args(&args, &linking_tracker(), None)
+                .report(out, err)
+        });
+
+        assert_eq!(printed.code, std::process::ExitCode::SUCCESS);
+        let mut lines = printed.out.lines();
+        let path = lines.next().expect("the written path");
+        assert_eq!(lines.next(), Some(format!("write-once\t{KEY}").as_str()));
+        assert!(
+            printed
+                .err
+                .starts_with(&format!("warning: {path}: rewritten on push: ")),
+            "{}",
+            printed.err
+        );
+        assert!(
+            printed.err.contains(
+                "stored `Published to [crates.io](<http://crates.io>) first.`"
+            ),
+            "{}",
+            printed.err
+        );
+    }
+
+    #[test]
+    fn create_push_warns_when_the_read_back_is_rewritten() {
+        for (repo, integration) in [
+            (PushingRepo::new(), "jira"),
+            (PushingRepo::tracker_owned(), "linear"),
+        ] {
+            let args = dotted_args(&repo, None);
+
+            let RunOutcome::Created {
+                path: Some(path),
+                warnings,
+                ..
+            } = repo.run_args(&args, &linking_tracker(), None)
+            else {
+                panic!("the create did not write its item");
+            };
+
+            let label = path.display().to_string();
+            assert!(
+                warnings[0].starts_with(&format!(
+                    "warning: {label}: rewritten on push: "
+                )),
+                "{warnings:?}"
+            );
+            assert!(
+                warnings[1..]
+                    .iter()
+                    .all(|line| line.starts_with(&format!("note: {label}: "))),
+                "{warnings:?}"
+            );
+            assert!(!repo.baseline(integration).is_empty(), "{integration}");
+            assert!(
+                matches!(
+                    only_mark(&repo.baseline(integration)),
+                    work_adapters::sync::rewrite_mark::MarkState::Marked(_)
+                ),
+                "{integration}"
+            );
+        }
+    }
+
+    fn only_mark(
+        baseline: &str,
+    ) -> work_adapters::sync::rewrite_mark::MarkState {
+        let (baseline, _) =
+            work_adapters::sync::baseline::Baseline::read(Some(baseline));
+        let ids = baseline.ids();
+        let [id] = ids.as_slice() else {
+            panic!("one entry is recorded: {ids:?}");
+        };
+        match baseline.get(id) {
+            Some(work_adapters::sync::baseline::Entry::Split(entry)) => {
+                entry.mark().clone()
+            }
+            other => panic!("a recipe-1 entry is recorded: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_faithful_create_push_is_not_noticed() {
+        for (repo, integration) in [
+            (PushingRepo::new(), "jira"),
+            (PushingRepo::tracker_owned(), "linear"),
+        ] {
+            let args = dotted_args(&repo, None);
+            let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+            let (_, report) = created(repo.run_args(&args, &tracker, None));
+
+            assert_eq!(report.rewrite, None);
+            assert_eq!(
+                only_mark(&repo.baseline(integration)),
+                work_adapters::sync::rewrite_mark::MarkState::Absent,
+                "{integration}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_reused_create_push_is_unjudged() {
+        let repo = PushingRepo::new();
+        let tracker = linking_tracker();
+        let args = dotted_args(&repo, Some("0400"));
+        let (_, unwritten) = created(repo.run_args(
+            &args,
+            &tracker,
+            Some((in_the_work_directory_itself, 2)),
+        ));
+        assert_eq!(unwritten.outcome, PushOutcome::CreatedUnwritten);
+
+        let (_, reused) = created(repo.run_args(&args, &tracker, None));
+
+        assert_eq!(reused.outcome, PushOutcome::WriteOnce);
+        assert_eq!(reused.rewrite, None);
+        assert_eq!(creates(&tracker), 1);
     }
 
     #[test]
@@ -1250,7 +1541,7 @@ mod tests {
                 "{written}"
             );
             assert!(repo.drafts().is_empty(), "the draft is gone");
-            assert!(repo.baseline(integration).contains(KEY));
+            assert!(!repo.baseline(integration).is_empty(), "{integration}");
         }
     }
 
@@ -1460,11 +1751,9 @@ mod tests {
             )
             .digests(&written, Some(&remote.body))
             .expect("digests");
-        let Some(work_adapters::sync::baseline::Entry::Split {
-            legacy,
-            split,
-            ..
-        }) = baseline.get("0001")
+        let Some((legacy, split)) = baseline
+            .get("0001")
+            .and_then(|entry| entry.legacy().zip(entry.split()))
         else {
             panic!("a recipe-1 entry is recorded");
         };

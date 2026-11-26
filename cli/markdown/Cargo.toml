@@ -13,4 +13,6 @@ role = "technical-library"
 workspace = true
 
 [dependencies]
+document = { path = "../document" }
+icu_properties = { workspace = true }
 pulldown-cmark = { workspace = true }

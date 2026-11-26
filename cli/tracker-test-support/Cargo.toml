@@ -13,4 +13,6 @@ role = "test-support"
 workspace = true
 
 [dependencies]
+document = { path = "../document" }
+markdown = { path = "../markdown" }
 tracker = { path = "../tracker" }

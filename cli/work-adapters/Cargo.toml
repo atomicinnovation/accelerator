@@ -13,6 +13,10 @@ context = "work"
 [lints]
 workspace = true
 
+[features]
+# Enable only from dev-dependencies.
+test-support = []
+
 [dependencies]
 work = { path = "../work" }
 config = { path = "../config" }
@@ -32,6 +36,9 @@ serde_json = { workspace = true }
 rand = { workspace = true }
 
 [dev-dependencies]
+work-adapters = { path = ".", features = ["test-support"] }
+adf = { path = "../adf" }
+markdown = { path = "../markdown" }
 tempfile = { workspace = true }
 corpus-adapters = { path = "../corpus-adapters" }
 store = { path = "../store", features = ["test-support"] }

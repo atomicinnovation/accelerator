@@ -53,6 +53,8 @@ use work::tracker_key::TrackerKey;
 use work_adapters::promotion::promote;
 use work_adapters::promotion::Detail;
 use work_adapters::promotion::DetailSource;
+use work_adapters::promotion::PromotionAttempt;
+use work_adapters::promotion::PromotionOutcome;
 use work_adapters::promotion::PromotionPorts;
 use work_adapters::promotion::PromotionRow;
 use work_adapters::promotion_records::FilePromotionRecords;
@@ -66,6 +68,8 @@ use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::digest;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::pending_push;
+use work_adapters::sync::push_fidelity::PushFidelity;
+use work_adapters::sync::rewrite_mark::MarkState;
 
 static TRACKER: std::sync::LazyLock<work::id_scheme::IdScheme> =
     std::sync::LazyLock::new(|| {
@@ -85,6 +89,15 @@ const PLAN: &str = "meta/plans/plan.md";
 const OUTSIDE: &str = "README.md";
 const INTEGRATIONS: &str = ".accelerator/state/integrations";
 const BASELINE: &str = ".accelerator/state/integrations/linear/last-sync.json";
+
+const MARKED_KEY_BASELINE: &str = "{\"timestamp\":0,\"items\":{\"REC-1\":{\
+    \"digest_recipe\":1,\"local_body_hash\":\"b\",\
+    \"local_fields_hash\":\"f\",\"local_frontmatter_hash\":\"m\",\
+    \"local_hash\":\"l\",\"local_synced_at\":0,\"remote_body_hash\":\"rb\",\
+    \"remote_fields_hash\":\"rf\",\"remote_hash\":\"r\",\
+    \"remote_updated_at\":\"\",\"rewritten_on_push\":{\"lines\":[{\
+    \"section\":\"Earlier\",\"sent\":\"before\",\"stored\":\"after\"}],\
+    \"more\":0}}}}\n";
 
 const DRAFT_CONTENT: &str = "---\nid: \"draft-k7mq3x\"\ntitle: \"Add search\"\n\
                              kind: \"story\"\n---\n\n# draft-k7mq3x: Add search\n\n\
@@ -206,6 +219,25 @@ impl Repo {
         fs::read_to_string(self.path(relative)).ok()
     }
 
+    /// The rewrite mark the key's recipe-1 entry carries; absent when the
+    /// key has no entry.
+    fn key_mark(&self) -> MarkState {
+        match self.baseline_entry(KEY) {
+            Some(Entry::Split(entry)) => entry.mark().clone(),
+            None => MarkState::Absent,
+            Some(other) => panic!("a recipe-1 entry: {other:?}"),
+        }
+    }
+
+    /// The same repository with an earlier marked entry under the key.
+    fn with_a_marked_key(self) -> Self {
+        let path = self.path(BASELINE);
+        fs::create_dir_all(path.parent().expect("a parent"))
+            .expect("the baseline directory");
+        fs::write(&path, MARKED_KEY_BASELINE).expect("the baseline is seeded");
+        self
+    }
+
     fn baseline_entry(&self, id: &str) -> Option<Entry> {
         let store = FileCorpusStore::new(self.root());
         let baseline = BaselineStore::new(self.path(BASELINE), &RealFs, &store);
@@ -272,6 +304,25 @@ fn promote_reading(
     mode: &PromotionMode,
     reader: &dyn FileReader,
 ) -> Result<Promotion, NotPromoted> {
+    promote_attempt_reading(repo, tracker, store, mode, reader).result
+}
+
+fn promote_attempt(
+    repo: &Repo,
+    tracker: &RecordingTracker,
+    store: &Store,
+    mode: &PromotionMode,
+) -> PromotionAttempt {
+    promote_attempt_reading(repo, tracker, store, mode, &RealFs)
+}
+
+fn promote_attempt_reading(
+    repo: &Repo,
+    tracker: &RecordingTracker,
+    store: &Store,
+    mode: &PromotionMode,
+    reader: &dyn FileReader,
+) -> PromotionAttempt {
     let roots = vec![repo.path("meta")];
     let work_dir = repo.path("meta/work");
     let locks = LockdirLock::with_options(&work_dir, FAST);
@@ -315,19 +366,26 @@ fn promote_reading(
 
 /// Promotes the draft and reports it as a sync or `work promote` would.
 fn reported(repo: &Repo, tracker: &RecordingTracker) -> PromotionRow {
-    let store = Store::new(repo.root());
+    reported_over(repo, tracker, &Store::new(repo.root()))
+}
+
+fn reported_over(
+    repo: &Repo,
+    tracker: &RecordingTracker,
+    store: &Store,
+) -> PromotionRow {
     let roots = vec![repo.path("meta")];
     let work_dir = repo.path("meta/work");
     let locks = LockdirLock::with_options(&work_dir, FAST);
     let state = repo.path(".accelerator/state");
     let recovery = FileRecoveryCopies::new(&state, repo.path("meta"));
-    let baseline = BaselineStore::new(repo.path(BASELINE), &RealFs, &store);
+    let baseline = BaselineStore::new(repo.path(BASELINE), &RealFs, store);
     let retirement = RetirementPorts {
         files: RetirementFiles {
             reader: &RealFs,
-            writer: &store,
-            creator: &store,
-            remover: &store,
+            writer: store,
+            creator: store,
+            remover: store,
             file_locks: &locks,
             recovery: &recovery,
         },
@@ -341,7 +399,7 @@ fn reported(repo: &Repo, tracker: &RecordingTracker) -> PromotionRow {
         lock: &locks,
         baseline: Some(&baseline),
     };
-    let records = repo.records(&store);
+    let records = repo.records(store);
     let ports = PromotionPorts {
         tracker,
         parser: &CommonMarkBody,
@@ -749,7 +807,8 @@ fn an_attempted_marker_survives_retitling_and_does_not_block_a_same_titled_draft
             records: &records,
         },
         &support::identity_run().unwrap(),
-    );
+    )
+    .result;
 
     assert_eq!(
         twin_promoted,
@@ -1461,6 +1520,7 @@ fn promoted_waiting(
         },
         &support::identity_run().unwrap(),
     )
+    .result
 }
 
 #[test]
@@ -1868,4 +1928,198 @@ fn a_draft_promotes_to_a_shortcut_story_key() {
     assert!(target.contains("id: \"sc-1\""), "{target}");
     assert!(target.contains("external_id: \"sc-1\""), "{target}");
     assert!(target.contains("\n# sc-1: Add search\n"), "{target}");
+}
+
+const DOTTED_DRAFT_CONTENT: &str = "---\nid: \"draft-k7mq3x\"\ntitle: \"Add \
+                                    search\"\nkind: \"story\"\n---\n\n# \
+                                    draft-k7mq3x: Add search\n\nPublished \
+                                    to crates.io first.\n";
+
+fn dotted_repo() -> Repo {
+    let repo = Repo::new().unwrap();
+    repo.write(DRAFT, DOTTED_DRAFT_CONTENT).unwrap();
+    repo
+}
+
+fn linking_tracker() -> RecordingTracker {
+    RecordingTracker::rewriting(Vec::new(), Rewrite::AutolinkDottedTokens)
+}
+
+fn rewritten_lines(row: &PromotionRow) -> Vec<(String, String)> {
+    row.rewrite
+        .iter()
+        .flat_map(|notice| &notice.lines.lines)
+        .map(|line| (line.sent.clone(), line.stored.clone()))
+        .collect()
+}
+
+#[test]
+fn a_promotion_is_judged_by_its_landed_retitle() {
+    let repo = dotted_repo();
+
+    let row = reported(&repo, &linking_tracker());
+
+    let notice = row.rewrite.as_ref().expect("the retitle was rewritten");
+    assert_eq!(notice.external_id, key());
+    assert_eq!(notice.path, repo.path(TARGET));
+    assert_eq!(
+        rewritten_lines(&row),
+        vec![(
+            "Published to crates.io first.".to_owned(),
+            "Published to [crates.io](<http://crates.io>) first.".to_owned()
+        )]
+    );
+    let MarkState::Marked(mark) = repo.key_mark() else {
+        panic!("the key's entry is marked");
+    };
+    assert_eq!(mark.rewritten_lines(), notice.lines);
+}
+
+#[test]
+fn a_faithful_promotion_is_not_noticed() {
+    let repo = dotted_repo();
+
+    assert_eq!(reported(&repo, &fresh_tracker()).rewrite, None);
+}
+
+#[test]
+fn a_promotion_kept_or_adopted_is_unjudged() {
+    let linked = "Add search\n# draft-k7mq3x: Add search\n\n\
+                  Published to [crates.io](<http://crates.io>) first.\n";
+
+    let edited = dotted_repo().with_a_marked_key();
+    let earlier = edited.key_mark();
+    edited.save(&record_at(PromotionStage::Created {
+        key: tracker_key(),
+        created_remote_hash: Some("an earlier read".to_owned()),
+    }));
+    assert_eq!(reported(&edited, &tracker_holding(linked)).rewrite, None);
+    assert_eq!(edited.key_mark(), earlier, "kept as edited");
+
+    let unhashed = dotted_repo().with_a_marked_key();
+    unhashed.save(&record_at(PromotionStage::Created {
+        key: tracker_key(),
+        created_remote_hash: None,
+    }));
+    assert_eq!(reported(&unhashed, &tracker_holding(linked)).rewrite, None);
+    assert_eq!(unhashed.key_mark(), earlier, "kept with no hash");
+
+    let adopting = dotted_repo().with_a_marked_key();
+    let store = Store::new(adopting.root());
+    let adopt = promote_attempt(
+        &adopting,
+        &tracker_holding(linked),
+        &store,
+        &PromotionMode::Adopt(tracker_key()),
+    );
+    assert_eq!(adopt.fidelity, PushFidelity::Unjudged);
+    assert_eq!(adopting.key_mark(), earlier, "adopted by name");
+
+    let failing = dotted_repo().with_a_marked_key();
+    let tracker = linking_tracker().failing_update(
+        key(),
+        TrackerError::Retryable {
+            detail: "down".to_owned(),
+        },
+    );
+    assert_eq!(reported(&failing, &tracker).rewrite, None);
+    assert_eq!(failing.key_mark(), earlier, "kept as the update failed");
+}
+
+fn dotted_line_marked(repo: &Repo) -> Vec<(String, String)> {
+    let MarkState::Marked(mark) = repo.key_mark() else {
+        panic!("the key's entry is marked: {:?}", repo.key_mark());
+    };
+    mark.rewritten_lines()
+        .lines
+        .into_iter()
+        .map(|line| (line.sent, line.stored))
+        .collect()
+}
+
+fn dotted_rewrite() -> Vec<(String, String)> {
+    vec![(
+        "Published to crates.io first.".to_owned(),
+        "Published to [crates.io](<http://crates.io>) first.".to_owned(),
+    )]
+}
+
+#[test]
+fn a_rewound_retirement_still_reports_its_notice() {
+    let repo = dotted_repo();
+    let tracker = linking_tracker();
+    let mut store = Store::new(repo.root());
+    store.fail_at = vec![4, 5];
+
+    let rewound = reported_over(&repo, &tracker, &store);
+
+    assert!(
+        matches!(rewound.outcome, PromotionOutcome::NotPromoted { .. }),
+        "{:?}",
+        rewound.outcome
+    );
+    assert_eq!(rewritten_lines(&rewound).len(), 1);
+    assert_eq!(repo.key_mark(), MarkState::Absent, "no mark is recorded");
+}
+
+#[test]
+fn a_promotion_resumed_after_its_retitle_landed_is_judged_again() {
+    let repo = dotted_repo();
+    let tracker = linking_tracker();
+    let _ = reported_over(&repo, &tracker, &store_failing_retirement(&repo));
+
+    let resumed = reported(&repo, &tracker);
+
+    assert!(
+        matches!(
+            resumed.outcome,
+            PromotionOutcome::Promoted(Promotion::Completed(..))
+        ),
+        "{:?}",
+        resumed.outcome
+    );
+    assert_eq!(rewritten_lines(&resumed), dotted_rewrite());
+    assert_eq!(dotted_line_marked(&repo), dotted_rewrite());
+
+    let again = reported(&repo, &tracker);
+    assert!(
+        matches!(
+            again.outcome,
+            PromotionOutcome::Promoted(Promotion::AlreadyDone(_))
+        ),
+        "{:?}",
+        again.outcome
+    );
+    assert_eq!(again.rewrite, None);
+    assert_eq!(dotted_line_marked(&repo), dotted_rewrite(), "still marked");
+}
+
+#[test]
+fn a_resumed_promotion_replaces_an_earlier_mark_with_its_own_verdict() {
+    let marked = dotted_repo().with_a_marked_key();
+    let tracker = linking_tracker();
+    let _ =
+        reported_over(&marked, &tracker, &store_failing_retirement(&marked));
+
+    let _ = reported(&marked, &tracker);
+
+    assert_eq!(dotted_line_marked(&marked), dotted_rewrite());
+}
+
+#[test]
+fn a_resumed_promotion_whose_retitle_was_faithful_is_unmarked() {
+    let repo = dotted_repo();
+    let tracker = fresh_tracker();
+    let _ = reported_over(&repo, &tracker, &store_failing_retirement(&repo));
+
+    let resumed = reported(&repo, &tracker);
+
+    assert_eq!(resumed.rewrite, None);
+    assert_eq!(repo.key_mark(), MarkState::Absent);
+}
+
+fn store_failing_retirement(repo: &Repo) -> Store {
+    let mut store = Store::new(repo.root());
+    store.fail_at = vec![4, 5];
+    store
 }

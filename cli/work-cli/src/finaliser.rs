@@ -313,6 +313,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }
     }
 

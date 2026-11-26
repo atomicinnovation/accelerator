@@ -6,7 +6,7 @@ description: >
   assignee, priority). This is a write skill with irreversible side effects — it
   must never be auto-invoked from conversational context. It shows a payload
   preview, requires explicit confirmation, then applies the update.
-argument-hint: "<IDENTIFIER> [--title TEXT] [--description TEXT] [--state NAME] [--assignee-id ID] [--priority N] [--quiet]"
+argument-hint: "<IDENTIFIER> [--title TEXT] [--description TEXT | --body-file PATH] [--state NAME] [--assignee-id ID] [--priority N] [--verbatim] [--quiet]"
 disable-model-invocation: true
 allowed-tools:
   - Bash
@@ -28,20 +28,29 @@ user's current turn, never synthesised from prior context.
 ## Step 1: Parse arguments
 
 Read the issue identifier (positional) and the mutating flags: `--title`,
-`--description`, `--state` (a WorkflowState name resolved to its UUID via the
-catalogue), `--assignee-id`, `--priority`. At least one is required.
+`--description`, `--body-file` (a Markdown file sent as the description),
+`--state` (a WorkflowState name resolved to its UUID via the catalogue),
+`--assignee-id`, `--priority`. At least one is required. `--description` and
+`--body-file` cannot be combined.
+
+The description is escaped for Linear before it is sent: a backslash goes
+before each `.` or `)` that Linear's parser would read as a link or an ordered
+list, and Linear stores the text without it. `--verbatim` sends the
+description as given; it exists only for capturing what Linear's parser does,
+so never pass it unless the user asks for it by name.
 
 ## Step 2: Render the preview
 
 Show the resolved intent — the operation (`issueUpdate`), the target issue, and
-the fields being set (`--title`/`--description`/`--state`/`--assignee-id`/
-`--priority`) — under:
+the fields being set (`--title`/`--description`/`--body-file`/`--state`/
+`--assignee-id`/`--priority`) — under:
 
 > **Proposed Linear write — review before sending**
 
-A `--description` that is empty or only whitespace erases the existing
-description; show it as `description: (cleared — the existing description is
-erased)`. Linear refuses an empty `--title` or `--assignee-id`, so warn in the
+An empty or whitespace-only description, given by `--description` or held
+in the `--body-file` file, erases the existing description; show it as
+`description: (cleared — the existing description is erased)`. Read the `--body-file` to show its contents
+in the preview. Linear refuses an empty `--title` or `--assignee-id`, so warn in the
 preview that the update will fail.
 
 At least one mutating flag is required; with none the subcommand refuses before
@@ -69,8 +78,9 @@ The subcommand reports the `updated` keyword on success: a trailing
 `updated\t<identifier>` line. Confirm the updated fields and suggest
 `/show-linear-issue <IDENTIFIER>` to verify.
 
-An `E_UPDATE_NO_OPS`, `E_TRANSITION_STATE_NOT_IN_CATALOGUE` or
-`E_TRANSITION_STATE_AMBIGUOUS` refusal comes before any request, so no write
+An `E_UPDATE_NO_OPS`, `E_UPDATE_NO_FILE` (the `--body-file` cannot be read),
+`E_TRANSITION_STATE_NOT_IN_CATALOGUE` or `E_TRANSITION_STATE_AMBIGUOUS`
+refusal comes before any request, so no write
 was made. On any other failure, report the error and suggest
 `/show-linear-issue <IDENTIFIER>` to check whether the update landed: a
 timeout or server failure can follow a write Linear applied.

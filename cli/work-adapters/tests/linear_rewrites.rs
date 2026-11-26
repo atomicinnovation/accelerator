@@ -3,45 +3,20 @@
 //! `tests/fixtures/linear-rewrites`.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
-use std::collections::BTreeMap;
-use std::path::Path;
+mod captures;
 
+use captures::{
+    fixture, fragments, fragments_in_groups, lines, read_back, Fragments,
+    TestError,
+};
+use document::markdown::{events, MarkdownEvent, MarkdownTag};
 use tracker_test_support::Rewrite;
 
-type TestError = Box<dyn std::error::Error>;
-
-fn capture(name: &str) -> Result<String, TestError> {
-    Ok(std::fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/linear-rewrites")
-            .join(name),
-    )?)
-}
-
-/// Each `## ` section's body, keyed by its heading's fragment code.
-fn fragments(markdown: &str) -> BTreeMap<String, String> {
-    let mut sections = BTreeMap::new();
-    let mut current: Option<(String, String)> = None;
-    for line in markdown.lines() {
-        if let Some(heading) = line.strip_prefix("## ") {
-            sections.extend(current.take());
-            let code = heading.split_whitespace().next().unwrap_or_default();
-            current = Some((code.to_owned(), String::new()));
-        } else if let Some((_, body)) = current.as_mut() {
-            body.push_str(line);
-            body.push('\n');
-        }
-    }
-    sections.extend(current);
-    sections
-        .into_iter()
-        .map(|(code, body)| (code, body.trim().to_owned()))
-        .collect()
-}
-
-/// The rewrites the capture's README records for each fragment. `X09`
-/// turns a number into an ordered-list marker, which changes meaning, so no
-/// cosmetic rewrite reproduces it.
+/// The rewrites the capture's README records for each fragment. `X09` and
+/// `X20` turn a number into an ordered-list marker, which no rewrite here
+/// reproduces. `X19`-`X25` are absent because the simulator works line by
+/// line and models neither `mailto` links nor emphasis, headings, tables or
+/// HTML.
 fn recorded_rewrites() -> Vec<(&'static str, Vec<Rewrite>)> {
     vec![
         ("R01", vec![Rewrite::EscapeTildes]),
@@ -77,20 +52,24 @@ fn recorded_rewrites() -> Vec<(&'static str, Vec<Rewrite>)> {
         ),
         ("X07", vec![Rewrite::JoinCodeSpanLines]),
         ("X08", vec![Rewrite::JoinCodeSpanLines]),
+        ("X10", vec![Rewrite::AutolinkDottedTokens]),
+        ("X11", vec![Rewrite::AutolinkDottedTokens]),
+        ("X12", vec![Rewrite::AutolinkDottedTokens]),
+        ("X13", vec![Rewrite::AutolinkDottedTokens]),
+        ("X14", vec![Rewrite::AutolinkDottedTokens]),
+        ("X15", vec![Rewrite::AutolinkDottedTokens]),
+        ("X16", vec![Rewrite::AutolinkDottedTokens]),
+        ("X17", vec![Rewrite::AutolinkDottedTokens]),
+        ("X18", vec![Rewrite::AutolinkDottedTokens]),
     ]
 }
 
 #[test]
 fn each_rewrite_reproduces_the_captured_linear_read_back(
 ) -> Result<(), TestError> {
-    let pushed = fragments(&capture("pushed.md")?);
-    let read_back: serde_json::Value =
-        serde_json::from_str(&capture("read-back.json")?)?;
-    let read_back = fragments(
-        read_back["data"]["issue"]["description"]
-            .as_str()
-            .ok_or("a captured description")?,
-    );
+    let pushed = fragments(&fixture("linear-rewrites/pushed.md")?, "## ");
+    let read_back =
+        fragments(&read_back("linear-rewrites/read-back.json")?, "## ");
 
     for (code, rewrites) in recorded_rewrites() {
         let rewritten = rewrites
@@ -99,5 +78,121 @@ fn each_rewrite_reproduces_the_captured_linear_read_back(
 
         assert_eq!(rewritten, read_back[code], "fragment {code}");
     }
+    Ok(())
+}
+
+const DOTTED_TOKEN_GROUPS: [&str; 14] = [
+    "ext",
+    "md-name",
+    "rs-name",
+    "before",
+    "after",
+    "case",
+    "labels",
+    "numeric",
+    "ports-paths",
+    "markup",
+    "remedy",
+    "nfd",
+    "nfc",
+    "marks",
+];
+
+struct Probes {
+    pushed: Fragments,
+    read_back: Fragments,
+}
+
+impl Probes {
+    fn dotted_token_probes(
+        pushed: &str,
+        read_back_path: &str,
+    ) -> Result<Self, TestError> {
+        Ok(Self {
+            pushed: fragments_in_groups(
+                &fixture(pushed)?,
+                "#### ",
+                &DOTTED_TOKEN_GROUPS,
+            ),
+            read_back: fragments(&read_back(read_back_path)?, "#### "),
+        })
+    }
+
+    fn tld_sweep() -> Result<Self, TestError> {
+        Ok(Self {
+            pushed: lines(&fixture("linear-autolink-probes/tld-sweep.md")?),
+            read_back: lines(&read_back(
+                "linear-autolink-probes/tld-sweep.read-back.json",
+            )?),
+        })
+    }
+}
+
+/// The text of each link to a bare host name, leaving out scheme URLs and
+/// `mailto` links, which other rewrites make.
+fn dotted_token_link_texts(markdown: &str) -> Vec<String> {
+    let mut texts = Vec::new();
+    let mut open: Option<(String, String)> = None;
+    for (event, _) in events(markdown) {
+        match (event, open.as_mut()) {
+            (
+                MarkdownEvent::Start(MarkdownTag::Link { destination, .. }),
+                _,
+            ) => {
+                open = Some((destination, String::new()));
+            }
+            (
+                MarkdownEvent::Text(text) | MarkdownEvent::Code(text),
+                Some((_, link_text)),
+            ) => link_text.push_str(&text),
+            (MarkdownEvent::End(MarkdownTag::Link { .. }), _) => {
+                texts.extend(open.take().and_then(|(destination, text)| {
+                    (destination.starts_with("http://") && destination != text)
+                        .then_some(text)
+                }));
+            }
+            _ => {}
+        }
+    }
+    texts
+}
+
+#[test]
+fn the_simulator_links_what_linear_linked_in_every_dotted_token_probe(
+) -> Result<(), TestError> {
+    let corpora = [
+        Probes::dotted_token_probes(
+            "linear-autolink-probes/probes.md",
+            "linear-autolink-probes/probes.created.json",
+        )?,
+        Probes::dotted_token_probes(
+            "linear-autolink-probes/follow-ups.md",
+            "linear-autolink-probes/follow-ups.read-back.json",
+        )?,
+        Probes::dotted_token_probes(
+            "linear-autolink-probes/split-tokens.md",
+            "linear-autolink-probes/split-tokens.read-back.json",
+        )?,
+        Probes::tld_sweep()?,
+    ];
+    let mut probed = 0;
+    let mut failures = Vec::new();
+    for corpus in &corpora {
+        for (code, pushed) in &corpus.pushed {
+            probed += 1;
+            let simulated = dotted_token_link_texts(
+                &Rewrite::AutolinkDottedTokens.apply(pushed),
+            );
+            let linked = dotted_token_link_texts(&corpus.read_back[code]);
+            if simulated != linked {
+                failures.push(format!(
+                    "{code} {pushed:?}: simulated {simulated:?}, Linear \
+                     linked {linked:?}"
+                ));
+            }
+        }
+    }
+    assert!(probed > 1_000, "{probed} probes");
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
     Ok(())
 }

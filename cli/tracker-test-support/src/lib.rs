@@ -9,10 +9,12 @@
 
 pub mod contract;
 pub mod evidence;
+mod linear_autolinker;
 mod rewrite;
 pub mod seed;
 mod shared;
 
+pub use crate::linear_autolinker::linear_leaves_bare;
 pub use crate::rewrite::Rewrite;
 
 pub use crate::shared::SharedTracker;

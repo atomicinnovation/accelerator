@@ -16,8 +16,15 @@ struct Capture {
 }
 
 impl Capture {
-    fn load() -> Result<Self, TestError> {
-        let directory = fixtures().join("linear-rewrites");
+    fn unescaped() -> Result<Self, TestError> {
+        Self::load(&fixtures().join("linear-rewrites"))
+    }
+
+    fn escaped() -> Result<Self, TestError> {
+        Self::load(&fixtures().join("linear-rewrites/escaped"))
+    }
+
+    fn load(directory: &Path) -> Result<Self, TestError> {
         Ok(Self {
             pushed: std::fs::read_to_string(directory.join("pushed.md"))?,
             read_back: description(&directory.join("read-back.json"))?,
@@ -29,6 +36,10 @@ impl Capture {
             section(&self.pushed, name)?,
             section(&self.read_back, name)?,
         ))
+    }
+
+    fn codes(&self) -> Vec<String> {
+        codes(&self.pushed)
     }
 
     fn without(&self, names: &[&str]) -> (String, String) {
@@ -51,9 +62,16 @@ fn description(remote: &Path) -> Result<String, TestError> {
 }
 
 fn sections(markdown: &str) -> Vec<(&str, String)> {
+    sections_under(markdown, "## ")
+}
+
+fn sections_under<'a>(
+    markdown: &'a str,
+    marker: &str,
+) -> Vec<(&'a str, String)> {
     let mut sections: Vec<(&str, String)> = Vec::new();
     for line in markdown.lines() {
-        if line.starts_with("## ") {
+        if line.starts_with(marker) {
             sections.push((line, String::new()));
         } else if let Some((_, content)) = sections.last_mut() {
             content.push_str(line);
@@ -68,6 +86,19 @@ fn names(heading: &str, name: &str) -> bool {
         .strip_prefix("## ")
         .and_then(|title| title.split(' ').next())
         == Some(name)
+}
+
+fn codes(markdown: &str) -> Vec<String> {
+    sections(markdown)
+        .into_iter()
+        .filter_map(|(heading, _)| {
+            heading
+                .strip_prefix("## ")?
+                .split(' ')
+                .next()
+                .map(str::to_owned)
+        })
+        .collect()
 }
 
 fn section(markdown: &str, name: &str) -> Result<String, TestError> {
@@ -97,7 +128,7 @@ fn equivalent_markdown(left: &str, right: &str) -> bool {
 }
 
 fn captured_row_is_noise(name: &str) -> Result<(), TestError> {
-    let (pushed, read_back) = Capture::load()?.fragments(name)?;
+    let (pushed, read_back) = Capture::unescaped()?.fragments(name)?;
     assert_ne!(pushed.trim(), read_back.trim(), "{name} was not rewritten");
     assert!(
         equivalent_markdown(&pushed, &read_back),
@@ -107,7 +138,7 @@ fn captured_row_is_noise(name: &str) -> Result<(), TestError> {
 }
 
 fn captured_row_differs(name: &str) -> Result<(), TestError> {
-    let (pushed, read_back) = Capture::load()?.fragments(name)?;
+    let (pushed, read_back) = Capture::unescaped()?.fragments(name)?;
     assert!(
         !equivalent_markdown(&pushed, &read_back),
         "{name}: {pushed:?} and {read_back:?} should differ"
@@ -198,6 +229,62 @@ fn autolinked_dotted_tokens_differ() -> Result<(), TestError> {
 }
 
 #[test]
+fn file_names_whose_extension_is_a_top_level_domain_differ(
+) -> Result<(), TestError> {
+    captured_row_differs("X10")
+}
+
+#[test]
+fn a_file_name_with_a_line_number_differs() -> Result<(), TestError> {
+    captured_row_differs("X11")
+}
+
+#[test]
+fn multi_part_tokens_differ() -> Result<(), TestError> {
+    captured_row_differs("X14")
+}
+
+#[test]
+fn a_mixed_case_token_differs() -> Result<(), TestError> {
+    captured_row_differs("X15")
+}
+
+#[test]
+fn a_sentence_final_token_differs() -> Result<(), TestError> {
+    captured_row_differs("X16")
+}
+
+#[test]
+fn a_bracketed_token_differs() -> Result<(), TestError> {
+    captured_row_differs("X17")
+}
+
+#[test]
+fn an_email_address_differs() -> Result<(), TestError> {
+    captured_row_differs("X19")
+}
+
+#[test]
+fn a_wrapped_parenthesised_number_differs() -> Result<(), TestError> {
+    captured_row_differs("X20")
+}
+
+#[test]
+fn tokens_in_bold_and_in_a_heading_differ() -> Result<(), TestError> {
+    captured_row_differs("X22")
+}
+
+#[test]
+fn a_token_in_a_table_cell_differs() -> Result<(), TestError> {
+    captured_row_differs("X23")
+}
+
+#[test]
+fn quoted_scheme_urls_are_noise() -> Result<(), TestError> {
+    captured_row_is_noise("X25")
+}
+
+#[test]
 fn code_span_indentation_is_noise() -> Result<(), TestError> {
     captured_row_is_noise("X08")
 }
@@ -270,12 +357,113 @@ fn strong_on_a_code_span_is_noise() {
 #[test]
 fn the_captured_push_and_read_back_differ_only_by_the_meaning_changing_rows(
 ) -> Result<(), TestError> {
-    let capture = Capture::load()?;
+    let capture = Capture::unescaped()?;
     assert!(!equivalent_markdown(&capture.pushed, &capture.read_back));
-    let (pushed, read_back) = capture.without(&["R12", "X09"]);
+    let (pushed, read_back) = capture.without(&[
+        "R12", "X09", "X10", "X11", "X14", "X15", "X16", "X17", "X19", "X20",
+        "X22", "X23",
+    ]);
     assert!(
         equivalent_markdown(&pushed, &read_back),
         "{pushed:?} and {read_back:?} should be equivalent"
     );
     Ok(())
+}
+
+#[test]
+fn the_escaped_capture_covers_every_fragment() -> Result<(), TestError> {
+    let (unescaped, escaped) = (Capture::unescaped()?, Capture::escaped()?);
+    assert_eq!(escaped.codes(), unescaped.codes());
+    assert_eq!(codes(&escaped.read_back), unescaped.codes());
+    Ok(())
+}
+
+#[test]
+fn each_escaped_fragment_is_equivalent_to_its_unescaped_fragment(
+) -> Result<(), TestError> {
+    let (unescaped, escaped) = (Capture::unescaped()?, Capture::escaped()?);
+    for code in unescaped.codes() {
+        assert_noise(
+            &section(&unescaped.pushed, &code)?,
+            &section(&escaped.pushed, &code)?,
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn each_escaped_read_back_is_equivalent_to_its_unescaped_fragment(
+) -> Result<(), TestError> {
+    let (unescaped, escaped) = (Capture::unescaped()?, Capture::escaped()?);
+    for code in unescaped.codes() {
+        assert_noise(
+            &section(&unescaped.pushed, &code)?,
+            &section(&escaped.read_back, &code)?,
+        );
+    }
+    Ok(())
+}
+
+const ENTITY_PROBES_THAT_CHANGE_MEANING: &[&str] = &[
+    "E001", "E002", "E004", "E009", "E015", "E016", "E018", "E023",
+];
+
+const ENTITY_PROBES_THAT_TAKE_A_SECOND_CYCLE: &[&str] = &["E004", "E018"];
+
+#[test]
+fn each_entity_probe_reads_as_recorded() -> Result<(), TestError> {
+    let probes = fixtures().join("linear-autolink-probes");
+    assert_probes_read_as_recorded(
+        &std::fs::read_to_string(probes.join("entities.md"))?,
+        &description(&probes.join("entities.read-back.json"))?,
+        ENTITY_PROBES_THAT_CHANGE_MEANING,
+    );
+    Ok(())
+}
+
+#[test]
+fn each_pulled_entity_probe_reads_as_recorded_after_a_second_push(
+) -> Result<(), TestError> {
+    let probes = fixtures().join("linear-autolink-probes");
+    assert_probes_read_as_recorded(
+        &description(&probes.join("entities.read-back.json"))?,
+        &description(&probes.join("entities.second-push.read-back.json"))?,
+        ENTITY_PROBES_THAT_TAKE_A_SECOND_CYCLE,
+    );
+    Ok(())
+}
+
+fn assert_probes_read_as_recorded(
+    pushed: &str,
+    read_back: &str,
+    changing_meaning: &[&str],
+) {
+    let (pushed, read_back) = (
+        sections_under(pushed, "#### "),
+        sections_under(read_back, "#### "),
+    );
+    assert_eq!(
+        pushed
+            .iter()
+            .map(|(heading, _)| heading)
+            .collect::<Vec<_>>(),
+        read_back
+            .iter()
+            .map(|(heading, _)| heading)
+            .collect::<Vec<_>>(),
+    );
+    let misread: Vec<&str> = pushed
+        .iter()
+        .zip(&read_back)
+        .filter(|((heading, sent), (_, stored))| {
+            let code = heading.split(' ').nth(1).unwrap_or_default();
+            equivalent_markdown(sent, stored)
+                == changing_meaning.contains(&code)
+        })
+        .map(|((heading, _), _)| *heading)
+        .collect();
+    assert!(
+        misread.is_empty(),
+        "read otherwise than recorded: {misread:?}"
+    );
 }

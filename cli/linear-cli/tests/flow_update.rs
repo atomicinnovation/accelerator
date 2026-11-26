@@ -236,6 +236,63 @@ fn a_failed_state_change_exits_as_a_plain_update_would() {
     assert_eq!(with_state, plain);
 }
 
+fn update_with_body_file(
+    contents: Option<&str>,
+    args: &[&str],
+) -> (MockHTTPServer, Output, String) {
+    let server = MockHTTPServer::start();
+    install(&server, "issue-update-200");
+    let dir = support::scratch(support::CONFIG);
+    let path = dir.path().join("body.md");
+    if let Some(contents) = contents {
+        std::fs::write(&path, contents).expect("write body file");
+    }
+    let path = path.to_str().expect("utf-8 path").to_owned();
+    let output = support::run(
+        dir.path(),
+        &server,
+        &[&["update", "BLA-1", "--body-file", &path], args].concat(),
+    );
+    (server, output, path)
+}
+
+#[test]
+fn a_body_file_is_sent_as_the_description() {
+    let contents = "# Plan\n\n- one\n- two\n";
+    let (server, output, _) = update_with_body_file(Some(contents), &[]);
+
+    assert_updated(&output);
+    assert_eq!(sent_input(&server), json!({"description": contents}));
+}
+
+#[test]
+fn a_body_file_alone_names_a_field() {
+    let (_, output, _) = update_with_body_file(Some("body\n"), &[]);
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stderr.contains("E_UPDATE_NO_OPS"), "stderr: {stderr}");
+    assert_updated(&output);
+}
+
+#[test]
+fn a_body_file_and_a_description_conflict() {
+    let (server, output, _) =
+        update_with_body_file(Some("body\n"), &["--description", "x"]);
+
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(server.hits(&graphql()), 0);
+}
+
+#[test]
+fn an_unreadable_body_file_is_refused() {
+    let (server, output, path) = update_with_body_file(None, &[]);
+
+    assert_refused(&output, 115, "E_UPDATE_NO_FILE");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(&path), "stderr: {stderr}");
+    assert_eq!(server.hits(&graphql()), 0);
+}
+
 #[test]
 fn update_with_no_fields_is_a_usage_error() {
     let server = MockHTTPServer::start();

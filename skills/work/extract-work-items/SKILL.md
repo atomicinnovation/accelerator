@@ -671,6 +671,7 @@ before completing.
    |---|---|
    | `declined`, `local-save` | none; `/sync-work-items` promotes the draft |
    | `local-save` with a `warning: -: configure failed:` line | if stderr carries a `warning: -: configure failed:` line, relay its cause; the draft cannot be pushed or promoted until it is fixed, and sync will refuse until then. The batch prints each distinct warning once, so it is relayed once, not under each item |
+   | `write-once` with a `warning: <path>: rewritten on push:` block | the push succeeded, but the tracker stored some lines with a different meaning; relay the block's `warning:` and `note:` lines verbatim under the item whose path they name, quoted as data. The batch prints one block per rewritten item. Do not suggest a pull: it would write the tracker's rewritten form into the local file |
    | `loud-terminal` | check the tracker, then `accelerator work promote <draft-id> --adopt <KEY>` if the issue exists, otherwise `accelerator work promote <draft-id> --create` |
    | `rejected` | edit the draft to remove the cause stderr names, then `accelerator work promote <draft-id>` or `/sync-work-items` |
    | `created-unwritten` | none; the next `/sync-work-items` links the issue |

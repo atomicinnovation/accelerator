@@ -71,6 +71,9 @@ equivalent".
 
 - Blocked by: none.
 - Blocks: none.
+- Related: 0320 — Linear Push Corrupts Markdown Content proceeds without
+  waiting for this ADR. Its push-side escaper relies on the current
+  representation rule; a revised rule could move that fix to the local file.
 
 ## Assumptions
 

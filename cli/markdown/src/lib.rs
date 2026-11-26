@@ -1,10 +1,38 @@
 //! Text transformations for Markdown, one module per dialect, that preserve
 //! every byte they do not deliberately change.
+//!
+//! Each dialect reads Markdown as the body it is compared with is read:
+//! `github` with GitHub's extensions, `linear` through `document`, as the
+//! tracker body equivalence does.
+
+use std::ops::Range;
 
 pub mod github;
+pub mod linear;
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) struct Splice {
+    pub(crate) replaced: Range<usize>,
+    pub(crate) with: &'static str,
+}
+
+/// `markdown` with each splice applied, in ascending, non-overlapping order.
+pub(crate) fn spliced(
+    markdown: &str,
+    splices: impl IntoIterator<Item = Splice>,
+) -> String {
+    let mut result = String::with_capacity(markdown.len());
+    let mut preserved_from = 0;
+    for splice in splices {
+        result.push_str(&markdown[preserved_from..splice.replaced.start]);
+        result.push_str(splice.with);
+        preserved_from = splice.replaced.end;
+    }
+    result.push_str(&markdown[preserved_from..]);
+    result
+}
 
 fn trailing_whitespace_start(markdown: &str, line_ending: usize) -> usize {
     line_ending

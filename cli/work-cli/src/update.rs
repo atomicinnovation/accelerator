@@ -3,7 +3,9 @@
 //! validated mutations as one `document::Yaml` tree edit and performs one
 //! atomic write, under a per-file mkdir-lock.
 
+use std::io::Write;
 use std::path::Path;
+use std::process::ExitCode;
 
 use ::config::ConfigAccess;
 use corpus::lock::ExclusiveLock as _;
@@ -31,15 +33,23 @@ use work::update::LIST_FIELDS;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
+use work_adapters::sync::baseline_store::RewriteAcceptance;
+use work_adapters::sync::push_verdict::PushOrigin;
+use work_adapters::sync::push_verdict::PushVerdict;
 
 use crate::cli::UpdateArgs;
 use crate::config::effective_nonempty;
+use crate::exit_codes;
 use crate::refusal::Refusal;
+use crate::report_records::rewrite_lines;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
 
 pub enum RunOutcome {
-    Updated,
+    /// `warnings` are the lines stderr carries about a push that applied.
+    Updated {
+        warnings: Vec<String>,
+    },
     Failed(String),
     PushNotAvailable(String),
     PushUnrecognised(String),
@@ -50,6 +60,48 @@ pub enum RunOutcome {
     /// The identity run an `update --push` needs could not begin; nothing
     /// was read or written.
     Refused(Refusal),
+}
+
+impl RunOutcome {
+    /// Prints this outcome as `accelerator work update` does, returning the
+    /// code it exits with.
+    pub fn report(self, _out: &mut dyn Write, err: &mut dyn Write) -> ExitCode {
+        let failed = |err: &mut dyn Write, message: &str, code: u8| {
+            let _ = writeln!(err, "{message}");
+            ExitCode::from(code)
+        };
+        match self {
+            Self::Updated { warnings } => {
+                for warning in warnings {
+                    let _ = writeln!(err, "{warning}");
+                }
+                ExitCode::SUCCESS
+            }
+            Self::Failed(message) => {
+                let _ = writeln!(err, "{message}");
+                ExitCode::FAILURE
+            }
+            Self::PushNotAvailable(message) => {
+                failed(err, &message, exit_codes::NOT_AVAILABLE)
+            }
+            Self::PushUnrecognised(message) => {
+                failed(err, &message, exit_codes::UNRECOGNISED)
+            }
+            Self::PushUnconfigured(message) => {
+                failed(err, &message, exit_codes::UNCONFIGURED)
+            }
+            Self::PushRetryable(message) => {
+                failed(err, &message, exit_codes::RETRYABLE)
+            }
+            Self::PushTerminal(message) => {
+                failed(err, &message, exit_codes::TERMINAL)
+            }
+            Self::PushRejected(message) => {
+                failed(err, &message, exit_codes::REJECTED)
+            }
+            Self::Refused(refusal) => refusal.report_to(err),
+        }
+    }
 }
 
 fn set_key_error_message(error: &UpdateError) -> String {
@@ -179,7 +231,7 @@ fn push_update(
     fields: PushedFields,
     rendered: &str,
     path: &Path,
-) -> Result<(), TryRunError> {
+) -> Result<Vec<String>, TryRunError> {
     let PushedFields {
         external_id,
         id,
@@ -250,34 +302,75 @@ fn push_update(
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
 
     let remote = tracker.show(&external_id).ok();
-    let fingerprints = BaselineDigester::new(tracker.as_ref(), &CommonMarkBody)
-        .digests(rendered, remote.as_ref().map(|issue| issue.body.as_str()))
+    let digester = BaselineDigester::new(tracker.as_ref(), &CommonMarkBody);
+    let read_back = remote.as_ref().map(|issue| issue.body.as_str());
+    let fingerprints = digester
+        .digests(rendered, read_back)
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
-    baseline_store
-        .set(
+    let verdict = PushVerdict::judged(
+        PushOrigin::Pushed,
+        digester.comparison(),
+        rendered,
+        read_back,
+    );
+    let recorded = baseline_store
+        .record(
             &id,
-            baseline::Entry::recorded(
-                baseline::SyncStamps {
-                    remote_updated_at: remote
-                        .map_or(tracker::RemoteTimestamp::NotRead, |issue| {
-                            issue.updated
-                        }),
-                    local_synced_at: 0,
-                },
-                fingerprints,
-            ),
+            pushed_entry(remote, fingerprints),
+            verdict.mark_change(),
         )
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
-    if let Ok((recorded, _)) = baseline_store.load() {
-        work_adapters::sync::adoption_records::retire_confirmed(
-            &integrations_root,
-            &integration,
-            &baseline_writer,
-            &recorded,
-        );
-    }
+    work_adapters::sync::adoption_records::retire_confirmed(
+        &integrations_root,
+        &integration,
+        &baseline_writer,
+        &recorded,
+    );
 
-    Ok(())
+    Ok(rewrite_warnings(
+        verdict,
+        recorded.get(&id),
+        (path, &external_id),
+        &integration,
+    ))
+}
+
+/// The baseline entry a push records from its read-back; an unread remote
+/// leaves its stamp unread.
+fn pushed_entry(
+    remote: Option<tracker::RemoteIssue>,
+    fingerprints: work::sync::DualRecipeFingerprints,
+) -> baseline::Entry {
+    baseline::Entry::recorded(
+        baseline::SyncStamps {
+            remote_updated_at: remote
+                .map_or(tracker::RemoteTimestamp::NotRead, |issue| {
+                    issue.updated
+                }),
+            local_synced_at: 0,
+        },
+        fingerprints,
+    )
+}
+
+/// The block stderr carries for the item at `path` known remotely as
+/// `external_id`: of this push when its read-back was rewritten, else of
+/// the rewrite its recorded entry still marks.
+fn rewrite_warnings(
+    verdict: PushVerdict,
+    recorded: Option<&baseline::Entry>,
+    (path, external_id): (&Path, &tracker::ExternalId),
+    integration: &str,
+) -> Vec<String> {
+    let on_push = verdict.into_notice(path, external_id);
+    match recorded {
+        Some(entry) => entry.rewrite_after_push(on_push, path, external_id),
+        None => on_push,
+    }
+    .map(|notice| {
+        rewrite_lines(&notice, &path.display().to_string(), integration)
+    })
+    .unwrap_or_default()
 }
 
 /// A terminal failure may have applied remotely, so it clears the baseline
@@ -313,17 +406,69 @@ fn push_failure(
     }
 }
 
+fn accept_rewrite(
+    start: &Path,
+    config: &dyn ConfigAccess,
+    path: &Path,
+) -> Result<Vec<String>, TryRunError> {
+    let root = config_adapters::FileConfigStore::discover_root(start);
+    let _identity_run = crate::identity_run::begin(&root, "update")
+        .map_err(|refusal| crate::identity_run::refused(refusal, &root))?;
+    let content = std::fs::read_to_string(path).map_err(|error| {
+        format!("could not read {}: {error}", path.display())
+    })?;
+    let yaml = document::parse(&content).map_err(|error| error.to_string())?;
+    let Yaml::Mapping(mapping) = &yaml else {
+        return Err(TryRunError::Generic(
+            "frontmatter is not a mapping".to_owned(),
+        ));
+    };
+    let id = scalar_string(mapping, "id").ok_or_else(|| {
+        format!("{} has no id field in its frontmatter", path.display())
+    })?;
+    let integration =
+        effective_nonempty(config, "work.integration").map_err(|_| {
+            format!(
+                "{}: no rewrite on push is recorded to accept, as no \
+                     work.integration is configured",
+                path.display()
+            )
+        })?;
+    let integrations_root = crate::sync::integrations_dir(config, &root)
+        .map_err(|error| TryRunError::Generic(error.to_string()))?;
+    let baseline_path = baseline::path(&integrations_root, &integration);
+    let file_reader = RealFs;
+    let baseline_writer = FileCorpusStore::new(
+        baseline_path.parent().unwrap_or(&integrations_root),
+    );
+    let accepted =
+        BaselineStore::new(baseline_path, &file_reader, &baseline_writer)
+            .accept_rewrite(&id)
+            .map_err(|error| TryRunError::Generic(error.to_string()))?;
+    match accepted {
+        RewriteAcceptance::Accepted => Ok(Vec::new()),
+        RewriteAcceptance::NothingMarked => Err(TryRunError::Generic(format!(
+            "{}: no rewrite on push is recorded to accept",
+            path.display()
+        ))),
+    }
+}
+
 fn try_run(
     start: &Path,
     config: &dyn ConfigAccess,
     args: &UpdateArgs,
     registry: &dyn TrackerRegistry,
-) -> Result<(), TryRunError> {
+) -> Result<Vec<String>, TryRunError> {
     for (key, _) in &args.sets {
         validate_set_key(key).map_err(|error| set_key_error_message(&error))?;
     }
     for (key, _) in args.appends.iter().chain(&args.removes) {
         validate_list_key(key)?;
+    }
+
+    if args.accept_rewrite {
+        return accept_rewrite(start, config, &args.path);
     }
 
     let _identity_run = if args.push {
@@ -402,7 +547,7 @@ fn try_run(
     );
     AtomicWrite::write(&store, &args.path, rendered.as_bytes())
         .map_err(|error| error.to_string())?;
-    Ok(())
+    Ok(Vec::new())
 }
 
 #[must_use]
@@ -413,7 +558,7 @@ pub fn run(
     registry: &dyn TrackerRegistry,
 ) -> RunOutcome {
     match try_run(start, config, args, registry) {
-        Ok(()) => RunOutcome::Updated,
+        Ok(warnings) => RunOutcome::Updated { warnings },
         Err(TryRunError::Generic(message)) => RunOutcome::Failed(message),
         Err(TryRunError::NotAvailable(message)) => {
             RunOutcome::PushNotAvailable(message)
@@ -453,6 +598,7 @@ mod tests {
     use tracker::RemoteTracker;
     use tracker_test_support::RecordingTracker;
     use work_adapters::sync::digest;
+    use work_adapters::sync::rewrite_mark::MarkState;
 
     use super::*;
 
@@ -515,6 +661,7 @@ mod tests {
             appends: Vec::new(),
             removes: Vec::new(),
             push,
+            accept_rewrite: false,
         }
     }
 
@@ -591,7 +738,7 @@ mod tests {
             &untouched_registry(),
         );
 
-        assert!(matches!(outcome, RunOutcome::Updated));
+        assert!(matches!(outcome, RunOutcome::Updated { .. }));
         assert!(std::fs::read_to_string(&item)
             .expect("item")
             .contains("status: \"ready\""));
@@ -641,6 +788,7 @@ mod tests {
             appends: Vec::new(),
             removes: Vec::new(),
             push: true,
+            accept_rewrite: false,
         };
 
         let outcome = run(root.path(), &config, &args, &registry);
@@ -654,6 +802,418 @@ mod tests {
             seeded,
             "an unconfigured push sent nothing, so the baseline stands"
         );
+    }
+
+    const MARKED_BASELINE: &str = "{\"timestamp\":0,\"items\":{\"0001\":{\
+        \"digest_recipe\":1,\"local_body_hash\":\"b\",\
+        \"local_fields_hash\":\"f\",\"local_frontmatter_hash\":\"m\",\
+        \"local_hash\":\"l\",\"local_synced_at\":0,\
+        \"remote_body_hash\":\"rb\",\"remote_fields_hash\":\"rf\",\
+        \"remote_hash\":\"r\",\"remote_updated_at\":\"\",\
+        \"rewritten_on_push\":{\"lines\":[{\"section\":\"Earlier\",\
+        \"sent\":\"before\",\"stored\":\"after\"}],\"more\":0}}}}\n";
+
+    struct PushedRepo {
+        root: tempfile::TempDir,
+        item: std::path::PathBuf,
+        content: String,
+        config: FakeConfig,
+    }
+
+    impl PushedRepo {
+        fn on(tracker: crate::test_support::real_trackers::Tracker) -> Self {
+            let root = tempfile::tempdir().expect("tempdir");
+            std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+            std::fs::create_dir_all(
+                root.path().join("integrations").join(tracker.integration()),
+            )
+            .expect("baseline dir");
+            let content = format!(
+                "---\nid: \"0001\"\ntitle: \"Title\"\nexternal_id: \"{}\"\n\
+                 ---\n{}",
+                tracker.key(),
+                crate::test_support::real_trackers::NEEDS_BOTH_ESCAPES
+            );
+            let item = root.path().join("0001.md");
+            std::fs::write(&item, &content).expect("seed the item");
+            let config = FakeConfig(
+                [
+                    ("work.integration", tracker.integration()),
+                    ("paths.integrations", "integrations"),
+                ]
+                .into_iter()
+                .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                .collect(),
+            );
+            Self {
+                root,
+                item,
+                content,
+                config,
+            }
+        }
+
+        fn body(&self) -> String {
+            document::split(&self.content).expect("a body").body
+        }
+
+        fn baseline_path(
+            &self,
+            tracker: crate::test_support::real_trackers::Tracker,
+        ) -> std::path::PathBuf {
+            self.root.path().join(format!(
+                "integrations/{}/last-sync.json",
+                tracker.integration()
+            ))
+        }
+
+        fn marked(
+            self,
+            tracker: crate::test_support::real_trackers::Tracker,
+        ) -> Self {
+            std::fs::write(self.baseline_path(tracker), MARKED_BASELINE)
+                .expect("seed the marked baseline");
+            self
+        }
+
+        fn mark(
+            &self,
+            tracker: crate::test_support::real_trackers::Tracker,
+        ) -> MarkState {
+            let text = std::fs::read_to_string(self.baseline_path(tracker))
+                .expect("the baseline is recorded");
+            match baseline::Baseline::read(Some(&text)).0.get("0001") {
+                Some(baseline::Entry::Split(entry)) => entry.mark().clone(),
+                other => panic!("a recipe-1 entry is recorded: {other:?}"),
+            }
+        }
+
+        fn push(
+            &self,
+            served: &mut crate::test_support::real_trackers::ServedTracker,
+        ) -> RunOutcome {
+            run(
+                self.root.path(),
+                &self.config,
+                &pushing_nothing_else(self.item.clone()),
+                &crate::test_support::FixedRegistry::holding_boxed(
+                    served.client(),
+                ),
+            )
+        }
+
+        fn assert_unchanged(&self) {
+            assert_eq!(
+                std::fs::read_to_string(&self.item).expect("item"),
+                self.content
+            );
+        }
+    }
+
+    fn pushing_nothing_else(path: std::path::PathBuf) -> UpdateArgs {
+        UpdateArgs {
+            sets: Vec::new(),
+            ..update_args(path, true)
+        }
+    }
+
+    fn accepting(path: std::path::PathBuf) -> UpdateArgs {
+        UpdateArgs {
+            sets: Vec::new(),
+            accept_rewrite: true,
+            ..update_args(path, false)
+        }
+    }
+
+    impl PushedRepo {
+        fn accept(&self) -> RunOutcome {
+            run(
+                self.root.path(),
+                &self.config,
+                &accepting(self.item.clone()),
+                &crate::test_support::FixedRegistry::holding(
+                    RecordingTracker::holding(Vec::new()),
+                ),
+            )
+        }
+    }
+
+    fn is_accepted(state: &MarkState) -> bool {
+        state.mark().is_some_and(
+            work_adapters::sync::rewrite_mark::RewriteMark::is_accepted,
+        )
+    }
+
+    #[test]
+    fn accepting_a_marked_rewrite_accepts_it_and_leaves_the_file() {
+        use crate::test_support::real_trackers::Tracker;
+        let repo = PushedRepo::on(Tracker::Linear).marked(Tracker::Linear);
+
+        let warnings = warnings_of(repo.accept());
+
+        assert_eq!(warnings, Vec::<String>::new());
+        assert!(is_accepted(&repo.mark(Tracker::Linear)));
+        repo.assert_unchanged();
+    }
+
+    #[test]
+    fn accepting_with_no_rewrite_marked_fails_and_writes_nothing() {
+        use crate::test_support::real_trackers::Tracker;
+        let repo = PushedRepo::on(Tracker::Linear);
+
+        let RunOutcome::Failed(message) = repo.accept() else {
+            panic!("accepting nothing succeeded");
+        };
+
+        assert!(message.contains("no rewrite on push"), "{message}");
+        assert!(!repo.baseline_path(Tracker::Linear).exists());
+        repo.assert_unchanged();
+    }
+
+    #[test]
+    fn a_push_rewritten_as_accepted_warns_of_nothing() {
+        use crate::test_support::real_trackers::Tracker;
+        let repo = PushedRepo::on(Tracker::Linear);
+        let linked = repo
+            .body()
+            .replace("crates.io.", "[crates.io](<http://crates.io>).");
+        let mut served = Tracker::Linear.serve("Title", &linked);
+        let _ = warnings_of(repo.push(&mut served));
+        let _ = warnings_of(repo.accept());
+        let mut again = Tracker::Linear.serve("Title", &linked);
+
+        let warnings = warnings_of(repo.push(&mut again));
+
+        assert_eq!(warnings, Vec::<String>::new());
+        assert!(is_accepted(&repo.mark(Tracker::Linear)));
+    }
+
+    #[test]
+    fn update_push_escapes_for_linear_alone() {
+        use crate::test_support::real_trackers::Tracker;
+
+        for tracker in Tracker::ALL {
+            let repo = PushedRepo::on(tracker);
+            let mut served = tracker.serve("Title", &repo.body());
+
+            let outcome = repo.push(&mut served);
+
+            assert!(
+                matches!(outcome, RunOutcome::Updated { .. }),
+                "{tracker:?}"
+            );
+            assert_eq!(
+                served.sent_descriptions(),
+                [tracker.expected_description(&repo.body())],
+                "{tracker:?}"
+            );
+            repo.assert_unchanged();
+        }
+    }
+
+    fn warnings_of(outcome: RunOutcome) -> Vec<String> {
+        match outcome {
+            RunOutcome::Updated { warnings } => warnings,
+            _ => panic!("the push did not succeed"),
+        }
+    }
+
+    #[test]
+    fn a_rewritten_update_push_warns_on_stderr_and_exits_zero() {
+        use crate::test_support::real_trackers::Tracker;
+
+        let repo = PushedRepo::on(Tracker::Linear);
+        let linked = repo
+            .body()
+            .replace("crates.io.", "[crates.io](<http://crates.io>).");
+        let mut served = Tracker::Linear.serve("Title", &linked);
+
+        let printed = crate::test_support::printed(|out, err| {
+            repo.push(&mut served).report(out, err)
+        });
+
+        let label = repo.item.display().to_string();
+        assert_eq!(printed.code, std::process::ExitCode::SUCCESS);
+        assert_eq!(printed.out, "");
+        assert!(
+            printed.err.starts_with(&format!(
+                "warning: {label}: rewritten on push: (preamble)\n"
+            )),
+            "{}",
+            printed.err
+        );
+        assert!(
+            printed.err.contains("sent `See crates.io.`"),
+            "{}",
+            printed.err
+        );
+    }
+
+    #[test]
+    fn update_push_warns_when_the_read_back_is_rewritten() {
+        use crate::test_support::real_trackers::Tracker;
+
+        for tracker in Tracker::ALL {
+            let repo = PushedRepo::on(tracker);
+            let linked = repo
+                .body()
+                .replace("crates.io.", "[crates.io](<http://crates.io>).");
+            let mut served = tracker.serve("Title", &linked);
+
+            let warnings = warnings_of(repo.push(&mut served));
+
+            let label = repo.item.display().to_string();
+            assert_eq!(
+                warnings.first(),
+                Some(&format!(
+                    "warning: {label}: rewritten on push: (preamble)"
+                )),
+                "{tracker:?}"
+            );
+            assert!(
+                warnings[1..]
+                    .iter()
+                    .all(|line| line.starts_with(&format!("note: {label}: "))),
+                "{tracker:?}: {warnings:?}"
+            );
+            assert!(
+                warnings
+                    .iter()
+                    .any(|line| line.contains("sent `See crates.io.`")),
+                "{tracker:?}: {warnings:?}"
+            );
+            let baseline =
+                std::fs::read_to_string(repo.root.path().join(format!(
+                    "integrations/{}/last-sync.json",
+                    tracker.integration()
+                )))
+                .expect("the baseline is recorded");
+            assert!(baseline.contains("\"0001\""), "{tracker:?}");
+            assert!(
+                matches!(repo.mark(tracker), MarkState::Marked(_)),
+                "{tracker:?}"
+            );
+            repo.assert_unchanged();
+        }
+    }
+
+    #[test]
+    fn a_faithful_update_push_clears_the_mark() {
+        use crate::test_support::real_trackers::Tracker;
+
+        for tracker in Tracker::ALL {
+            let repo = PushedRepo::on(tracker).marked(tracker);
+            let mut served = tracker.serve("Title", &repo.body());
+
+            repo.push(&mut served);
+
+            assert_eq!(repo.mark(tracker), MarkState::Absent, "{tracker:?}");
+        }
+    }
+
+    #[test]
+    fn an_unjudged_update_push_keeps_the_mark() {
+        use crate::test_support::real_trackers::Tracker;
+
+        let repo = PushedRepo::on(Tracker::Linear).marked(Tracker::Linear);
+        let before = repo.mark(Tracker::Linear);
+        let external_id = tracker::ExternalId::new("ENG-1".to_owned());
+        let unreadable = RecordingTracker::holding(vec![(
+            external_id.clone(),
+            tracker::RemoteIssue {
+                key: external_id.clone(),
+                updated: tracker::RemoteTimestamp::NotReported,
+                body: "Title\nOld body\n".to_owned(),
+            },
+        )])
+        .failing_show(
+            external_id,
+            TrackerError::Retryable {
+                detail: "the read-back timed out".to_owned(),
+            },
+        );
+
+        let outcome = run(
+            repo.root.path(),
+            &repo.config,
+            &pushing_nothing_else(repo.item.clone()),
+            &crate::test_support::FixedRegistry::holding(unreadable),
+        );
+
+        let label = repo.item.display().to_string();
+        assert_eq!(
+            warnings_of(outcome),
+            [
+                format!("warning: {label}: still rewritten on push: Earlier"),
+                format!(
+                    "note: {label}: Earlier: sent `before`, stored `after`"
+                ),
+                format!(
+                    "note: {label}: to keep the meaning, put the sent text in \
+                     backticks or reword it, then run `accelerator work \
+                     update {label} --push`"
+                ),
+            ]
+        );
+        assert_eq!(repo.mark(Tracker::Linear), before);
+    }
+
+    #[test]
+    fn a_faithful_update_push_warns_of_nothing() {
+        use crate::test_support::real_trackers::Tracker;
+
+        for tracker in Tracker::ALL {
+            let repo = PushedRepo::on(tracker);
+            let mut served = tracker.serve("Title", &repo.body());
+
+            assert_eq!(
+                warnings_of(repo.push(&mut served)),
+                Vec::<String>::new(),
+                "{tracker:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn update_push_repairs_a_corrupted_remote() {
+        use crate::test_support::real_trackers::Tracker;
+
+        let repo = PushedRepo::on(Tracker::Linear);
+        let corrupted = repo
+            .body()
+            .replace("crates.io.", "[crates.io](<http://crates.io>).");
+        let baseline_path =
+            repo.root.path().join("integrations/linear/last-sync.json");
+        let store = FileCorpusStore::new(
+            baseline_path.parent().expect("a baseline directory"),
+        );
+        BaselineStore::new(baseline_path, &RealFs, &store)
+            .seed(
+                "0001",
+                baseline::Entry::recorded(
+                    baseline::SyncStamps {
+                        remote_updated_at: tracker::RemoteTimestamp::NotRead,
+                        local_synced_at: 0,
+                    },
+                    BaselineDigester::new(&PlainDialect, &CommonMarkBody)
+                        .digests(
+                            &repo.content,
+                            Some(&format!("Title\n{corrupted}")),
+                        )
+                        .expect("digests"),
+                ),
+            )
+            .expect("the corrupted baseline is seeded");
+        let mut served = Tracker::Linear.serve("Title", &corrupted);
+
+        let outcome = repo.push(&mut served);
+
+        assert!(matches!(outcome, RunOutcome::Updated { .. }));
+        assert_eq!(
+            served.sent_descriptions(),
+            [Tracker::Linear.expected_description(&repo.body())]
+        );
+        repo.assert_unchanged();
     }
 
     #[test]
@@ -697,11 +1257,15 @@ mod tests {
             appends: Vec::new(),
             removes: Vec::new(),
             push: true,
+            accept_rewrite: false,
         };
 
         let outcome = run(root.path(), &config, &args, &registry);
 
-        assert!(matches!(outcome, RunOutcome::Updated), "the push succeeds");
+        assert!(
+            matches!(outcome, RunOutcome::Updated { .. }),
+            "the push succeeds"
+        );
         let written = std::fs::read_to_string(&item).expect("item");
         let (_, pushed_body) =
             digest::split_frontmatter_and_body(&written).expect("body");
@@ -715,8 +1279,9 @@ mod tests {
             .ok()
             .as_deref(),
         );
-        let Some(baseline::Entry::Split { legacy, split, .. }) =
-            baseline.get("0001")
+        let Some((legacy, split)) = baseline
+            .get("0001")
+            .and_then(|entry| entry.legacy().zip(entry.split()))
         else {
             panic!("a recipe-1 entry is recorded");
         };
@@ -771,11 +1336,15 @@ mod tests {
             appends: Vec::new(),
             removes: Vec::new(),
             push: true,
+            accept_rewrite: false,
         };
 
         let outcome = run(root.path(), &config, &args, &registry);
 
-        assert!(matches!(outcome, RunOutcome::Updated), "the push succeeds");
+        assert!(
+            matches!(outcome, RunOutcome::Updated { .. }),
+            "the push succeeds"
+        );
         assert!(!record.exists(), "the confirmed link's record is retired");
     }
 
@@ -822,6 +1391,7 @@ mod tests {
             appends: Vec::new(),
             removes: Vec::new(),
             push: true,
+            accept_rewrite: false,
         };
 
         let outcome = run(root.path(), &config, &args, &registry);

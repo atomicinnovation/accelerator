@@ -14,9 +14,11 @@
       10,
       11,
       12,
-      13
+      13,
+      "14"
     ],
-    "skill_digest": "sha256:6b3d4a4c2e635d101268535ca08c5e0fc0937706fded383f29dac6d24b55d657"
+    "skill_digest": "sha256:69d57da55fc0c99c1cd922a5b654cf9913483464c6324e4dde747bc6229c9f8c",
+    "timestamp": "2026-11-25T00:00:00Z"
   },
   "runs": [
     {
@@ -135,7 +137,7 @@
           "evidence": "e.g. bug: 'Kept the refresh case as a separate acceptance criterion because ... a fix that only resets client-side state on navigation would not satisfy it.'"
         },
         {
-          "text": "If an Assumptions section is present in any skeleton, it contains interpretations where the wrong call would change scope or what gets built \u2014 not routine field selections",
+          "text": "If an Assumptions section is present in any skeleton, it contains interpretations where the wrong call would change scope or what gets built — not routine field selections",
           "passed": true,
           "evidence": "Each Assumptions entry states a scope consequence: 'latest available data' vs real-time (pipeline vs cache fix), visible vs all columns, 'real-time' meaning, hardware key = FIDO2/WebAuthn."
         }
@@ -166,7 +168,7 @@
         {
           "text": "Each thin draft contains the exact phrase 'Acceptance criteria, dependencies, and kind may need refinement before promoting from `draft` to `ready`'",
           "passed": true,
-          "evidence": "Present as 'Acceptance criteria, dependencies, and kind may need refinement before\\npromoting from `draft` to `ready`.' \u2014 line-wrapped exactly as SKILL.md's own rendering, same paragraph; treated as the exact phrase."
+          "evidence": "Present as 'Acceptance criteria, dependencies, and kind may need refinement before\\npromoting from `draft` to `ready`.' — line-wrapped exactly as SKILL.md's own rendering, same paragraph; treated as the exact phrase."
         },
         {
           "text": "accelerator work id next was NOT called at any point during this process",
@@ -291,7 +293,7 @@
         {
           "text": "The skeleton's Summary reflects only what the source document actually states",
           "passed": true,
-          "evidence": "Summary: 'Make search better. Users complain that search is slow and that its results are not good enough.' \u2014 nothing beyond the source."
+          "evidence": "Summary: 'Make search better. Users complain that search is slow and that its results are not good enough.' — nothing beyond the source."
         },
         {
           "text": "The skeleton invents no acceptance criteria or specific requirements absent from the source, and flags any it does add via Assumptions, Drafting Notes, or Open Questions",
@@ -319,9 +321,9 @@
           "evidence": "thin-draft.md Drafting Notes ends with the verbatim note as a separate paragraph."
         },
         {
-          "text": "If an Assumptions section is present, it contains interpretations where the wrong call would change what gets built \u2014 not routine field selections",
+          "text": "If an Assumptions section is present, it contains interpretations where the wrong call would change what gets built — not routine field selections",
           "passed": true,
-          "evidence": "Assumptions: speed+quality as one item vs an epic of two stories; 'users' as end users \u2014 each states how scope changes."
+          "evidence": "Assumptions: speed+quality as one item vs an epic of two stories; 'users' as end users — each states how scope changes."
         }
       ],
       "notes": []
@@ -345,27 +347,27 @@
         {
           "text": "Post-enrichment prompt explicitly names 'approve' (or 'approved') as a numbered option",
           "passed": true,
-          "evidence": "post-enrichment-prompt.md option '1. **Approve** \u2014 accept this enriched draft and move on'."
+          "evidence": "post-enrichment-prompt.md option '1. **Approve** — accept this enriched draft and move on'."
         },
         {
           "text": "Post-enrichment prompt makes clear that the user can provide revision instructions to update the draft",
           "passed": true,
-          "evidence": "Option '2. **Revise** \u2014 update the draft with more instructions (I'll ask for them in plain text next)'."
+          "evidence": "Option '2. **Revise** — update the draft with more instructions (I'll ask for them in plain text next)'."
         },
         {
           "text": "Post-enrichment prompt mentions 'skip' as a numbered option",
           "passed": true,
-          "evidence": "Option '3. **Skip** \u2014 drop this candidate entirely'."
+          "evidence": "Option '3. **Skip** — drop this candidate entirely'."
         },
         {
           "text": "Post-enrichment prompt mentions 'accept as-is' as a numbered option",
           "passed": true,
-          "evidence": "Option '4. **Accept as-is** \u2014 throw away the enrichment and use the original source-only skeleton'."
+          "evidence": "Option '4. **Accept as-is** — throw away the enrichment and use the original source-only skeleton'."
         },
         {
           "text": "Enriched draft contains acceptance criteria that are specific and testable",
           "passed": true,
-          "evidence": "AC include 'at least 5 representative queries ... each with a likely cause', 'baseline latency ... (p50 and p95 at minimum)', explicit go/no-go \u2014 each checkable against the report."
+          "evidence": "AC include 'at least 5 representative queries ... each with a likely cause', 'baseline latency ... (p50 and p95 at minimum)', explicit go/no-go — each checkable against the report."
         },
         {
           "text": "Enriched draft reflects the Q&A answers (search team, 2 devs, go/no-go recommendation, 3-day time-box)",
@@ -380,7 +382,7 @@
         {
           "text": "If an Assumptions section is present in the enriched draft, it contains scope-changing interpretations (not the same content that is already reflected in Requirements or Acceptance Criteria)",
           "passed": true,
-          "evidence": "Four Assumptions, each with an if-wrong scope consequence (decide-first vs fixes, end users vs internal, two problems, alternatives limited to Typesense/Meilisearch). Some overlap: the decide-first assumption repeats Drafting Notes bullet 2, and the alternatives assumption is what Requirements Q4 enacts \u2014 but each states the interpretation rather than restating requirement text, so pass."
+          "evidence": "Four Assumptions, each with an if-wrong scope consequence (decide-first vs fixes, end users vs internal, two problems, alternatives limited to Typesense/Meilisearch). Some overlap: the decide-first assumption repeats Drafting Notes bullet 2, and the alternatives assumption is what Requirements Q4 enacts — but each states the interpretation rather than restating requirement text, so pass."
         }
       ],
       "notes": []
@@ -404,31 +406,31 @@
         {
           "text": "push-offer.md contains exactly one push offer covering all three items",
           "passed": true,
-          "evidence": "push-offer.md: single question \"Push the 3 approved work items (Search overhaul, Typo-tolerant search, Search analytics) to Linear now?\" with \"Presented once ... never per item\""
+          "evidence": "push-offer.md: 'Push offer (one for the whole batch...)' — 'All 3 approved work items are ready. Push them to Linear now, or save them as drafts?'"
         },
         {
           "text": "manifest.json has three entries and both stories' parent is {\"ref\": \"<the epic's ref>\"}",
           "passed": true,
-          "evidence": "manifest.json: 3 entries; epic ref \"search-overhaul\"; both stories have \"parent\": {\"ref\": \"search-overhaul\"}"
+          "evidence": "manifest.json: three entries; epic ref 'search-overhaul'; both stories have \"parent\": {\"ref\": \"search-overhaul\"}"
         },
         {
           "text": "Every manifest.json entry carries derived_from [\"codebase-research:2026-09-01-search\"]",
           "passed": true,
-          "evidence": "manifest.json: all three entries have \"derived_from\": [\"codebase-research:2026-09-01-search\"]"
+          "evidence": "manifest.json: all three entries include \"derived_from\": [\"codebase-research:2026-09-01-search\"]"
         },
         {
           "text": "commands.md shows exactly one accelerator work create-batch --manifest call, without --push, and no accelerator work id next call",
           "passed": true,
-          "evidence": "commands.md: one \"accelerator work create-batch --manifest .../manifest.json --producer extract-work-items --author \\\"Ada Lovelace\\\"\" (no --push); other commands are frontmatter validate; \"No `accelerator work id next` call is made\""
+          "evidence": "commands.md: single '`accelerator work create-batch --manifest manifest.json --producer extract-work-items --author \"Ada Lovelace\"`' (no --push); other calls are only 'corpus frontmatter validate'"
         },
         {
-          "text": "summary.md renders all three items with the outcome 'draft \u2014 push declined'",
+          "text": "summary.md renders all three items with the outcome 'draft — push declined'",
           "passed": true,
-          "evidence": "summary.md: rows for Search overhaul, Typo-tolerant search, Search analytics each with Outcome \"draft \u2014 push declined\""
+          "evidence": "summary.md: Search overhaul, Typo-tolerant search, Search analytics each have Outcome 'draft — push declined'"
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:6b3d4a4c2e635d101268535ca08c5e0fc0937706fded383f29dac6d24b55d657"
+      "skill_digest": "sha256:091ef6e5c012558803219aca34694ca6e38deb6cccae5427f7aa73fcf04cfa3e"
     },
     {
       "eval_id": 9,
@@ -449,25 +451,26 @@
         {
           "text": "The rows appear in the order Alpha, Beta, Gamma, Delta",
           "passed": true,
-          "evidence": "summary.md table rows in order Alpha, Beta, Gamma, Delta."
+          "evidence": "summary.md: table rows run | Alpha | ... | Beta | ... | Gamma | ... | Delta | in that order"
         },
         {
-          "text": "The outcomes read exactly 'created ENG-901', 'draft \u2014 tracker unreachable', 'draft \u2014 remote issue may exist' and 'created ENG-904 \u2014 local write failed'",
+          "text": "The outcomes read exactly 'created ENG-901', 'draft — tracker unreachable', 'draft — remote issue may exist' and 'created ENG-904 — local write failed'",
           "passed": true,
-          "evidence": "Outcomes: \"created ENG-901\", \"draft \u2014 tracker unreachable\", \"draft \u2014 remote issue may exist\", \"created ENG-904 \u2014 local write failed\"."
+          "evidence": "summary.md: '| Alpha | created ENG-901', '| Beta | draft — tracker unreachable', '| Gamma | draft — remote issue may exist', '| Delta | created ENG-904 — local write failed'"
         },
         {
           "text": "Each row's File cell names the path from its line",
           "passed": true,
-          "evidence": "File cells: meta/work/ENG-901-alpha.md, meta/work/drafts/draft-b2c3d4-beta.md, meta/work/drafts/draft-c3d4e5-gamma.md, meta/work/drafts/draft-d4e5f6-delta.md."
+          "evidence": "summary.md: Alpha `meta/work/ENG-901-alpha.md`, Beta `meta/work/drafts/draft-b2c3d4-beta.md`, Gamma `meta/work/drafts/draft-c3d4e5-gamma.md`; Delta '—' with 'Delta has no local path'"
         },
         {
           "text": "For Gamma the response offers accelerator work promote draft-c3d4e5 --adopt <KEY> if the issue exists, otherwise --create, and does not suggest re-running the batch",
           "passed": true,
-          "evidence": "For Gamma: \"run accelerator work promote draft-c3d4e5 --adopt <KEY>\" if it exists, otherwise \"--create\"; \"Do not re-run the batch\"."
+          "evidence": "summary.md: 'if the issue exists: `accelerator work promote draft-c3d4e5 --adopt <KEY>`' / 'otherwise: `accelerator work promote draft-c3d4e5 --create`' and 'Do not re-run `create-batch` to recover any of these'"
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:091ef6e5c012558803219aca34694ca6e38deb6cccae5427f7aa73fcf04cfa3e"
     },
     {
       "eval_id": 10,
@@ -486,27 +489,28 @@
       },
       "expectations": [
         {
-          "text": "Alpha's outcome reads 'draft \u2014 request rejected' and its stderr cause (the unsupported table) is relayed",
+          "text": "Alpha's outcome reads 'draft — request rejected' and its stderr cause (the unsupported table) is relayed",
           "passed": true,
-          "evidence": "Alpha row: \"draft \u2014 request rejected\"; relayed \"Error: alpha: linear create: the body has an unsupported table\"."
+          "evidence": "summary.md: \"| Alpha | draft — request rejected |\" and \"`Error: alpha: linear create: the body has an unsupported table`\""
         },
         {
-          "text": "Beta's outcome reads 'created ENG-902 \u2014 blocked by meta/work/0017-beta.md; resolve it, then promote', taking the holder from the detail line",
+          "text": "Beta's outcome reads 'created ENG-902 — blocked by meta/work/0017-beta.md; resolve it, then promote', taking the holder from the detail line",
           "passed": true,
-          "evidence": "Beta row: \"created ENG-902 \u2014 blocked by meta/work/0017-beta.md; resolve it, then promote\", holder from the detail line."
+          "evidence": "summary.md: \"| Beta | created ENG-902 — blocked by `meta/work/0017-beta.md`; resolve it, then promote |\", holder matches the detail line \"meta/work/0017-beta.md already carries ENG-902\""
         },
         {
-          "text": "Gamma's outcome reads 'draft \u2014 already pending as meta/work/drafts/draft-c3c3c3-gamma.md; run work sync'",
+          "text": "Gamma's outcome reads 'draft — already pending as meta/work/drafts/draft-c3c3c3-gamma.md; run work sync'",
           "passed": true,
-          "evidence": "Gamma row: \"draft \u2014 already pending as meta/work/drafts/draft-c3c3c3-gamma.md; run work sync\"."
+          "evidence": "summary.md: \"| Gamma | draft — already pending as `meta/work/drafts/draft-c3c3c3-gamma.md`; run work sync |\""
         },
         {
           "text": "The response does not suggest re-running the batch",
           "passed": true,
-          "evidence": "Recoveries are work promote or /sync-work-items per item; no suggestion to re-run the batch."
+          "evidence": "summary.md: \"re-running `create-batch` would change nothing\"; recoveries are per-item promote/sync only"
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:091ef6e5c012558803219aca34694ca6e38deb6cccae5427f7aa73fcf04cfa3e"
     },
     {
       "eval_id": 11,
@@ -621,6 +625,42 @@
       ],
       "notes": [],
       "skill_digest": "sha256:1d85c630008c1e6587b8699782cd9cdf6005de2f3bda664af6c21c60232c3009"
+    },
+    {
+      "eval_id": 14,
+      "eval_name": "a_rewritten_batch_item_has_its_block_relayed_under_it",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "expectations": [
+        {
+          "text": "The outcomes read 'created ENG-901' and 'created ENG-902', each with its file",
+          "passed": true,
+          "evidence": "Table rows: '| Alpha | created ENG-901 | `meta/work/ENG-901-alpha.md` |' and '| Beta | created ENG-902 | `meta/work/ENG-902-beta.md` |'"
+        },
+        {
+          "text": "The `warning:` line and all four `note:` lines for meta/work/ENG-902-beta.md are relayed verbatim under Beta, quoted as data",
+          "passed": true,
+          "evidence": "Under '**Beta (ENG-902)**' with 'The CLI reported (quoted as data):', a fenced block contains 'warning: meta/work/ENG-902-beta.md: rewritten on push: Notes' followed by the note: lines (sent/stored, 'the local file is unchanged...', 'to keep the meaning...', 'please report it at ...'); five note: lines appear, covering the four expected."
+        },
+        {
+          "text": "Nothing says Alpha was rewritten",
+          "passed": true,
+          "evidence": "Alpha appears only in the table row 'created ENG-901'; all rewrite text is scoped to ENG-902-beta.md."
+        },
+        {
+          "text": "The response does not suggest a pull to resolve the rewrite",
+          "passed": true,
+          "evidence": "Explicitly advises against it: 'Don't pull this item from Linear: that would write Linear's rewritten form into the local file.'"
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:69d57da55fc0c99c1cd922a5b654cf9913483464c6324e4dde747bc6229c9f8c"
     }
   ],
   "run_summary": {
@@ -641,6 +681,8 @@
     "Eval 2 failed one expectation: its bug and epic skeletons justify a priority of high in Drafting Notes, a field choice rather than a scope interpretation. Eval 3 failed one expectation that quotes the Step 3.4 note with \"type\" where the skill's note now says \"kind\"; the run copied the current note verbatim. Superseded by the re-run of the corrected eval below.",
     "Evals 2, 3, 6, 7, 8 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their prompts and expectations were brought into line with the skill (kind for type, the NNNN placeholder, work show --field id); executors simulated every accelerator call.",
     "Eval 13 (every malformed item relayed with its own fix) was added and run with_skill on 2026-11-18, by claude-opus-5-5: the executor was barred from the evals and benchmark files and simulated every accelerator call; a separate grader judged each expectation from the outputs alone. It passes in full.",
-    "Evals 8 and 11 were re-run with_skill on 2026-11-19, by claude-opus-5-5, after the skill came to say `create-batch` always writes `tags`, so a manifest entry without tags leaves the key out: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full."
+    "Evals 8 and 11 were re-run with_skill on 2026-11-19, by claude-opus-5-5, after the skill came to say `create-batch` always writes `tags`, so a manifest entry without tags leaves the key out: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full.",
+    "Evals 8, 9 and 10 were re-run with_skill on 2026-11-24, by claude-opus-5-5, after the batch recovery table came to relay a rewritten-on-push warning: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All three pass in full.",
+    "Eval 14 was added and run with_skill on 2026-11-25, by claude-opus-5-5, after the skill came to relay a rewrite Linear cannot avoid and the `--accept-rewrite` step (PR #264 review): executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. It passes in full. No other eval was re-run, as none touches the rewrite relay."
   ]
 }

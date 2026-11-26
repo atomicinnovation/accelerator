@@ -3,8 +3,10 @@
 //! recoveries for a draft whose earlier create may have reached the tracker.
 
 use corpus_adapters::CommonMarkBody;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use ::config::ConfigAccess;
 use corpus_adapters::FileCorpusStore;
@@ -52,6 +54,9 @@ pub enum PromoteOutcome {
     Reported {
         lines: Vec<String>,
         remedy: Option<String>,
+        /// The block stderr carries when the tracker stored the retitle
+        /// with a different meaning.
+        warnings: Vec<String>,
         code: u8,
     },
     NotADraft(String),
@@ -59,6 +64,40 @@ pub enum PromoteOutcome {
         message: String,
         code: u8,
     },
+}
+
+impl PromoteOutcome {
+    /// Prints this outcome as `accelerator work promote` does, returning
+    /// the code it exits with.
+    pub fn report(self, out: &mut dyn Write, err: &mut dyn Write) -> ExitCode {
+        match self {
+            Self::Reported {
+                lines,
+                remedy,
+                warnings,
+                code,
+            } => {
+                for line in lines {
+                    let _ = writeln!(out, "{line}");
+                }
+                for warning in warnings {
+                    let _ = writeln!(err, "{warning}");
+                }
+                if let Some(remedy) = remedy {
+                    let _ = writeln!(err, "Error: {remedy}");
+                }
+                ExitCode::from(code)
+            }
+            Self::NotADraft(message) => {
+                let _ = writeln!(err, "{message}");
+                ExitCode::from(exit_codes::USAGE)
+            }
+            Self::Failed { message, code } => {
+                let _ = writeln!(err, "{message}");
+                ExitCode::from(code)
+            }
+        }
+    }
 }
 
 impl From<crate::refusal::Refusal> for PromoteOutcome {
@@ -278,7 +317,28 @@ fn try_run(
         &ports,
         workspace.state_dir(),
     );
-    Ok(promotion_report(&resumed, &row, &mode, &draft))
+    let warnings = retitle_warnings(&row, &root, &integration);
+    Ok(promotion_report(&resumed, &row, &mode, &draft, warnings))
+}
+
+/// The block stderr carries when `integration` stored the retitle with a
+/// different meaning, under the key the draft took.
+fn retitle_warnings(
+    row: &PromotionRow,
+    root: &Path,
+    integration: &str,
+) -> Vec<String> {
+    row.rewrite
+        .as_ref()
+        .map(|notice| {
+            crate::report_records::rewrite_lines_under(
+                root,
+                notice,
+                notice.external_id.as_str(),
+                integration,
+            )
+        })
+        .unwrap_or_default()
 }
 
 /// What a promotion reports, after the interrupted retirements it resumed.
@@ -287,6 +347,7 @@ fn promotion_report(
     row: &PromotionRow,
     mode: &PromotionMode,
     draft: &DraftId,
+    warnings: Vec<String>,
 ) -> PromoteOutcome {
     let awaiting_human = resumed
         .iter()
@@ -303,6 +364,7 @@ fn promotion_report(
     PromoteOutcome::Reported {
         remedy: remedy_for(row, mode, draft),
         lines,
+        warnings,
         code,
     }
 }
@@ -488,6 +550,7 @@ mod tests {
                 lines,
                 remedy,
                 code,
+                ..
             } => (lines, remedy, code),
             other => panic!("not reported: {other:?}"),
         }
@@ -577,6 +640,87 @@ mod tests {
             .unwrap()
             .next()
             .is_none());
+    }
+
+    fn warned(outcome: PromoteOutcome) -> Vec<String> {
+        match outcome {
+            PromoteOutcome::Reported { warnings, .. } => warnings,
+            other => panic!("not reported: {other:?}"),
+        }
+    }
+
+    fn with_a_dotted_token(repo: &Repo) {
+        repo.write(
+            DRAFT_FILE,
+            "---\nid: \"draft-aaaaaa\"\ntitle: \"Title\"\nkind: \
+             \"task\"\n---\n\n# draft-aaaaaa: Title\n\nPublished to \
+             crates.io first.\n",
+        );
+    }
+
+    #[test]
+    fn promote_warns_when_the_retitle_is_rewritten() {
+        let repo = Repo::new();
+        with_a_dotted_token(&repo);
+        let tracker = Rc::new(RecordingTracker::rewriting(
+            Vec::new(),
+            tracker_test_support::Rewrite::AutolinkDottedTokens,
+        ));
+
+        let warnings = warned(repo.promote(&tracker, None, false));
+
+        assert_eq!(
+            warnings.first().map(String::as_str),
+            Some("warning: REC-1: rewritten on push: (preamble)"),
+            "{warnings:?}"
+        );
+        assert!(
+            warnings[1..]
+                .iter()
+                .all(|line| line.starts_with("note: REC-1: ")),
+            "{warnings:?}"
+        );
+        assert!(
+            warnings.iter().any(|line| line.ends_with(
+                "`accelerator work update meta/work/REC-1-title.md --push`"
+            )),
+            "{warnings:?}"
+        );
+    }
+
+    #[test]
+    fn a_rewritten_promote_reports_on_stdout_and_warns_on_stderr() {
+        let repo = Repo::new();
+        with_a_dotted_token(&repo);
+        let tracker = Rc::new(RecordingTracker::rewriting(
+            Vec::new(),
+            tracker_test_support::Rewrite::AutolinkDottedTokens,
+        ));
+
+        let printed = crate::test_support::printed(|out, err| {
+            repo.promote(&tracker, None, false).report(out, err)
+        });
+
+        assert_eq!(printed.code, std::process::ExitCode::SUCCESS);
+        assert!(!printed.out.is_empty());
+        assert!(
+            printed
+                .err
+                .starts_with("warning: REC-1: rewritten on push: (preamble)\n"),
+            "{}",
+            printed.err
+        );
+    }
+
+    #[test]
+    fn a_faithful_promote_warns_of_nothing() {
+        let repo = Repo::new();
+        with_a_dotted_token(&repo);
+
+        assert_eq!(
+            warned(repo.promote(&fresh(), None, false)),
+            Vec::<String>::new()
+        );
     }
 
     #[test]

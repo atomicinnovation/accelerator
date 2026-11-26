@@ -1,0 +1,15 @@
+{
+  "outcome": "found",
+  "data": {
+    "issue": {
+      "id": "22a7661d-16bd-4295-b091-057a62c07618",
+      "identifier": "TES-39",
+      "title": "PP-906 entity probe",
+      "description": "# Entity probe\n\n#### E001 entities\n\nx <b>bold</b> y\n\n#### E002 entities\n\nx <!-- c --> y\n\n#### E003 entities\n\nx <[https://crates.io](<https://crates.io>)> y\n\n#### E004 entities\n\nx &lt;b&gt; y\n\n#### E005 entities\n\nx \\*emph\\* y\n\n#### E006 entities\n\nx \\_emph\\_ y\n\n#### E007 entities\n\nx \\[t\\]([https://x.io](<https://x.io>)) y\n\n#### E008 entities\n\nx \\`code\\` y\n\n#### E009 entities\n\n| a | b |\n| -- | -- |\n| x | y | z |\n\n#### E010 entities\n\n\\# heading\n\n#### E011 entities\n\n\\- item\n\n#### E012 entities\n\n1\\. item\n\n#### E013 entities\n\nx a b y\n\n#### E014 entities\n\nx © y\n\n#### E015 remedy\n\nx <b>bold</b> y\n\n#### E016 remedy\n\nx <!-- c --> y\n\n#### E017 remedy\n\nx <[https://crates.io](<https://crates.io>)> y\n\n#### E018 remedy\n\nx &lt;b&gt; y\n\n#### E019 remedy\n\nx \\*emph\\* y\n\n#### E020 remedy\n\nx \\_emph\\_ y\n\n#### E021 remedy\n\nx \\[t\\]([https://x.io](<https://x.io>)) y\n\n#### E022 remedy\n\nx \\`code\\` y\n\n#### E023 remedy\n\n| a | b |\n| -- | -- |\n| x | y | z |\n\n#### E024 remedy\n\n\\# heading\n\n#### E025 remedy\n\n\\- item\n\n#### E026 remedy\n\n1\\. item",
+      "updatedAt": "2026-11-24T16:34:41.386Z",
+      "state": {
+        "name": "Backlog"
+      }
+    }
+  }
+}

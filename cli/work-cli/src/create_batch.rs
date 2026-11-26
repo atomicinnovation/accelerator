@@ -65,6 +65,9 @@ pub struct BatchItem {
     /// A line stderr carries as it is, beside an outcome that is not a
     /// failure.
     pub warning: Option<String>,
+    /// The block stderr carries for this item's push, when the tracker
+    /// stored it with a different meaning.
+    pub rewrite_warnings: Vec<String>,
 }
 
 impl BatchItem {
@@ -123,6 +126,11 @@ pub fn report(items: &[BatchItem]) -> BatchReport {
             warnings.push(warning.clone());
         }
     }
+    warnings.extend(
+        items
+            .iter()
+            .flat_map(|item| item.rewrite_warnings.iter().cloned()),
+    );
     BatchReport {
         lines,
         warnings,
@@ -383,7 +391,7 @@ impl Batch<'_> {
             self.identity_run,
         );
         let mut item = match result {
-            Ok(outcome) => created(&entry.reference, outcome),
+            Ok(outcome) => created(&entry.reference, outcome, self.config),
             Err(CreateFailure::Pending {
                 message,
                 existing_draft,
@@ -396,6 +404,7 @@ impl Batch<'_> {
                 cause: Some(message),
                 details: Vec::new(),
                 warning: None,
+                rewrite_warnings: Vec::new(),
             },
             Err(CreateFailure::Failed(message)) => return Err(message),
         };
@@ -481,6 +490,7 @@ impl Batch<'_> {
                 cause: None,
                 details: Vec::new(),
                 warning: None,
+                rewrite_warnings: Vec::new(),
             };
         let reported = match (holder, recorded.key.clone()) {
             (Some(held), _) if DraftId::parse(&held.id).is_some() => item(
@@ -515,7 +525,13 @@ impl Batch<'_> {
 /// The item a create left, and the ID its children link to: the tracker
 /// key once an issue exists that the item is still to take, otherwise the
 /// ID of the file it wrote.
-fn created(reference: &str, outcome: CreationOutcome) -> BatchItem {
+fn created(
+    reference: &str,
+    outcome: CreationOutcome,
+    config: &dyn ConfigAccess,
+) -> BatchItem {
+    let rewrite_warnings =
+        crate::create::rewrite_warnings(outcome.push.as_ref(), config);
     let CreationOutcome { path, push } = outcome;
     let id_on_disk = path.as_deref().and_then(id_at);
     let Some(report) = push else {
@@ -528,6 +544,7 @@ fn created(reference: &str, outcome: CreationOutcome) -> BatchItem {
             cause: None,
             details: Vec::new(),
             warning: None,
+            rewrite_warnings: Vec::new(),
         };
     };
     let resulting_id = match report.outcome {
@@ -545,6 +562,7 @@ fn created(reference: &str, outcome: CreationOutcome) -> BatchItem {
         cause: report.cause,
         details: report.details,
         warning: report.warning,
+        rewrite_warnings,
     }
 }
 
@@ -980,6 +998,56 @@ mod tests {
     }
 
     #[test]
+    fn create_batch_warns_once_per_rewritten_item() {
+        let repo = BatchRepo::tracker_owned();
+        repo.write("dotted.md", "Published to crates.io first.\n");
+        let tracker = Rc::new(RecordingTracker::rewriting(
+            Vec::new(),
+            tracker_test_support::Rewrite::AutolinkDottedTokens,
+        ));
+        let manifest = format!(
+            r#"[
+                {{"ref": "a", "title": "A", "kind": "story",
+                  "priority": "low", "body_file": "{dotted}"}},
+                {{"ref": "b", "title": "B", "kind": "story",
+                  "priority": "low", "body_file": "{dotted}"}},
+                {{"ref": "c", "title": "C", "kind": "story",
+                  "priority": "low"}}
+            ]"#,
+            dotted = repo.path("dotted.md").display()
+        );
+
+        let report = reported(repo.run(&manifest, true, &tracker));
+
+        assert_eq!(report.code, 0);
+        let rewritten = report
+            .warnings
+            .iter()
+            .filter(|line| line.contains(": rewritten on push: "))
+            .count();
+        assert_eq!(rewritten, 2, "{:?}", report.warnings);
+        for key in ["REC-1", "REC-2"] {
+            let label = repo
+                .path(&format!(
+                    "meta/work/{key}-{}.md",
+                    if key == "REC-1" { "a" } else { "b" }
+                ))
+                .display()
+                .to_string();
+            let block: Vec<&String> = report
+                .warnings
+                .iter()
+                .filter(|line| line.contains(&format!(" {label}: ")))
+                .collect();
+            assert!(block[0].starts_with("warning: "), "{block:?}");
+            assert!(
+                block[1..].iter().all(|line| line.starts_with("note: ")),
+                "{block:?}"
+            );
+        }
+    }
+
+    #[test]
     fn a_cycle_stops_the_batch_before_any_create_naming_the_members() {
         let repo = BatchRepo::tracker_owned();
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
@@ -1113,6 +1181,7 @@ mod tests {
             cause: None,
             details: Vec::new(),
             warning: None,
+            rewrite_warnings: Vec::new(),
         }
     }
 

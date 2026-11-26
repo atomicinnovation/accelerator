@@ -77,6 +77,7 @@ use crate::sync::item_snapshot::UnreadContent;
 use crate::sync::operation::SyncOperation;
 use crate::sync::ordering;
 use crate::sync::pending_push::Marker;
+use crate::sync::push_fidelity::RewriteNotice;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::recovery_label::RecoveryLabels;
 use crate::sync::report::Adoption;
@@ -363,6 +364,36 @@ fn finalise_baseline(
             |error| Finalisation::Failed(error.to_string()),
             |()| Finalisation::Finalised,
         )
+}
+
+/// Settles each reported item's rewrite notice against its recorded entry:
+/// silenced while the entry holds an accepted rewrite, else the push's own,
+/// else the rewrite the entry still stands on. A baseline that cannot be
+/// read leaves every notice as the run made it.
+fn settling_rewrite_notices(
+    reported: &mut [ReportedItem],
+    baseline: &BaselineStore<'_>,
+    knowledge: &RunKnowledge<'_>,
+) {
+    let Ok((recorded, _)) = baseline.load() else {
+        return;
+    };
+    for row in reported.iter_mut() {
+        let Some(item) = knowledge.item(row.planned.id()) else {
+            continue;
+        };
+        let Some(external_id) = item.external_id.as_ref() else {
+            continue;
+        };
+        let Some(entry) = recorded.get(&item.id) else {
+            continue;
+        };
+        row.rewrite = entry.rewrite_after_push(
+            row.rewrite.take(),
+            &item.path,
+            external_id,
+        );
+    }
 }
 
 /// Whether a run settled `item`, so its watermark may move. A change the run
@@ -681,12 +712,10 @@ impl RecordedLocals {
                 .iter()
                 .filter_map(|item| {
                     let recorded = match baseline.get(&item.id)? {
-                        Entry::Split { split, legacy, .. } => {
-                            RecordedLocal::RecipeOne {
-                                fingerprints: split.local.clone()?,
-                                legacy: legacy.local.clone(),
-                            }
-                        }
+                        Entry::Split(entry) => RecordedLocal::RecipeOne {
+                            fingerprints: entry.split().local.clone()?,
+                            legacy: entry.legacy().local.clone(),
+                        },
                         Entry::Legacy { legacy, .. } => {
                             RecordedLocal::Legacy(legacy.local.clone()?)
                         }
@@ -1025,6 +1054,7 @@ fn validate_pushes(
                     kept_edits: None,
                     leftover_marker: None,
                     notice: None,
+                    rewrite: None,
                 },
                 validated => ReportedItem {
                     planned: planned.clone(),
@@ -1033,6 +1063,7 @@ fn validate_pushes(
                     kept_edits: None,
                     leftover_marker: None,
                     notice: None,
+                    rewrite: None,
                 },
             }
         })
@@ -1485,6 +1516,7 @@ fn create_report(
         kept_edits: None,
         leftover_marker: None,
         notice: None,
+        rewrite: None,
     }
 }
 
@@ -1494,34 +1526,46 @@ fn send_outcome(
     item: &LocalItem,
     external_id: &ExternalId,
     knowledge: &RunKnowledge<'_>,
-) -> ItemOutcome {
+) -> (ItemOutcome, Option<RewriteNotice>) {
     let prepared = match prepare_send(planned, item, external_id, knowledge) {
         Ok(prepared) => prepared,
-        Err(refused) => return ItemOutcome::Failed(refused),
+        Err(refused) => return (ItemOutcome::Failed(refused), None),
     };
-    let sent = match prepared.payload() {
+    match prepared.payload() {
         Some(Payload {
             title: Some(title),
             body: None,
-        }) => applier.retitle(&RetitleRequest {
-            id: &item.id,
-            external_id,
-            title,
-            sent_content: prepared.content,
-        }),
+        }) => {
+            let retitled = applier.retitle(&RetitleRequest {
+                id: &item.id,
+                external_id,
+                title,
+                sent_content: prepared.content,
+                agreement: planned.body_agreement(),
+            });
+            (outcome_of(retitled.result), None)
+        }
         Some(Payload {
             title,
             body: Some(body),
-        }) => applier.push(&PushRequest {
-            id: &item.id,
-            external_id,
-            title,
-            body,
-            sent_content: prepared.content,
-        }),
-        _ => return ItemOutcome::NotApplied,
-    };
-    outcome_of(sent.result)
+        }) => {
+            let pushed = applier.push(&PushRequest {
+                id: &item.id,
+                external_id,
+                title,
+                body,
+                sent_content: prepared.content,
+            });
+            match pushed.result {
+                Ok(fidelity) => (
+                    ItemOutcome::Applied,
+                    RewriteNotice::on_push(fidelity, &item.path, external_id),
+                ),
+                Err(error) => (ItemOutcome::Failed(error), None),
+            }
+        }
+        _ => (ItemOutcome::NotApplied, None),
+    }
 }
 
 fn outcome_of<T>(result: Result<T, ApplyError>) -> ItemOutcome {
@@ -1607,6 +1651,7 @@ impl RunLabels<'_> {
 
 fn record_outcome(
     applier: &mut ItemApplier<'_, '_>,
+    planned: &PlannedAction,
     item: &LocalItem,
     snapshot: &ItemSnapshot<'_>,
     knowledge: &RunKnowledge<'_>,
@@ -1629,6 +1674,7 @@ fn record_outcome(
                 file_path: &item.path,
                 fingerprints,
                 remote_updated: knowledge.remote_updated(&item.id),
+                agreement: planned.body_agreement(),
             })
             .result,
     )
@@ -1660,6 +1706,7 @@ const fn not_applied(planned: PlannedAction) -> ReportedItem {
         kept_edits: None,
         leftover_marker: None,
         notice: None,
+        rewrite: None,
     }
 }
 
@@ -1676,11 +1723,12 @@ fn apply_planned_action(
 ) -> ReportedItem {
     let item = knowledge.item(planned.id());
     let mut kept_edits = None;
+    let mut rewrite = None;
     let outcome = match planned.action() {
         Action::RecordBaseline => {
             match item.zip(knowledge.snapshot(planned.id())) {
                 Some((item, snapshot)) => {
-                    record_outcome(applier, item, snapshot, knowledge)
+                    record_outcome(applier, &planned, item, snapshot, knowledge)
                 }
                 None => return not_applied(planned),
             }
@@ -1689,7 +1737,15 @@ fn apply_planned_action(
             .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
         {
             Some((item, external_id)) => {
-                send_outcome(applier, &planned, item, external_id, knowledge)
+                let (outcome, noticed) = send_outcome(
+                    applier,
+                    &planned,
+                    item,
+                    external_id,
+                    knowledge,
+                );
+                rewrite = noticed;
+                outcome
             }
             None => return not_applied(planned),
         },
@@ -1726,6 +1782,7 @@ fn apply_planned_action(
         kept_edits,
         leftover_marker: None,
         notice: None,
+        rewrite,
     }
 }
 
@@ -1877,6 +1934,13 @@ fn apply_local_create(
             ReportedItem {
                 leftover_marker: created.leftover_marker,
                 notice: created.notice,
+                rewrite: attempted.created.as_ref().and_then(|key| {
+                    RewriteNotice::on_push(
+                        created.fidelity,
+                        &create.item.path,
+                        key,
+                    )
+                }),
                 ..create.report(ItemOutcome::Applied)
             },
             created.adopted,
@@ -2473,6 +2537,7 @@ fn execute<'a>(
                 run_start_epoch,
             )));
         }
+        settling_rewrite_notices(&mut reported, baseline, &knowledge);
         let adoptions = previewed_adoptions(ports.tracker, &creates_from_local);
         let dossiers =
             build_dossiers(&reported, &knowledge, &unconfirmed_links);
@@ -2580,6 +2645,7 @@ fn execute<'a>(
             retire_confirmed_adoptions(&adoption_records, ports, baseline);
     }
     let unretired_adoptions = unretired;
+    settling_rewrite_notices(&mut reported, baseline, &knowledge);
     let dossiers = build_dossiers(&reported, &knowledge, &unconfirmed_links);
     let stale_dossier_ids = stale_dossier_ids(&reported);
 

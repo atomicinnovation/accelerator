@@ -62,6 +62,10 @@ use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
 use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::pending_push;
+use crate::sync::push_fidelity::PushFidelity;
+use crate::sync::push_fidelity::RewriteNotice;
+use crate::sync::push_verdict::PushOrigin;
+use crate::sync::push_verdict::PushVerdict;
 use crate::sync::synced_fields;
 use work::identity_run::IdentityRunGuard;
 
@@ -109,6 +113,19 @@ pub struct PromotionRow {
     /// least one path, and so does a promotion the next sync will find in
     /// conflict.
     pub details: Vec<Detail>,
+    /// This run's retitle, or that of the promotion it finished, when the
+    /// tracker stored it with a different meaning; reported whether or not
+    /// the promotion then finished.
+    pub rewrite: Option<RewriteNotice>,
+}
+
+/// One promotion's result, with what the remote its landed retitle left
+/// says of the body sent; unjudged when this run neither retitled nor
+/// finished a retitled promotion.
+#[derive(Debug)]
+pub struct PromotionAttempt {
+    pub result: Result<Promotion, NotPromoted>,
+    pub fidelity: PushFidelity,
 }
 
 impl PromotionRow {
@@ -119,6 +136,7 @@ impl PromotionRow {
             path,
             outcome: PromotionOutcome::Previewed,
             details: Vec::new(),
+            rewrite: None,
         }
     }
 
@@ -129,15 +147,18 @@ impl PromotionRow {
     pub fn of(
         draft: &DraftId,
         path: PathBuf,
-        result: Result<Promotion, NotPromoted>,
+        attempt: PromotionAttempt,
         ports: &PromotionPorts<'_>,
         state_dir: &Path,
     ) -> Self {
-        let (outcome, details) = match result {
-            Ok(promotion) => (
-                PromotionOutcome::Promoted(promotion.clone()),
-                conflict_subject(&promotion, ports.retirement),
-            ),
+        let (outcome, details, key) = match attempt.result {
+            Ok(promotion) => {
+                let (Promotion::Completed(key, _)
+                | Promotion::AlreadyDone(key)) = &promotion;
+                let key = key.clone();
+                let details = conflict_subject(&promotion, ports.retirement);
+                (PromotionOutcome::Promoted(promotion), details, Some(key))
+            }
             Err(reason) => {
                 let held_key = held_key(&reason, draft, ports.records);
                 let details = unpromoted_subjects(
@@ -148,16 +169,42 @@ impl PromotionRow {
                     ports.retirement,
                     state_dir,
                 );
-                (PromotionOutcome::NotPromoted { reason, held_key }, details)
+                let key = held_key.clone();
+                (
+                    PromotionOutcome::NotPromoted { reason, held_key },
+                    details,
+                    key,
+                )
             }
+        };
+        let rewrite = match (attempt.fidelity, key) {
+            (fidelity @ PushFidelity::Rewritten { .. }, Some(key)) => {
+                let promoted = promoted_path(&key, ports.retirement)
+                    .unwrap_or_else(|| path.clone());
+                RewriteNotice::on_push(fidelity, &promoted, &key)
+            }
+            _ => None,
         };
         Self {
             draft: draft.as_str().to_owned(),
             path,
             outcome,
             details,
+            rewrite,
         }
     }
+}
+
+/// Where the item now carrying `key` lives, once the draft has taken it.
+fn promoted_path(
+    key: &ExternalId,
+    ports: &RetirementPorts<'_>,
+) -> Option<PathBuf> {
+    corpus_identities(ports)
+        .ok()?
+        .into_iter()
+        .find(|item| same(&item.id, key.as_str()))
+        .map(|item| item.path)
 }
 
 fn conflict_subject(
@@ -400,6 +447,22 @@ pub fn promote(
     mode: &PromotionMode,
     ports: &PromotionPorts<'_>,
     identity_run: &IdentityRunGuard,
+) -> PromotionAttempt {
+    let mut verdict = PushVerdict::unread(PushOrigin::Pushed);
+    let result =
+        promote_judging(draft, mode, ports, identity_run, &mut verdict);
+    PromotionAttempt {
+        result,
+        fidelity: verdict.into_fidelity(),
+    }
+}
+
+fn promote_judging(
+    draft: &DraftId,
+    mode: &PromotionMode,
+    ports: &PromotionPorts<'_>,
+    identity_run: &IdentityRunGuard,
+    verdict: &mut PushVerdict,
 ) -> Result<Promotion, NotPromoted> {
     let lock = acquire_retirement_lock(ports.retirement.lock, identity_run)
         .map_err(|error| {
@@ -425,10 +488,13 @@ pub fn promote(
                 promotion.adopt(&key, &stored)?;
             }
             PromotionStep::RetitleRemote(key) => {
-                promotion.retitle_remote(&key, &stored)?;
+                *verdict = promotion.retitle_remote(&key, &stored)?;
             }
             PromotionStep::Retire(key) => {
-                return promotion.retire(&key, &stored);
+                return promotion.retire(&key, &stored).map(|finished| {
+                    *verdict = finished.verdict;
+                    finished.promotion
+                });
             }
             PromotionStep::Finish => {
                 let StoredRecord::Present(record) = stored else {
@@ -440,7 +506,11 @@ pub fn promote(
                     ports.retirement,
                     ports.records,
                     &lock,
-                );
+                )
+                .map(|finished| {
+                    *verdict = finished.verdict;
+                    finished.promotion
+                });
             }
             PromotionStep::Stop(reason) => return Err(reason),
         }
@@ -694,11 +764,13 @@ impl Promoting<'_> {
             .map_err(|_| NotPromoted::ReadBackFailed(id))
     }
 
+    /// The promoted body's verdict once the retitle lands; unjudged when
+    /// the remote is kept instead.
     fn retitle_remote(
         &self,
         key: &TrackerKey,
         stored: &StoredRecord,
-    ) -> Result<(), NotPromoted> {
+    ) -> Result<PushVerdict, NotPromoted> {
         let StoredRecord::Present(record) = stored else {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
@@ -718,13 +790,15 @@ impl Promoting<'_> {
             &read_back,
             matches_draft,
         ) {
-            Retitling::Keep(reason) => self.advance(
-                stored,
-                PromotionStage::RemoteKept {
-                    key: key.clone(),
-                    reason,
-                },
-            ),
+            Retitling::Keep(reason) => self
+                .advance(
+                    stored,
+                    PromotionStage::RemoteKept {
+                        key: key.clone(),
+                        reason,
+                    },
+                )
+                .map(|()| PushVerdict::unread(PushOrigin::Pushed)),
             Retitling::Retitle => {
                 let promoted = self.promoted_content(key);
                 let (_, body) = digest::split_frontmatter_and_body(&promoted)
@@ -739,24 +813,33 @@ impl Promoting<'_> {
                     )
                     .is_err()
                 {
-                    return self.advance(
-                        stored,
-                        PromotionStage::RemoteKept {
-                            key: key.clone(),
-                            reason: RemoteKeptReason::UpdateFailed {
-                                read_back,
+                    return self
+                        .advance(
+                            stored,
+                            PromotionStage::RemoteKept {
+                                key: key.clone(),
+                                reason: RemoteKeptReason::UpdateFailed {
+                                    read_back,
+                                },
                             },
-                        },
-                    );
+                        )
+                        .map(|()| PushVerdict::unread(PushOrigin::Pushed));
                 }
                 let updated = self.show(key)?;
+                let digester = self.digester();
                 self.advance(
                     stored,
                     PromotionStage::RemoteRetitled {
                         key: key.clone(),
-                        read_back: read_back_of(&self.digester(), &updated),
+                        read_back: read_back_of(&digester, &updated),
                     },
-                )
+                )?;
+                Ok(PushVerdict::judged(
+                    PushOrigin::Pushed,
+                    digester.comparison(),
+                    &promoted,
+                    Some(&updated.body),
+                ))
             }
         }
     }
@@ -765,7 +848,7 @@ impl Promoting<'_> {
         &self,
         key: &TrackerKey,
         stored: &StoredRecord,
-    ) -> Result<Promotion, NotPromoted> {
+    ) -> Result<FinishedPromotion, NotPromoted> {
         let StoredRecord::Present(record) = stored else {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
@@ -832,29 +915,68 @@ pub struct RemoteReading<'a> {
 }
 
 impl RemoteReading<'_> {
-    /// The state the next sync finds the promoted item at `path` in; a read
-    /// that fails predicts `Synced`, as nothing can be compared.
-    fn next_sync(
+    /// The state the next sync finds the promoted item at `path` in, and,
+    /// when `retitle` landed, the verdict on the remote it left, from one
+    /// read of the remote. A read that fails predicts `Synced`, as nothing
+    /// can be compared, and judges nothing.
+    fn read_promoted(
         &self,
         baseline: &IntendedBaseline,
         key: &ExternalId,
         path: &Path,
-    ) -> work::sync::SyncState {
+        retitle: Retitle,
+    ) -> (work::sync::SyncState, PushVerdict) {
         let digester = BaselineDigester::new(self.tracker, self.parser);
         let projection = self.tracker.show(key).ok().map(|issue| issue.body);
-        let promoted = ItemSnapshot::new(path, projection, &digester);
-        baseline
+        let promoted = ItemSnapshot::new(path, projection.clone(), &digester);
+        let verdict = match (retitle, promoted.read()) {
+            (Retitle::Landed, Ok(content)) => PushVerdict::judged(
+                PushOrigin::Pushed,
+                digester.comparison(),
+                content,
+                projection.as_deref(),
+            ),
+            _ => PushVerdict::unread(PushOrigin::Pushed),
+        };
+        let next_sync = baseline
             .next_sync(key, &promoted, &promoted)
-            .unwrap_or(work::sync::SyncState::Synced)
+            .unwrap_or(work::sync::SyncState::Synced);
+        (next_sync, verdict)
     }
+}
+
+/// Whether a promotion's record shows its retitle reached the tracker.
+#[derive(Clone, Copy)]
+enum Retitle {
+    Landed,
+    NotLanded,
+}
+
+impl Retitle {
+    const fn before(stage: &PromotionStage) -> Self {
+        match stage {
+            PromotionStage::RemoteRetitled { .. } => Self::Landed,
+            _ => Self::NotLanded,
+        }
+    }
+}
+
+/// A promotion carried to its end, with the verdict on the remote its
+/// retitle left.
+pub struct FinishedPromotion {
+    pub promotion: Promotion,
+    pub verdict: PushVerdict,
 }
 
 /// The one tail every promotion ends with, whoever runs it.
 ///
 /// Retires the draft ID to the key if that is still outstanding, records
 /// the intended baseline once the draft ID is only an alias of the key's
-/// item, then removes the record. The completed promotion names the state
-/// that baseline leaves the promoted item in.
+/// item, then removes the record. When the record shows the retitle
+/// landed, the promoted file is judged against the remote as it stands, so
+/// a finish resumed by a later run marks the key as the retitling run's
+/// would have. The completed promotion names the state that baseline
+/// leaves the promoted item in.
 ///
 /// A refused or rolled-back retirement rewinds the record to its stage
 /// before `Retiring`, so no `Retiring` record stands for a retirement that
@@ -870,7 +992,7 @@ pub fn finish_promotion(
     retirement_ports: &RetirementPorts<'_>,
     records: &dyn PromotionRecords,
     lock: &RetirementLockGuard,
-) -> Result<Promotion, NotPromoted> {
+) -> Result<FinishedPromotion, NotPromoted> {
     let PromotionStage::Retiring {
         key,
         baseline,
@@ -907,21 +1029,37 @@ pub fn finish_promotion(
                 .iter()
                 .any(|alias| same(alias, record.draft_id.as_str()))
     });
-    let next_sync = promoted_item
-        .map_or(work::sync::SyncState::Synced, |item| {
-            remote.next_sync(baseline, &ExternalId::from(key), &item.path)
-        });
+    let (next_sync, verdict) = promoted_item.map_or_else(
+        || {
+            (
+                work::sync::SyncState::Synced,
+                PushVerdict::unread(PushOrigin::Pushed),
+            )
+        },
+        |item| {
+            remote.read_promoted(
+                baseline,
+                &ExternalId::from(key),
+                &item.path,
+                Retitle::before(before),
+            )
+        },
+    );
     if let (Some(_), Some(store)) = (promoted_item, retirement_ports.baseline) {
         record_created_baseline(
             key.as_str(),
             baseline,
             store,
             UNSYNCED_WATERMARK,
+            verdict.mark_change(),
         )
         .map_err(|error| unwritable(Some(key), &error))?;
     }
     records
         .remove(&record.draft_id)
         .map_err(|error| unwritable(Some(key), &error))?;
-    Ok(Promotion::Completed(ExternalId::from(key), next_sync))
+    Ok(FinishedPromotion {
+        promotion: Promotion::Completed(ExternalId::from(key), next_sync),
+        verdict,
+    })
 }

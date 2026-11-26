@@ -11,7 +11,9 @@ use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::catalogue::TeamEntries;
 use linear_client::classify::{GraphQlError, Outcome};
 use linear_client::resolution::{FixedNames, ResolverSet};
-use linear_client::{LinearClient, LinearFailure, StateId, UpdateFields};
+use linear_client::{
+    Description, LinearClient, LinearFailure, StateId, UpdateFields,
+};
 use serde_json::{json, Value};
 use support::client::{
     brief, client_with, client_with_resolvers, TEAM_ID, TEAM_KEY,
@@ -130,7 +132,7 @@ fn a_title_alone_is_the_whole_input() {
 #[test]
 fn a_description_alone_is_the_whole_input() {
     let fields = UpdateFields {
-        description: Some("Body"),
+        description: Some(Description::Markdown("Body")),
         ..UpdateFields::default()
     };
 
@@ -140,7 +142,7 @@ fn a_description_alone_is_the_whole_input() {
 #[test]
 fn an_empty_description_is_sent_to_clear_it() {
     let fields = UpdateFields {
-        description: Some(""),
+        description: Some(Description::Markdown("")),
         ..UpdateFields::default()
     };
 
@@ -196,7 +198,7 @@ fn every_field_together_is_the_whole_input() {
         .expect("a catalogued state");
     let fields = UpdateFields {
         title: Some("Renamed"),
-        description: Some("Body"),
+        description: Some(Description::Markdown("Body")),
         state_id: Some(&in_progress),
         assignee_id: Some("user-alice-uuid"),
         priority: Some(2),

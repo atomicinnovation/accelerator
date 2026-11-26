@@ -475,7 +475,7 @@ fn promote_draft(
         retirement: &retirement,
         records: settlement.promotions,
     };
-    let result = promote(
+    let attempt = promote(
         &planned.draft,
         &PromotionMode::Standard,
         &promotion_ports,
@@ -483,7 +483,7 @@ fn promote_draft(
     );
     if let Err(NotPromoted::RetirementFailed(
         failure @ RetirementFailure::RestoreIncomplete { .. },
-    )) = &result
+    )) = &attempt.result
     {
         if let StoredRecord::Present(record) =
             settlement.promotions.read(&planned.draft)
@@ -500,7 +500,7 @@ fn promote_draft(
     Ok(PromotionRow::of(
         &planned.draft,
         planned.path.clone(),
-        result,
+        attempt,
         &promotion_ports,
         settlement.state_dir,
     ))
