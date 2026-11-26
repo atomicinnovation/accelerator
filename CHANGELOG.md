@@ -1322,8 +1322,11 @@
   crawl rather than when the running daemon idles out.
 - **The `research-topic` researcher is confined.** A `PreToolUse` hook,
   `accelerator research guard`, limits every subagent of the configured
-  researcher type to running `accelerator research fetch` and writing finding
-  files under the research topics directory. Its command matching follows
+  researcher type to running `accelerator research fetch`, the node query
+  `accelerator research topic node` and its outputters' two
+  `accelerator config template topic-research` commands, and to writing
+  findings and level notes under the research topics directory. The
+  configured composer may write findings only, and run no command. Its command matching follows
   Claude Code's own `Bash(…)` rule matching, measured per release, and also
   blocks any `$` expansion and input redirection, which could otherwise read
   an environment secret back or send it to another host. Point
