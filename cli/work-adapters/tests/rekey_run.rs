@@ -936,11 +936,10 @@ mod in_a_real_repository {
         fn state(&self) -> Result<RepositoryState, TestError> {
             Ok(RepositoryState::of(self.template.root(), &self.env)?)
         }
-    }
 
-    fn committed(vcs: Vcs) -> Result<(Repo, Hermetic), TestError> {
-        let Committed { template, env, .. } = Committed::build(vcs)?;
-        Ok((template, env))
+        fn into_repository(self) -> (Repo, Hermetic) {
+            (self.template, self.env)
+        }
     }
 
     fn commit_everything(
@@ -972,20 +971,13 @@ mod in_a_real_repository {
     const FOUR_FILE_MUTATIONS: usize = 13;
     const FIVE_FILE_MUTATIONS: usize = 14;
 
-    fn five_files_committed() -> Result<(Repo, Hermetic), TestError> {
-        let (repo, env) = committed(Vcs::Git)?;
-        seed_synced_only(&repo)?;
-        commit_everything(Vcs::Git, &repo, &env)?;
-        Ok((repo, env))
-    }
-
     fn assert_counted_exactly(
         count: usize,
-        build: impl Fn() -> Result<(Repo, Hermetic), TestError>,
+        template: &Committed,
     ) -> Result<(), TestError> {
-        let (halting, _env) = build()?;
+        let (halting, _env) = template.fresh_copy()?;
         halt_at(&halting, count - 1)?;
-        let (completing, _env) = build()?;
+        let (completing, _env) = template.fresh_copy()?;
         let mutations = Mutations::new(Fault::HaltAt(count));
         let ports = Ports::new(&completing, &mutations);
 
@@ -1007,40 +999,43 @@ mod in_a_real_repository {
         assert_eq!(four_files, FOUR_FILE_MUTATIONS);
         assert_eq!(five_files, FIVE_FILE_MUTATIONS);
         each_of(2, Vcs::ALL, |vcs| {
-            assert_counted_exactly(four_files, || committed(vcs))
+            assert_counted_exactly(four_files, &Committed::build(vcs)?)
         })?;
-        assert_counted_exactly(five_files, five_files_committed)
+        assert_counted_exactly(
+            five_files,
+            &Committed::build(Vcs::Git)?.then_committing(seed_synced_only)?,
+        )
     }
 
-    fn assert_copy_matches_a_fresh_build(
-        build: impl Fn() -> Result<Committed, TestError>,
+    fn assert_a_copy_matches_its_template(
+        template: &Committed,
     ) -> Result<RepositoryState, TestError> {
-        let (copy, env) = build()?.fresh_copy()?;
+        let (copy, env) = template.fresh_copy()?;
         let copied = RepositoryState::of(copy.root(), &env)?;
 
-        assert_eq!(copied, build()?.state()?);
+        assert_eq!(copied, template.state()?);
         Ok(copied)
     }
 
     #[test]
-    fn the_kill_tests_copied_repository_matches_one_built_from_scratch(
+    fn the_kill_tests_copied_repository_matches_its_template(
     ) -> Result<(), TestError> {
         each_of(2, Vcs::ALL, |vcs| -> Result<(), TestError> {
-            assert_copy_matches_a_fresh_build(|| {
-                Committed::build(vcs)?.packed()
-            })?;
+            assert_a_copy_matches_its_template(
+                &Committed::build(vcs)?.packed()?,
+            )?;
             Ok(())
         })
     }
 
     #[test]
-    fn the_edit_refusal_tests_copied_repository_matches_one_built_from_scratch(
+    fn the_edit_refusal_tests_copied_repository_matches_its_template(
     ) -> Result<(), TestError> {
-        let copied = assert_copy_matches_a_fresh_build(|| {
-            Committed::build(Vcs::Git)?
+        let copied = assert_a_copy_matches_its_template(
+            &Committed::build(Vcs::Git)?
                 .then_committing(seed_synced_only)?
-                .packed()
-        })?;
+                .packed()?,
+        )?;
 
         assert_eq!(copied.commits.len(), 2);
         Ok(())
@@ -1049,7 +1044,7 @@ mod in_a_real_repository {
     #[test]
     fn discard_refuses_a_committed_half_run() -> Result<(), TestError> {
         for vcs in [Vcs::Git, Vcs::Jj] {
-            let (repo, env) = committed(vcs)?;
+            let (repo, env) = Committed::build(vcs)?.into_repository();
             halt_at(&repo, 5)?;
             commit_everything(vcs, &repo, &env)?;
             let mutations = Mutations::new(Fault::Never);
@@ -1142,7 +1137,7 @@ mod in_a_real_repository {
     ) -> Result<(), TestError> {
         let last = mutations_of_a_whole_run()? - 1;
         for vcs in [Vcs::Git, Vcs::Jj] {
-            let (repo, _env) = committed(vcs)?;
+            let (repo, _env) = Committed::build(vcs)?.into_repository();
             halt_at(&repo, last)?;
             let mutations = Mutations::new(Fault::Never);
             let ports = Ports::new(&repo, &mutations);
