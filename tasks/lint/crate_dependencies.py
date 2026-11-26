@@ -31,10 +31,12 @@ class Role(StrEnum):
     LAUNCHER = "launcher"
     TEST_SUPPORT = "test-support"
     BOOTSTRAP_VERIFIER = "bootstrap-verifier"
+    DECLARATIONS = "declarations"
+    DECLARATIONS_ASSEMBLY = "declarations-assembly"
 
     @property
     def carries_context(self) -> bool:
-        return self in (Role.DOMAIN, Role.ADAPTER)
+        return self in (Role.DOMAIN, Role.ADAPTER, Role.DECLARATIONS)
 
     @property
     def is_exempt(self) -> bool:
@@ -54,7 +56,10 @@ class Kind(StrEnum):
 
 @unique
 class Rule(StrEnum):
-    INWARD = "a domain depends only on the kernel and upstream domains"
+    INWARD = (
+        "a domain depends only on the kernel, upstream domains and its own "
+        "context's declarations"
+    )
     UPSTREAM = (
         "a context depends only on a platform context or a shared context "
         "declaring it, without a cycle"
@@ -65,8 +70,9 @@ class Rule(StrEnum):
     )
     WIRING_AT_ROOTS = "a composition root depends on no other composition root"
     LAUNCHER = (
-        "the launcher depends only on the kernel, platform contexts and "
-        "technical libraries"
+        "the launcher depends only on the kernel, platform contexts, "
+        "technical libraries, declarations crates and the declarations "
+        "assembly"
     )
     KERNEL = "the kernel depends on no workspace crate"
     TECHNICAL_LIBRARY = (
@@ -74,6 +80,21 @@ class Rule(StrEnum):
     )
     VERIFIER = "only the launcher depends on the bootstrap verifier"
     TEST_SUPPORT = "test support is a dev-dependency only"
+    DECLARATIONS = (
+        "a declarations crate depends only on the kernel and platform domains"
+    )
+    DECLARATIONS_REACH = (
+        "only its own context's crates, the declarations assembly, "
+        "composition roots and the launcher depend on a declarations crate"
+    )
+    ASSEMBLY = (
+        "the declarations assembly depends only on platform domains and "
+        "declarations crates"
+    )
+    ASSEMBLY_REACH = (
+        "only composition roots and the launcher depend on the declarations "
+        "assembly"
+    )
     DECLARATION = "malformed role declaration"
 
 
@@ -82,6 +103,10 @@ class BoundedContext:
     name: str
     kind: Kind
     downstreams: frozenset[str]
+
+    @property
+    def is_platform(self) -> bool:
+        return self.kind is Kind.PLATFORM
 
     def admits(self, downstream: BoundedContext) -> bool:
         match self.kind:
@@ -177,6 +202,8 @@ def _declaration(package: Package) -> _Declaration | Finding:
         return _malformed(name, f"role '{role}' carries no context")
     if not role.carries_context and downstreams:
         return _malformed(name, _ONLY_SHARED_DOMAINS)
+    if role is Role.DECLARATIONS and kind:
+        return _malformed(name, f"role '{role}' carries no kind")
     if role.carries_context and context is None:
         return _malformed(name, f"role '{role}' needs a context")
     if kind is not None and kind not in Kind:
@@ -258,18 +285,25 @@ def _resolved_context(
 ) -> tuple[BoundedContext | None, list[Finding]]:
     domains = [m for m in members if m.role is Role.DOMAIN]
     adapters = [m for m in members if m.role is Role.ADAPTER]
+    declarations = [m for m in members if m.role is Role.DECLARATIONS]
     if domains:
         owner = domains[0]
         kind, found = _kind_declared_by_domain(
             name, owner, adapters, known_contexts
         )
         downstreams = owner.downstreams
-    else:
+    elif adapters:
         kind, found = _kind_declared_by_adapters(name, adapters)
         downstreams = ()
+    else:
+        kind, downstreams = None, ()
+        found = [
+            _malformed(member.crate, f"context '{name}' declares no kind")
+            for member in declarations
+        ]
     found += [
         _malformed(adapter.crate, _ONLY_SHARED_DOMAINS)
-        for adapter in adapters
+        for adapter in adapters + declarations
         if adapter.downstreams
     ]
     if found or kind is None:
@@ -361,17 +395,60 @@ def _adapter_rules(source: Crate, target: Crate) -> list[Rule]:
 def _launcher_rules(target: Crate) -> list[Rule]:
     if target.role is Role.COMPOSITION_ROOT:
         return [Rule.WIRING_AT_ROOTS]
+    if target.role in (Role.DECLARATIONS, Role.DECLARATIONS_ASSEMBLY):
+        return []
     if target.context is not None and target.context.kind is not Kind.PLATFORM:
         return [Rule.LAUNCHER]
     return []
 
 
-def broken_rules(source: Crate, target: Crate) -> list[Rule]:
-    """Name the rules a dependency of ``source`` on ``target`` breaks."""
-    if target.role is Role.TEST_SUPPORT:
-        return [Rule.TEST_SUPPORT]
-    if target.role is Role.BOOTSTRAP_VERIFIER:
-        return [] if source.role is Role.LAUNCHER else [Rule.VERIFIER]
+def _is_platform_domain(crate: Crate) -> bool:
+    return (
+        crate.role is Role.DOMAIN
+        and crate.context is not None
+        and crate.context.is_platform
+    )
+
+
+def _declarations_reach(source: Crate, target: Crate) -> list[Rule]:
+    match target.role:
+        case Role.DECLARATIONS:
+            reaches = (
+                source.role.is_composition_root
+                or source.role is Role.DECLARATIONS_ASSEMBLY
+                or (
+                    source.role in (Role.DOMAIN, Role.ADAPTER)
+                    and source.is_in(target.context)
+                )
+            )
+            return [] if reaches else [Rule.DECLARATIONS_REACH]
+        case Role.DECLARATIONS_ASSEMBLY:
+            return (
+                [] if source.role.is_composition_root else [Rule.ASSEMBLY_REACH]
+            )
+        case _:
+            return []
+
+
+def _domain_rules(source: Crate, target: Crate) -> list[Rule]:
+    if target.role is Role.DECLARATIONS and target.is_in(source.context):
+        return []
+    return (
+        _upstream(source, target)
+        if target.role in (Role.KERNEL, Role.DOMAIN)
+        else [Rule.INWARD]
+    )
+
+
+def _declarations_rules(source: Crate, target: Crate) -> list[Rule]:
+    if source.role is Role.DECLARATIONS:
+        permitted = target.role is Role.KERNEL or _is_platform_domain(target)
+        return [] if permitted else [Rule.DECLARATIONS]
+    permitted = target.role is Role.DECLARATIONS or _is_platform_domain(target)
+    return [] if permitted else [Rule.ASSEMBLY]
+
+
+def _source_rules(source: Crate, target: Crate) -> list[Rule]:
     match source.role:
         case Role.KERNEL:
             return [Rule.KERNEL]
@@ -382,11 +459,7 @@ def broken_rules(source: Crate, target: Crate) -> list[Rule]:
                 else [Rule.TECHNICAL_LIBRARY]
             )
         case Role.DOMAIN:
-            return (
-                _upstream(source, target)
-                if target.role in (Role.KERNEL, Role.DOMAIN)
-                else [Rule.INWARD]
-            )
+            return _domain_rules(source, target)
         case Role.ADAPTER:
             return _adapter_rules(source, target)
         case Role.COMPOSITION_ROOT:
@@ -397,8 +470,19 @@ def broken_rules(source: Crate, target: Crate) -> list[Rule]:
             )
         case Role.LAUNCHER:
             return _launcher_rules(target)
+        case Role.DECLARATIONS | Role.DECLARATIONS_ASSEMBLY:
+            return _declarations_rules(source, target)
         case Role.TEST_SUPPORT | Role.BOOTSTRAP_VERIFIER:
             return []
+
+
+def broken_rules(source: Crate, target: Crate) -> list[Rule]:
+    """Name the rules a dependency of ``source`` on ``target`` breaks."""
+    if target.role is Role.TEST_SUPPORT:
+        return [Rule.TEST_SUPPORT]
+    if target.role is Role.BOOTSTRAP_VERIFIER:
+        return [] if source.role is Role.LAUNCHER else [Rule.VERIFIER]
+    return _source_rules(source, target) + _declarations_reach(source, target)
 
 
 @dataclass(frozen=True)
