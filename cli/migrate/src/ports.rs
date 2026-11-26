@@ -93,8 +93,19 @@ pub struct TrackedState {
 }
 
 pub trait MigrationContext {
-    fn doc_type_dirs(&self) -> Vec<DocTypeDir>;
-    fn corpus_index(&self) -> &dyn CorpusIndex;
+    /// Every doc type's directory, resolved from the configuration as it
+    /// stands at the call, so a migration that rewrites a `paths.*` key reads
+    /// its new directory.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when the configuration cannot be read, or resolves
+    /// to an unsafe or overlapping set of doc roots.
+    fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError>;
+
+    /// # Errors
+    /// [`MigrationError`] when the doc type directories it indexes cannot be
+    /// resolved.
+    fn corpus_index(&self) -> Result<&dyn CorpusIndex, MigrationError>;
 
     /// # Errors
     /// [`MigrationError`] when the write is refused or fails.

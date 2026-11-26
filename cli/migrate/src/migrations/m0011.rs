@@ -251,12 +251,12 @@ mod tests {
     }
 
     impl MigrationContext for Context {
-        fn doc_type_dirs(&self) -> Vec<DocTypeDir> {
-            Vec::new()
+        fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError> {
+            Ok(Vec::new())
         }
 
-        fn corpus_index(&self) -> &dyn CorpusIndex {
-            &NoIndex
+        fn corpus_index(&self) -> Result<&dyn CorpusIndex, MigrationError> {
+            Ok(&NoIndex)
         }
 
         fn write(&self, path: &Path, content: &str) -> TestResult {

@@ -27,7 +27,7 @@ fn every_doc_type_dir_matches_configs_own_resolution_field_for_field(
 
     let composition = Composition::at(dir.path())?;
     let ctx = FileMigrationContext::new(dir.path(), composition.capabilities());
-    let actual = ctx.doc_type_dirs();
+    let actual = ctx.doc_type_dirs()?;
 
     assert_eq!(actual.len(), expected.len());
     for resolved in &expected {

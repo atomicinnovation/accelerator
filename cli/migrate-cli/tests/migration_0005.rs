@@ -283,7 +283,7 @@ fn refuses_a_dangerous_configured_work_path() -> Result<(), TestError> {
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8(output.stderr)?;
     assert!(
-        stderr.contains("refusing dangerous paths.work value: ../escape"),
+        stderr.contains("paths.work resolves to an unsafe path: ../escape"),
         "{stderr}"
     );
     Ok(())

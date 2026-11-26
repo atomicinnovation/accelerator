@@ -241,7 +241,7 @@ fn a_missing_configured_corpus_path_names_itself_not_the_default(
 }
 
 #[test]
-fn two_corpus_keys_aliased_to_the_same_path_are_walked_exactly_once(
+fn two_corpus_keys_aliased_to_the_same_path_refuse_the_run(
 ) -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let root = dir.path();
@@ -251,36 +251,28 @@ fn two_corpus_keys_aliased_to_the_same_path_are_walked_exactly_once(
         "---\npaths:\n  research_codebase: docs/shared\n  \
          research_issues: docs/shared\n---\n",
     )?;
-    write(root, "docs/shared/a.md", "---\nresearcher: alice\n---\n")?;
+    let note = "---\nresearcher: alice\n---\n";
+    write(root, "docs/shared/a.md", note)?;
     already_applied(root)?;
 
     let output = Command::new(BIN).current_dir(root).output()?;
 
-    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_ne!(output.status.code(), Some(0), "{output:?}");
     let stderr = String::from_utf8(output.stderr)?;
     assert!(
         stderr.contains(
-            "Warning: 0006: paths.research_issues aliases \
-             paths.research_codebase"
+            "paths.research_codebase (docs/shared) overlaps \
+                         paths.research_issues (docs/shared)"
         ),
         "{stderr}"
     );
+    assert_eq!(fs::read_to_string(root.join("docs/shared/a.md"))?, note);
     assert!(
-        stderr.contains(
-            "0006: skipping duplicate walk for paths.research_issues"
-        ),
-        "{stderr}"
-    );
-    assert_eq!(
-        stderr
-            .matches("0006: rewrote 1 file(s) under docs/shared")
-            .count(),
-        1,
-        "expected exactly one rewrite pass over docs/shared: {stderr}"
-    );
-    assert_eq!(
-        fs::read_to_string(root.join("docs/shared/a.md"))?,
-        "---\nauthor: alice\n---\n"
+        !fs::read_to_string(
+            root.join(".accelerator/state/migrations-applied")
+        )?
+        .contains("0006"),
+        "0006 must not be recorded applied"
     );
     Ok(())
 }
@@ -530,7 +522,8 @@ fn a_refused_line_is_stable_across_repeated_runs() -> Result<(), TestError> {
 }
 
 #[test]
-fn skips_a_dangerous_configured_corpus_path() -> Result<(), TestError> {
+fn a_dangerous_configured_corpus_path_refuses_the_run() -> Result<(), TestError>
+{
     let dir = TempDir::new()?;
     write(
         dir.path(),
@@ -541,15 +534,18 @@ fn skips_a_dangerous_configured_corpus_path() -> Result<(), TestError> {
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
 
-    assert_eq!(output.status.code(), Some(0));
+    assert_ne!(output.status.code(), Some(0));
     let stderr = String::from_utf8(output.stderr)?;
     assert!(
-        stderr.contains("refusing dangerous paths.plans value: ../escape"),
+        stderr.contains("paths.plans resolves to an unsafe path: ../escape"),
         "{stderr}"
     );
     assert!(
-        stderr.contains("0006: rewrote 0 file(s) under <unresolved plans>"),
-        "{stderr}"
+        !fs::read_to_string(
+            dir.path().join(".accelerator/state/migrations-applied")
+        )?
+        .contains("0006"),
+        "0006 must not be recorded applied"
     );
     Ok(())
 }

@@ -123,7 +123,8 @@ fn mechanical_fail(message: impl Into<String>) -> Vec<Transformation> {
 fn run_mechanical(
     ctx: &dyn MigrationContext,
 ) -> Result<Vec<Transformation>, String> {
-    let table = linkage_table(&ctx.doc_type_dirs(), ctx.root());
+    let dirs = ctx.doc_type_dirs().map_err(|error| error.to_string())?;
+    let table = linkage_table(&dirs, ctx.root());
     let ids = &crate::legacy_ids::LegacyNumericIds;
     let files = corpus_files(ctx, &table)?;
 
@@ -198,9 +199,7 @@ fn run_mechanical(
             .to_owned()
     })?;
 
-    let transformations =
-        emit_linkage_transformations(ctx, &files, &table, ids);
-    Ok(transformations)
+    emit_linkage_transformations(ctx, &files, &table, ids)
 }
 
 fn emit_linkage_transformations(
@@ -208,8 +207,8 @@ fn emit_linkage_transformations(
     files: &[(String, String)],
     table: &[(DocTypeKey, PathBuf)],
     ids: &dyn LinkageIds,
-) -> Vec<Transformation> {
-    let index = ctx.corpus_index();
+) -> Result<Vec<Transformation>, String> {
+    let index = ctx.corpus_index().map_err(|error| error.to_string())?;
     let mut transformations = Vec::new();
 
     for (relpath, content) in files {
@@ -258,7 +257,7 @@ fn emit_linkage_transformations(
             });
         }
     }
-    transformations
+    Ok(transformations)
 }
 
 fn referential_error() -> String {

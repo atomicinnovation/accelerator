@@ -29,10 +29,15 @@ use crate::registry::MigrationEntry;
 /// write — immediately after the preview banner and before the apply loop
 /// begins.
 ///
+/// The doc type directories must resolve before anything is computed, and
+/// again after each applied entry before it is recorded, so a configuration
+/// whose doc roots overlap stops the run with nothing applied or recorded.
+///
 /// # Errors
 /// The first [`MigrationError`] a pending entry's `apply()` returns, one
-/// from the injected `LedgerStore`, or the first decisions-file validation
-/// failure (naming the offending position).
+/// from the injected `LedgerStore`, the first decisions-file validation
+/// failure (naming the offending position), or the failure to resolve the
+/// doc type directories.
 #[allow(clippy::too_many_arguments)]
 pub fn run_pending(
     entries: &[MigrationEntry],
@@ -44,6 +49,7 @@ pub fn run_pending(
     timeout: Duration,
     decisions_file_content: Option<&str>,
 ) -> Result<(), MigrationError> {
+    ensure_doc_roots_resolve(ctx)?;
     let applied_ids = ledger_store.applied()?;
     let skipped_ids = ledger_store.skipped()?;
 
@@ -100,7 +106,13 @@ pub fn run_pending(
             session_logs,
             timeout,
             reporter,
-        ) {
+        )
+        .and_then(|outcome| {
+            if matches!(outcome, ApplyOutcome::Applied) {
+                ensure_doc_roots_resolve(ctx)?;
+            }
+            Ok(outcome)
+        }) {
             Ok(ApplyOutcome::Applied) => {
                 // Re-read rather than reuse the loop-start snapshot: a
                 // migration's own `apply()` may have written directly to
@@ -127,6 +139,15 @@ pub fn run_pending(
     let pending_remaining = pending.len() - applied_count;
     reporter.summary(applied_count, &skipped_ids, pending_remaining);
     Ok(())
+}
+
+/// # Errors
+/// [`MigrationError`] when the configuration cannot be read, or resolves to
+/// an unsafe or overlapping set of doc roots.
+pub fn ensure_doc_roots_resolve(
+    ctx: &dyn MigrationContext,
+) -> Result<(), MigrationError> {
+    ctx.doc_type_dirs().map(|_| ())
 }
 
 fn dispatch_entry(

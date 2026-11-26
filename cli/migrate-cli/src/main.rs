@@ -204,6 +204,7 @@ fn run_list(
 ) -> Result<(), kernel::Error> {
     let composed = compose_config(root)?;
     let ctx = FileMigrationContext::new(root, capabilities(&composed, root));
+    migrate::lifecycle::ensure_doc_roots_resolve(&ctx)?;
     let records = FileCorpusStore::new(root);
     let clock = session_log_clock();
     let session_logs = FileSessionLogFactory::new(root, &records, &clock);

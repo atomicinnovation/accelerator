@@ -39,12 +39,12 @@ impl CorpusIndex for NoIndex {
 struct StubContext;
 
 impl MigrationContext for StubContext {
-    fn doc_type_dirs(&self) -> Vec<DocTypeDir> {
-        Vec::new()
+    fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError> {
+        Ok(Vec::new())
     }
 
-    fn corpus_index(&self) -> &dyn CorpusIndex {
-        &NoIndex
+    fn corpus_index(&self) -> Result<&dyn CorpusIndex, MigrationError> {
+        Ok(&NoIndex)
     }
 
     fn write(

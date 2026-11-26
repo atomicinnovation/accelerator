@@ -81,14 +81,16 @@ impl<'a> FileMigrationContext<'a> {
     /// The `corpus::linkage`-shaped doc-type table: every configured
     /// doc-type directory, keyed by its [`DocTypeKey`] rather than its bare
     /// linkage-type-name string.
-    fn linkage_table(&self) -> Vec<(DocTypeKey, PathBuf)> {
-        MigrationContext::doc_type_dirs(self)
+    fn linkage_table(
+        &self,
+    ) -> Result<Vec<(DocTypeKey, PathBuf)>, MigrationError> {
+        Ok(MigrationContext::doc_type_dirs(self)?
             .into_iter()
             .filter_map(|dir| {
                 DocTypeKey::from_linkage_type_name(&dir.doc_type)
                     .map(|key| (key, dir.dir))
             })
-            .collect()
+            .collect())
     }
 
     fn resolve(&self, key: &str) -> Result<config::Resolution, MigrationError> {
@@ -102,27 +104,28 @@ impl<'a> FileMigrationContext<'a> {
 }
 
 impl MigrationContext for FileMigrationContext<'_> {
-    fn doc_type_dirs(&self) -> Vec<DocTypeDir> {
-        config::paths::doc_type_dirs(self.capabilities.config)
-            .map(|dirs| {
-                dirs.into_iter()
-                    .map(|dir| DocTypeDir {
-                        doc_type: dir.doc_type.to_owned(),
-                        dir: self.root.join(dir.dir),
-                    })
-                    .collect()
+    fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError> {
+        let dirs = config::paths::doc_type_dirs(self.capabilities.config)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        Ok(dirs
+            .into_iter()
+            .map(|dir| DocTypeDir {
+                doc_type: dir.doc_type.to_owned(),
+                dir: self.root.join(dir.dir),
             })
-            .unwrap_or_default()
+            .collect())
     }
 
-    fn corpus_index(&self) -> &dyn CorpusIndex {
-        self.index.get_or_init(|| {
-            FileCorpusIndex::build(
-                &self.linkage_table(),
-                self.capabilities.walker,
-                &migrate::legacy_ids::LegacyNumericIds,
-            )
-        })
+    fn corpus_index(&self) -> Result<&dyn CorpusIndex, MigrationError> {
+        if let Some(index) = self.index.get() {
+            return Ok(index);
+        }
+        let built = FileCorpusIndex::build(
+            &self.linkage_table()?,
+            self.capabilities.walker,
+            &migrate::legacy_ids::LegacyNumericIds,
+        );
+        Ok(self.index.get_or_init(|| built))
     }
 
     fn write(&self, path: &Path, content: &str) -> Result<(), MigrationError> {
@@ -279,7 +282,7 @@ impl MigrationContext for FileMigrationContext<'_> {
         &self,
         files: &[PathBuf],
     ) -> Result<(), MigrationError> {
-        let table = self.linkage_table();
+        let table = self.linkage_table()?;
         let Capabilities {
             walker,
             reader,
