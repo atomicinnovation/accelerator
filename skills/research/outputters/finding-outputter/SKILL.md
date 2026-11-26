@@ -47,8 +47,11 @@ body skeleton both. Where it comes from depends on who you are:
   When the command is denied by permissions, write no file, and say
   "template command denied by permissions" in your summary. When it exits
   non-zero, a research-guard refusal (`E_RESEARCH_GUARD_COMMAND`) included,
-  write no file, and say "template unavailable" in your summary, quoting the
-  first line of its stderr.
+  write no file, and say "template unavailable" in your summary, quoting its
+  error line.
+
+A command's error line is the first line of its stderr that is not a
+warning; a warning line begins `Warning:` or `accelerator: WARNING`.
 
 ## Shape
 

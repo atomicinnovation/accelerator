@@ -32,7 +32,8 @@ your focus question, `lineage`, `level`, `cap` as the follow-up cap,
 query, write no file, and say "node query denied by permissions" in your
 summary. When it exits non-zero, a research-guard refusal
 (`E_RESEARCH_GUARD_COMMAND`) included, write no file, and say "node query
-failed" in your summary, quoting the first line of its stderr.
+failed" in your summary, quoting its error line, as `finding-outputter`
+defines it.
 
 ## Sink
 
@@ -69,8 +70,7 @@ written, without `--fail-safe`, and fill the fenced template it prints. When
 the command is denied by permissions, write no file, and say "template command
 denied by permissions" in your summary. When it exits non-zero, a
 research-guard refusal (`E_RESEARCH_GUARD_COMMAND`) included, write no file,
-and say "template unavailable" in your summary, quoting the first line of its
-stderr.
+and say "template unavailable" in your summary, quoting its error line.
 
 ## Shape
 

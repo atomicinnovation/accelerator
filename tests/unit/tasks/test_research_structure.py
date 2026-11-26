@@ -2899,7 +2899,8 @@ def test_template_failures_are_named_and_troubleshot(
         assert f'"{outcome}"' in step, (
             f"{outputter.parent.name} must report {outcome!r}"
         )
-    assert "quoting the first line of its stderr" in step
+    assert "quoting its error line" in step
+    assert "quoting the first line of its stderr" not in step
     denied = _troubleshooting_row(TEMPLATE_DENIED)
     for rule in (FINDING_TEMPLATE_COMMAND, LEVEL_NOTE_TEMPLATE_COMMAND):
         assert f"`Bash({rule})`" in denied
@@ -3217,8 +3218,8 @@ def test_the_level_note_outputter_reports_node_query_failures() -> None:
         f'say "{NODE_QUERY_DENIED}" in your summary.',
         "When it exits non-zero, a research-guard refusal "
         "(`E_RESEARCH_GUARD_COMMAND`) included, write no file, and say "
-        f'"{NODE_QUERY_FAILED}" in your summary, quoting the first line of '
-        "its stderr.",
+        f'"{NODE_QUERY_FAILED}" in your summary, quoting its error line, as '
+        "`finding-outputter` defines it.",
     ):
         assert sentence in prose, f"the outputter must state {sentence!r}"
     denied = _troubleshooting_row(NODE_QUERY_DENIED)
@@ -3398,3 +3399,27 @@ def test_every_spawn_returns_before_its_batch_is_acknowledged() -> None:
         "batch, so no plan runs while any spawn of the batch is still "
         "running, a background one included."
     ) in spawn
+
+
+ERROR_LINE = (
+    "A command's error line is the first line of its stderr that is not a "
+    "warning; a warning line begins `Warning:` or `accelerator: WARNING`."
+)
+
+
+def test_a_failed_command_is_quoted_by_its_error_line() -> None:
+    assert ERROR_LINE in _prose(FINDING_OUTPUTTER)
+    assert "error line, as `finding-outputter` defines it" in _prose(
+        LEVEL_NOTE_OUTPUTTER
+    )
+    check = _template_check()
+    assert "the first line of its stderr that is not a warning" in check
+    for path in (
+        RESEARCH_TOPIC,
+        FINDING_OUTPUTTER,
+        LEVEL_NOTE_OUTPUTTER,
+        RESEARCHER,
+    ):
+        assert "the first line of its stderr," not in _prose(path)
+        assert "the first line of its stderr." not in _prose(path)
+        assert "first line of the query's stderr" not in _prose(path)

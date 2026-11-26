@@ -302,8 +302,10 @@ allocate a finding or note path yourself.
      its default. Every spawn then fills that default, and so does every
      composer, from the block kept here.
    - **Failure**: if either exits non-zero, `conduct` starts no run and
-     spawns nothing. Print "template unavailable", the first line of its
-     stderr, and the next step of the troubleshooting row that line matches.
+     spawns nothing. Print "template unavailable", its error line, and the
+     next step of the troubleshooting row that line matches. The error line
+     is the first line of its stderr that is not a warning; a warning line
+     begins `Warning:` or `accelerator: WARNING`.
    - **Denial**: if either command is denied by permissions, `conduct` starts
      no run and spawns nothing. Print "template command denied by
      permissions" and that troubleshooting row's next step.
@@ -694,7 +696,7 @@ allocate a finding or note path yourself.
    | `E_RESEARCH_GUARD_COMMAND` from a composer | the configured `agents.composer` tried to run a command; composers may only Read and Write |
    | "fetch denied by permissions" | either no allow rule reached the researcher, so add `Bash(accelerator research fetch *)` to the project's allow rules, or a `deny` or `ask` rule covers `accelerator research fetch`, so adjust it |
    | "node query denied by permissions" | either a `deny` or `ask` rule covers `accelerator research topic node`, so adjust it, or the spawning skill's grant did not reach the researcher, so add `Bash(accelerator research topic node *)` to the project's allow rules. `research-topic`'s `Bash(accelerator research topic node *)` reaches the researchers it spawns |
-   | "node query failed" | the summary quotes the first line of the query's stderr, and its code names the next step in the rows that follow. These node-query rows take precedence over the generic `E_*` row |
+   | "node query failed" | the summary quotes the query's error line, and its code names the next step in the rows that follow. These node-query rows take precedence over the generic `E_*` row |
    | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` from the node query | another `conduct` run took over this set, so let it finish; if none is running, check that an `agents.researcher` override passes the injected run id unchanged |
    | `E_TOPIC_RESEARCH_RUN_LEDGER` from the node query | the ledger is gone, corrupt or unreadable, so re-run `conduct` |
    | `E_TOPIC_RESEARCH_NODE_NOT_OFFERED` from the node query | the line names why the run holds no context for the node. "moved past its batch": `conduct` ran its next plan before the researcher's query, so check that every spawn of a batch was waited on in full. "never offered": the spawn ref was not passed verbatim, so check that an `agents.researcher` override passes it unchanged. "discarded" or "before its ledger kept offered contexts": the ledger lost or never held the context. In every case re-run `conduct`, whose fresh run offers the node again |
