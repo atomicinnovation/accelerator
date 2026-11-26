@@ -1,10 +1,12 @@
-//! The document-type fact: declared doc types, the catalogue that holds
-//! them, and the pure path-inference matcher.
+//! The document-type fact: declared doc types with their rules, the
+//! catalogue that holds them, and the pure path-inference matcher.
 
 mod built_in;
 mod catalogue;
 mod declaration;
 mod infer;
+mod library;
+mod listing;
 
 pub use crate::doc_type::catalogue::CatalogueError;
 pub use crate::doc_type::catalogue::DocTypeCatalogue;
@@ -12,6 +14,14 @@ pub use crate::doc_type::catalogue::Identity;
 pub use crate::doc_type::declaration::DocType;
 pub use crate::doc_type::declaration::DocTypeKey;
 pub use crate::doc_type::infer::infer;
+pub use crate::doc_type::library::Facet;
+pub use crate::doc_type::library::LibraryPhase;
+pub use crate::doc_type::library::LibraryPlacement;
+pub use crate::doc_type::listing::FilenameFilter;
+pub use crate::doc_type::listing::Listing;
+
+#[cfg(test)]
+pub(crate) use crate::doc_type::declaration::UNREMARKABLE;
 
 #[cfg(test)]
 mod tests {

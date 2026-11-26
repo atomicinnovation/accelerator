@@ -1,7 +1,17 @@
 //! The doc types the corpus declares itself, in catalogue order.
 
+use crate::cluster::ClusterKeyRule;
+use crate::cluster::CompletenessMark;
 use crate::doc_type::DocType;
+use crate::doc_type::DocTypeCatalogue;
 use crate::doc_type::DocTypeKey;
+use crate::doc_type::Facet;
+use crate::doc_type::FilenameFilter;
+use crate::doc_type::LibraryPhase;
+use crate::doc_type::LibraryPlacement;
+use crate::doc_type::Listing;
+use crate::linkage::LinkageIdRule;
+use crate::slug::SlugRule;
 
 static DECISIONS: DocType = DocType {
     wire_token: "decisions",
@@ -13,7 +23,21 @@ static DECISIONS: DocType = DocType {
     participates_in_lifecycle: false,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::NumberedPrefix("ADR-"),
+    cluster_key_rule: ClusterKeyRule::Unclustered,
+    lifecycle_rank: Some(7),
+    completeness_mark: Some(CompletenessMark::Decision),
+    linkage_id_rule: LinkageIdRule::AdrNumber,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Remember,
+        position: 0,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static WORK_ITEMS: DocType = DocType {
@@ -26,7 +50,21 @@ static WORK_ITEMS: DocType = DocType {
     participates_in_lifecycle: true,
     in_kanban: true,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::WorkItem,
+    cluster_key_rule: ClusterKeyRule::WorkItemId,
+    lifecycle_rank: Some(0),
+    completeness_mark: Some(CompletenessMark::WorkItem),
+    linkage_id_rule: LinkageIdRule::WorkItemIdInFilename,
+    cluster_anchor: true,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Define,
+        position: 0,
+    }),
+    facets: &[Facet::Status, Facet::Project, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: Some("drafts"),
+        filename_filter: FilenameFilter::WorkItem,
+    },
 };
 
 static PLANS: DocType = DocType {
@@ -39,7 +77,21 @@ static PLANS: DocType = DocType {
     participates_in_lifecycle: true,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::DateAndOptionalId,
+    cluster_key_rule: ClusterKeyRule::Parent,
+    lifecycle_rank: Some(2),
+    completeness_mark: Some(CompletenessMark::Plan),
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Build,
+        position: 0,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static RESEARCH: DocType = DocType {
@@ -52,7 +104,21 @@ static RESEARCH: DocType = DocType {
     participates_in_lifecycle: true,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::DateAndOptionalId,
+    cluster_key_rule: ClusterKeyRule::Parent,
+    lifecycle_rank: Some(1),
+    completeness_mark: Some(CompletenessMark::Research),
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Discover,
+        position: 3,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static PLAN_REVIEWS: DocType = DocType {
@@ -65,7 +131,21 @@ static PLAN_REVIEWS: DocType = DocType {
     participates_in_lifecycle: true,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::DateAndOptionalIdThenReviewSuffix,
+    cluster_key_rule: ClusterKeyRule::Target,
+    lifecycle_rank: Some(3),
+    completeness_mark: Some(CompletenessMark::PlanReview),
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Build,
+        position: 1,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static PR_REVIEWS: DocType = DocType {
@@ -78,7 +158,21 @@ static PR_REVIEWS: DocType = DocType {
     participates_in_lifecycle: true,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::DateAndOptionalIdThenReviewSuffix,
+    cluster_key_rule: ClusterKeyRule::Target,
+    lifecycle_rank: Some(6),
+    completeness_mark: Some(CompletenessMark::PrReview),
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Ship,
+        position: 1,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static WORK_ITEM_REVIEWS: DocType = DocType {
@@ -91,7 +185,21 @@ static WORK_ITEM_REVIEWS: DocType = DocType {
     participates_in_lifecycle: true,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::WorkItemReview,
+    cluster_key_rule: ClusterKeyRule::Target,
+    lifecycle_rank: Some(6),
+    completeness_mark: None,
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Define,
+        position: 1,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static VALIDATIONS: DocType = DocType {
@@ -104,7 +212,21 @@ static VALIDATIONS: DocType = DocType {
     participates_in_lifecycle: true,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::DateAndOptionalId,
+    cluster_key_rule: ClusterKeyRule::Target,
+    lifecycle_rank: Some(4),
+    completeness_mark: Some(CompletenessMark::Validation),
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Build,
+        position: 2,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static NOTES: DocType = DocType {
@@ -117,7 +239,21 @@ static NOTES: DocType = DocType {
     participates_in_lifecycle: false,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::DateAndOptionalId,
+    cluster_key_rule: ClusterKeyRule::Unclustered,
+    lifecycle_rank: Some(8),
+    completeness_mark: Some(CompletenessMark::Notes),
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Remember,
+        position: 1,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static PR_DESCRIPTIONS: DocType = DocType {
@@ -130,7 +266,21 @@ static PR_DESCRIPTIONS: DocType = DocType {
     participates_in_lifecycle: true,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::DateAndOptionalId,
+    cluster_key_rule: ClusterKeyRule::Parent,
+    lifecycle_rank: Some(5),
+    completeness_mark: Some(CompletenessMark::PrDescription),
+    linkage_id_rule: LinkageIdRule::PrNumber,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Ship,
+        position: 0,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static DESIGN_GAPS: DocType = DocType {
@@ -143,7 +293,21 @@ static DESIGN_GAPS: DocType = DocType {
     participates_in_lifecycle: false,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::DateAndOptionalId,
+    cluster_key_rule: ClusterKeyRule::Unclustered,
+    lifecycle_rank: Some(10),
+    completeness_mark: Some(CompletenessMark::DesignGap),
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Discover,
+        position: 1,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static DESIGN_INVENTORIES: DocType = DocType {
@@ -156,7 +320,20 @@ static DESIGN_INVENTORIES: DocType = DocType {
     participates_in_lifecycle: false,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: Some("inventory.md"),
+    slug_rule: SlugRule::DateAndOptionalId,
+    cluster_key_rule: ClusterKeyRule::Unclustered,
+    lifecycle_rank: Some(9),
+    completeness_mark: Some(CompletenessMark::DesignInventory),
+    linkage_id_rule: LinkageIdRule::SetDirectory,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Discover,
+        position: 0,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Nested {
+        root: "inventory.md",
+    },
 };
 
 static TOPIC_RESEARCH: DocType = DocType {
@@ -169,7 +346,20 @@ static TOPIC_RESEARCH: DocType = DocType {
     participates_in_lifecycle: false,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: Some("manifest.md"),
+    slug_rule: SlugRule::VerbatimStem,
+    cluster_key_rule: ClusterKeyRule::Unclustered,
+    lifecycle_rank: None,
+    completeness_mark: None,
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Discover,
+        position: 2,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Nested {
+        root: "manifest.md",
+    },
 };
 
 static ROOT_CAUSE_ANALYSES: DocType = DocType {
@@ -182,7 +372,21 @@ static ROOT_CAUSE_ANALYSES: DocType = DocType {
     participates_in_lifecycle: false,
     in_kanban: false,
     is_virtual: false,
-    nested_root_filename: None,
+    slug_rule: SlugRule::DateAndOptionalId,
+    cluster_key_rule: ClusterKeyRule::Unclustered,
+    lifecycle_rank: None,
+    completeness_mark: None,
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: Some(LibraryPlacement {
+        phase: LibraryPhase::Operate,
+        position: 0,
+    }),
+    facets: &[Facet::Status, Facet::ClusterSlug],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 static TEMPLATES: DocType = DocType {
@@ -195,7 +399,18 @@ static TEMPLATES: DocType = DocType {
     participates_in_lifecycle: false,
     in_kanban: false,
     is_virtual: true,
-    nested_root_filename: None,
+    slug_rule: SlugRule::NoSlug,
+    cluster_key_rule: ClusterKeyRule::Unclustered,
+    lifecycle_rank: None,
+    completeness_mark: None,
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: None,
+    facets: &[],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: FilenameFilter::Markdown,
+    },
 };
 
 impl DocTypeKey {
@@ -216,7 +431,7 @@ impl DocTypeKey {
     pub const TEMPLATES: Self = Self::declared(&TEMPLATES);
 }
 
-pub(super) const IN_CATALOGUE_ORDER: [DocTypeKey; 15] = [
+const IN_CATALOGUE_ORDER: [DocTypeKey; 15] = [
     DocTypeKey::DECISIONS,
     DocTypeKey::WORK_ITEMS,
     DocTypeKey::PLANS,
@@ -233,3 +448,10 @@ pub(super) const IN_CATALOGUE_ORDER: [DocTypeKey; 15] = [
     DocTypeKey::ROOT_CAUSE_ANALYSES,
     DocTypeKey::TEMPLATES,
 ];
+
+impl DocTypeCatalogue {
+    #[must_use]
+    pub fn built_in() -> Self {
+        Self::of_trusted_declarations(IN_CATALOGUE_ORDER.to_vec())
+    }
+}

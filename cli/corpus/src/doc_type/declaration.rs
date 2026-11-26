@@ -4,8 +4,16 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::ptr;
 
+use crate::cluster::ClusterKeyRule;
+use crate::cluster::CompletenessMark;
+use crate::doc_type::Facet;
+use crate::doc_type::LibraryPlacement;
+use crate::doc_type::Listing;
+use crate::linkage::LinkageIdRule;
+use crate::slug::SlugRule;
+
 /// A meta document type, declared as data: its identity on each surface and
-/// the facts every consumer reads from it.
+/// the facts and rules every consumer reads from it.
 #[derive(Debug)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct DocType {
@@ -20,7 +28,19 @@ pub struct DocType {
     pub participates_in_lifecycle: bool,
     pub in_kanban: bool,
     pub is_virtual: bool,
-    pub nested_root_filename: Option<&'static str>,
+    pub slug_rule: SlugRule,
+    pub cluster_key_rule: ClusterKeyRule,
+    /// Where the type's documents sort among a lifecycle cluster's members;
+    /// `None` sorts after every ranked type.
+    pub lifecycle_rank: Option<u8>,
+    pub completeness_mark: Option<CompletenessMark>,
+    pub linkage_id_rule: LinkageIdRule,
+    /// Whether the type's documents give the cluster they join its slug and
+    /// key, and lend their slug to the documents that share it.
+    pub cluster_anchor: bool,
+    pub library_placement: Option<LibraryPlacement>,
+    pub facets: &'static [Facet],
+    pub listing: Listing,
 }
 
 /// A handle to a declared [`DocType`], identified by its wire token.
@@ -79,8 +99,56 @@ impl DocTypeKey {
     }
 
     #[must_use]
+    pub const fn slug_rule(self) -> SlugRule {
+        self.0.slug_rule
+    }
+
+    #[must_use]
+    pub const fn cluster_key_rule(self) -> ClusterKeyRule {
+        self.0.cluster_key_rule
+    }
+
+    #[must_use]
+    pub const fn lifecycle_rank(self) -> Option<u8> {
+        self.0.lifecycle_rank
+    }
+
+    #[must_use]
+    pub const fn completeness_mark(self) -> Option<CompletenessMark> {
+        self.0.completeness_mark
+    }
+
+    #[must_use]
+    pub const fn linkage_id_rule(self) -> LinkageIdRule {
+        self.0.linkage_id_rule
+    }
+
+    #[must_use]
+    pub const fn cluster_anchor(self) -> bool {
+        self.0.cluster_anchor
+    }
+
+    #[must_use]
+    pub const fn library_placement(self) -> Option<LibraryPlacement> {
+        self.0.library_placement
+    }
+
+    #[must_use]
+    pub const fn facets(self) -> &'static [Facet] {
+        self.0.facets
+    }
+
+    #[must_use]
+    pub const fn listing(self) -> Listing {
+        self.0.listing
+    }
+
+    #[must_use]
     pub const fn nested_root_filename(self) -> Option<&'static str> {
-        self.0.nested_root_filename
+        match self.0.listing {
+            Listing::Nested { root } => Some(root),
+            Listing::Flat { .. } => None,
+        }
     }
 }
 
@@ -117,23 +185,35 @@ impl fmt::Debug for DocTypeKey {
 }
 
 #[cfg(test)]
+pub const UNREMARKABLE: DocType = DocType {
+    wire_token: "",
+    config_path_key: None,
+    linkage_type_name: None,
+    label: "",
+    in_lifecycle: false,
+    carries_target_frontmatter: false,
+    participates_in_lifecycle: false,
+    in_kanban: false,
+    is_virtual: false,
+    slug_rule: SlugRule::NoSlug,
+    cluster_key_rule: ClusterKeyRule::Unclustered,
+    lifecycle_rank: None,
+    completeness_mark: None,
+    linkage_id_rule: LinkageIdRule::Stem,
+    cluster_anchor: false,
+    library_placement: None,
+    facets: &[],
+    listing: Listing::Flat {
+        drafts_subdirectory: None,
+        filename_filter: crate::doc_type::FilenameFilter::Markdown,
+    },
+};
+
+#[cfg(test)]
 mod tests {
     use std::collections::HashSet;
 
-    use super::{DocType, DocTypeKey};
-
-    const UNREMARKABLE: DocType = DocType {
-        wire_token: "",
-        config_path_key: None,
-        linkage_type_name: None,
-        label: "",
-        in_lifecycle: false,
-        carries_target_frontmatter: false,
-        participates_in_lifecycle: false,
-        in_kanban: false,
-        is_virtual: false,
-        nested_root_filename: None,
-    };
+    use super::{DocType, DocTypeKey, UNREMARKABLE};
 
     static ALPHA: DocType = DocType {
         wire_token: "alpha",

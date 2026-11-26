@@ -61,6 +61,54 @@ pub struct Completeness {
     pub present: Vec<String>,
 }
 
+/// The lifecycle stage a doc type's documents mark present in their
+/// cluster's [`Completeness`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompletenessMark {
+    WorkItem,
+    Research,
+    Plan,
+    PlanReview,
+    Validation,
+    PrDescription,
+    PrReview,
+    Decision,
+    Notes,
+    DesignInventory,
+    DesignGap,
+}
+
+impl Completeness {
+    const fn mark(&mut self, mark: CompletenessMark) {
+        let stage = match mark {
+            CompletenessMark::WorkItem => &mut self.has_work_item,
+            CompletenessMark::Research => &mut self.has_research,
+            CompletenessMark::Plan => &mut self.has_plan,
+            CompletenessMark::PlanReview => &mut self.has_plan_review,
+            CompletenessMark::Validation => &mut self.has_validation,
+            CompletenessMark::PrDescription => &mut self.has_pr_description,
+            CompletenessMark::PrReview => &mut self.has_pr_review,
+            CompletenessMark::Decision => &mut self.has_decision,
+            CompletenessMark::Notes => &mut self.has_notes,
+            CompletenessMark::DesignInventory => &mut self.has_design_inventory,
+            CompletenessMark::DesignGap => &mut self.has_design_gap,
+        };
+        *stage = true;
+    }
+}
+
+/// How a doc type's documents find the work item whose cluster they join.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClusterKeyRule {
+    /// The document is a work item, keyed by its own id.
+    WorkItemId,
+    /// Through the `parent:` frontmatter.
+    Parent,
+    /// Through the `target:` frontmatter, following the target's own rule.
+    Target,
+    Unclustered,
+}
+
 /// One lifecycle cluster.
 ///
 /// Carries its representative slug/title, member indices (into the input slice)
@@ -178,27 +226,10 @@ fn walk<E: ClusterEntry>(
     if depth >= MAX_DEPTH {
         return None;
     }
-    match entry.doc_type() {
-        kind if kind == DocTypeKey::WORK_ITEMS => {
-            entry.work_item_id().map(str::to_owned)
-        }
-        kind if [
-            DocTypeKey::PLANS,
-            DocTypeKey::RESEARCH,
-            DocTypeKey::PR_DESCRIPTIONS,
-        ]
-        .contains(&kind) =>
-        {
-            cluster_key_from_parent(entry, identity)
-        }
-        kind if [
-            DocTypeKey::PLAN_REVIEWS,
-            DocTypeKey::WORK_ITEM_REVIEWS,
-            DocTypeKey::PR_REVIEWS,
-            DocTypeKey::VALIDATIONS,
-        ]
-        .contains(&kind) =>
-        {
+    match entry.doc_type().cluster_key_rule() {
+        ClusterKeyRule::WorkItemId => entry.work_item_id().map(str::to_owned),
+        ClusterKeyRule::Parent => cluster_key_from_parent(entry, identity),
+        ClusterKeyRule::Target => {
             if let Some(s) = entry.target() {
                 if let Some(TypedRef::WorkItem(id)) = parse_typed_ref(s) {
                     return identity.identity_key(&id);
@@ -223,7 +254,7 @@ fn walk<E: ClusterEntry>(
                 depth + 1,
             )
         }
-        _ => None,
+        ClusterKeyRule::Unclustered => None,
     }
 }
 
@@ -345,7 +376,7 @@ pub fn compute<E: ClusterEntry>(
     let mut cluster_key_by_path: HashMap<PathBuf, Option<String>> =
         HashMap::with_capacity(entries.len());
     for e in entries {
-        if e.doc_type() == DocTypeKey::TEMPLATES {
+        if e.doc_type().is_virtual() {
             continue;
         }
         let key = resolve_cluster_key(
@@ -361,7 +392,7 @@ pub fn compute<E: ClusterEntry>(
 
     let mut slug_to_cluster_key: HashMap<String, String> = HashMap::new();
     for e in entries {
-        if e.doc_type() != DocTypeKey::WORK_ITEMS {
+        if !e.doc_type().cluster_anchor() {
             continue;
         }
         if let (Some(slug), Some(ck)) = (
@@ -372,7 +403,7 @@ pub fn compute<E: ClusterEntry>(
         }
     }
     for e in entries {
-        if e.doc_type() == DocTypeKey::WORK_ITEMS {
+        if e.doc_type().cluster_anchor() {
             continue;
         }
         if let (Some(slug), Some(ck)) = (
@@ -387,7 +418,7 @@ pub fn compute<E: ClusterEntry>(
 
     let mut buckets: HashMap<String, Vec<usize>> = HashMap::new();
     for (i, e) in entries.iter().enumerate() {
-        if e.doc_type() == DocTypeKey::TEMPLATES {
+        if e.doc_type().is_virtual() {
             continue;
         }
         let key = cluster_key_by_path.get(e.path()).and_then(|o| o.as_deref());
@@ -463,10 +494,7 @@ fn pick_representative_cluster_key<E: ClusterEntry>(
     bucket: &[&E],
     cluster_key_by_path: &HashMap<PathBuf, Option<String>>,
 ) -> Option<String> {
-    if let Some(wi) = bucket
-        .iter()
-        .find(|e| e.doc_type() == DocTypeKey::WORK_ITEMS)
-    {
+    if let Some(wi) = bucket.iter().find(|e| e.doc_type().cluster_anchor()) {
         if let Some(key) = cluster_key_by_path.get(wi.path()).cloned().flatten()
         {
             return Some(key);
@@ -489,7 +517,7 @@ fn pick_representative_slug<E: ClusterEntry>(
 ) -> String {
     if let Some(wi_slug) = bucket
         .iter()
-        .find(|e| e.doc_type() == DocTypeKey::WORK_ITEMS)
+        .find(|e| e.doc_type().cluster_anchor())
         .and_then(|e| e.slug())
     {
         return wi_slug.to_owned();
@@ -503,24 +531,7 @@ fn pick_representative_slug<E: ClusterEntry>(
 }
 
 fn canonical_rank(kind: DocTypeKey) -> u8 {
-    const RANKED: [(DocTypeKey, u8); 12] = [
-        (DocTypeKey::WORK_ITEMS, 0),
-        (DocTypeKey::RESEARCH, 1),
-        (DocTypeKey::PLANS, 2),
-        (DocTypeKey::PLAN_REVIEWS, 3),
-        (DocTypeKey::VALIDATIONS, 4),
-        (DocTypeKey::PR_DESCRIPTIONS, 5),
-        (DocTypeKey::PR_REVIEWS, 6),
-        (DocTypeKey::WORK_ITEM_REVIEWS, 6),
-        (DocTypeKey::DECISIONS, 7),
-        (DocTypeKey::NOTES, 8),
-        (DocTypeKey::DESIGN_INVENTORIES, 9),
-        (DocTypeKey::DESIGN_GAPS, 10),
-    ];
-    RANKED
-        .iter()
-        .find_map(|(ranked, rank)| (*ranked == kind).then_some(*rank))
-        .unwrap_or(u8::MAX)
+    kind.lifecycle_rank().unwrap_or(u8::MAX)
 }
 
 fn derive_title<E: ClusterEntry>(slug: &str, entries: &[&E]) -> String {
@@ -553,18 +564,9 @@ fn derive_completeness<E: ClusterEntry>(entries: &[&E]) -> Completeness {
         present: Vec::new(),
     };
     for e in entries {
-        let kind = e.doc_type();
-        c.has_work_item |= kind == DocTypeKey::WORK_ITEMS;
-        c.has_research |= kind == DocTypeKey::RESEARCH;
-        c.has_plan |= kind == DocTypeKey::PLANS;
-        c.has_plan_review |= kind == DocTypeKey::PLAN_REVIEWS;
-        c.has_validation |= kind == DocTypeKey::VALIDATIONS;
-        c.has_pr_description |= kind == DocTypeKey::PR_DESCRIPTIONS;
-        c.has_pr_review |= kind == DocTypeKey::PR_REVIEWS;
-        c.has_decision |= kind == DocTypeKey::DECISIONS;
-        c.has_notes |= kind == DocTypeKey::NOTES;
-        c.has_design_gap |= kind == DocTypeKey::DESIGN_GAPS;
-        c.has_design_inventory |= kind == DocTypeKey::DESIGN_INVENTORIES;
+        if let Some(mark) = e.doc_type().completeness_mark() {
+            c.mark(mark);
+        }
     }
     for (test, key) in STAGE_PUSH_ORDER {
         if test(&c) {

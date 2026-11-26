@@ -3,8 +3,21 @@
 use crate::doc_type::DocTypeKey;
 use crate::id_convention::IdConvention;
 
-/// Derives the descriptive slug for a document filename, dispatching on its
-/// type. Returns `None` when the filename carries no slug.
+/// How a doc type's filenames carry their descriptive slug.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlugRule {
+    /// A fixed prefix and a number, such as `ADR-0007-`.
+    NumberedPrefix(&'static str),
+    WorkItem,
+    DateAndOptionalId,
+    DateAndOptionalIdThenReviewSuffix,
+    WorkItemReview,
+    VerbatimStem,
+    NoSlug,
+}
+
+/// Derives the descriptive slug for a document filename by its type's
+/// slug rule. Returns `None` when the filename carries no slug.
 #[must_use]
 pub fn derive(
     kind: DocTypeKey,
@@ -12,41 +25,22 @@ pub fn derive(
     ids: &dyn IdConvention,
 ) -> Option<String> {
     let stem = markdown_stem(filename)?;
-    match kind {
-        kind if kind == DocTypeKey::DECISIONS => {
-            strip_prefix_numbered(stem, "ADR-")
-        }
-        kind if kind == DocTypeKey::WORK_ITEMS => {
-            derive_work_item(filename, ids)
-                .or_else(|| strip_prefix_work_item_id(stem))
-        }
-        kind if [
-            DocTypeKey::PLANS,
-            DocTypeKey::RESEARCH,
-            DocTypeKey::VALIDATIONS,
-            DocTypeKey::NOTES,
-            DocTypeKey::PR_DESCRIPTIONS,
-            DocTypeKey::DESIGN_GAPS,
-            DocTypeKey::DESIGN_INVENTORIES,
-            DocTypeKey::ROOT_CAUSE_ANALYSES,
-        ]
-        .contains(&kind) =>
-        {
+    match kind.slug_rule() {
+        SlugRule::NumberedPrefix(prefix) => strip_prefix_numbered(stem, prefix),
+        SlugRule::WorkItem => derive_work_item(filename, ids)
+            .or_else(|| strip_prefix_work_item_id(stem)),
+        SlugRule::DateAndOptionalId => {
             strip_prefix_date_and_optional_id(stem, ids)
         }
-        kind if [DocTypeKey::PLAN_REVIEWS, DocTypeKey::PR_REVIEWS]
-            .contains(&kind) =>
-        {
+        SlugRule::DateAndOptionalIdThenReviewSuffix => {
             strip_prefix_date_and_optional_id(stem, ids)
                 .and_then(|slug| strip_suffix_review_n(&slug))
         }
-        kind if kind == DocTypeKey::WORK_ITEM_REVIEWS => {
-            derive_work_item_review(stem, ids)
-        }
-        kind if kind == DocTypeKey::TOPIC_RESEARCH => {
+        SlugRule::WorkItemReview => derive_work_item_review(stem, ids),
+        SlugRule::VerbatimStem => {
             Some(stem.to_owned()).filter(|slug| !slug.is_empty())
         }
-        _ => None,
+        SlugRule::NoSlug => None,
     }
 }
 
@@ -218,7 +212,25 @@ mod tests {
     use crate::doc_type::DocTypeKey;
     use crate::id_convention::test_ids::{FourDigitIds, NUMERIC};
 
-    use super::{derive, humanise_slug};
+    use super::{derive, humanise_slug, SlugRule};
+    use crate::doc_type::DocType;
+    use crate::doc_type::UNREMARKABLE;
+
+    static REQUESTS_FOR_COMMENT: DocType = DocType {
+        wire_token: "requests-for-comment",
+        slug_rule: SlugRule::NumberedPrefix("RFC-"),
+        ..UNREMARKABLE
+    };
+
+    #[test]
+    fn a_declared_numbered_prefix_is_stripped_from_its_type_s_filenames() {
+        let rfcs = DocTypeKey::declared(&REQUESTS_FOR_COMMENT);
+        assert_eq!(
+            derive(rfcs, "RFC-0012-streaming.md", &NUMERIC).as_deref(),
+            Some("streaming")
+        );
+        assert_eq!(derive(rfcs, "ADR-0012-streaming.md", &NUMERIC), None);
+    }
 
     const PROJECT: FourDigitIds = FourDigitIds { key: Some("PROJ") };
 

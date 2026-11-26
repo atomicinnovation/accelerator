@@ -206,6 +206,18 @@ pub fn type_from_path(
     crate::doc_type::infer(Path::new(path), table)?.linkage_type_name()
 }
 
+/// How a doc type's documents are identified in a typed-linkage address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinkageIdRule {
+    WorkItemIdInFilename,
+    /// `ADR-` and the number the filename carries after it.
+    AdrNumber,
+    /// The name of the set directory holding the document.
+    SetDirectory,
+    PrNumber,
+    Stem,
+}
+
 /// Resolves a meta path to its `(type, id)` target, or `None` when the path is
 /// outside every configured doc-type directory.
 #[must_use]
@@ -216,14 +228,25 @@ pub fn resolve_path_target(
 ) -> Option<(&'static str, String)> {
     let kind = crate::doc_type::infer(Path::new(path), table)?;
     let name = kind.linkage_type_name()?;
+    linkage_id_of(kind, path, ids).map(|id| (name, id))
+}
+
+/// The id a document of `kind` at `path` carries by its type's linkage id
+/// rule, or `None` when the path carries none.
+#[must_use]
+pub fn linkage_id_of(
+    kind: DocTypeKey,
+    path: &str,
+    ids: &dyn LinkageIds,
+) -> Option<String> {
     let file = path.rsplit('/').next()?;
     let stem = file.strip_suffix(".md").unwrap_or(file);
 
-    let id = match kind {
-        kind if kind == DocTypeKey::WORK_ITEMS => {
+    let id = match kind.linkage_id_rule() {
+        LinkageIdRule::WorkItemIdInFilename => {
             ids.id_in_filename(file).unwrap_or_default()
         }
-        kind if kind == DocTypeKey::DECISIONS => {
+        LinkageIdRule::AdrNumber => {
             stem.strip_prefix("ADR-").map_or_else(String::new, |rest| {
                 let digits: String =
                     rest.chars().take_while(char::is_ascii_digit).collect();
@@ -234,22 +257,18 @@ pub fn resolve_path_target(
                 }
             })
         }
-        kind if kind == DocTypeKey::DESIGN_INVENTORIES => path
+        LinkageIdRule::SetDirectory => path
             .rsplit_once('/')
             .and_then(|(dir, _)| dir.rsplit('/').next())
             .unwrap_or_default()
             .to_owned(),
-        kind if kind == DocTypeKey::PR_DESCRIPTIONS => {
+        LinkageIdRule::PrNumber => {
             pr_number(stem).unwrap_or_else(|| stem.to_owned())
         }
-        _ => stem.to_owned(),
+        LinkageIdRule::Stem => stem.to_owned(),
     };
 
-    if id.is_empty() {
-        None
-    } else {
-        Some((name, id))
-    }
+    Some(id).filter(|id| !id.is_empty())
 }
 
 /// The PR number a stem carries.

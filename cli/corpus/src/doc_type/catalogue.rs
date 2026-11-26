@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use crate::doc_type::built_in::IN_CATALOGUE_ORDER;
 use crate::doc_type::DocTypeKey;
 
 /// The ordered doc types a composition knows, looked up by each of their
@@ -70,11 +69,10 @@ impl DocTypeCatalogue {
         Ok(Self { doc_types })
     }
 
-    #[must_use]
-    pub fn built_in() -> Self {
-        Self {
-            doc_types: IN_CATALOGUE_ORDER.to_vec(),
-        }
+    pub(crate) const fn of_trusted_declarations(
+        doc_types: Vec<DocTypeKey>,
+    ) -> Self {
+        Self { doc_types }
     }
 
     #[must_use]
@@ -119,20 +117,8 @@ fn refuse_shared(
 #[cfg(test)]
 mod tests {
     use super::{CatalogueError, DocTypeCatalogue, Identity};
+    use crate::doc_type::UNREMARKABLE;
     use crate::doc_type::{DocType, DocTypeKey};
-
-    const UNREMARKABLE: DocType = DocType {
-        wire_token: "",
-        config_path_key: None,
-        linkage_type_name: None,
-        label: "",
-        in_lifecycle: false,
-        carries_target_frontmatter: false,
-        participates_in_lifecycle: false,
-        in_kanban: false,
-        is_virtual: false,
-        nested_root_filename: None,
-    };
 
     static GADGETS: DocType = DocType {
         wire_token: "gadgets",
