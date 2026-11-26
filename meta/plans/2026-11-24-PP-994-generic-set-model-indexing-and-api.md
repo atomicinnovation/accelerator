@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-26T19:00:00+00:00"
+last_updated: "2026-11-26T22:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -66,7 +66,7 @@ The plan has two stages, as the work item prescribes:
    not overlap) and ADR-0080 (domain declarations crates) are accepted,
    the member API specification is written, and PP-994's Drafting Notes
    carry the decisions line dated 2026-11-26.
-2. **Stage two (Phases 2–12): implementation. Next: Phase 6.** Each phase
+2. **Stage two (Phases 2–12): implementation. Next: Phase 8.** Each phase
    is test-first and mergeable on its own with `mise run` green.
 
 ## Sizing consequence and the decision not to split
@@ -2219,21 +2219,55 @@ the nested manifest filename. Its behaviour is unchanged until Phase 8.
 
 #### Automated Verification:
 
-- [ ] Set declaration, catalogue and owner tests pass:
+- [x] Set declaration, catalogue and owner tests pass:
       `mise run test:unit:cli --filter 'package(corpus) | package(research) | package(research-declarations) | package(design-declarations) | package(declarations)'`
-- [ ] `mise run test:unit:cli`, `mise run test:unit:visualiser`,
+- [x] `mise run test:unit:cli`, `mise run test:unit:visualiser`,
       `mise run test:integration:visualiser`
-- [ ] `mise run pup:check`
-- [ ] `mise run public-api:update`, with the `corpus`,
+- [x] `mise run pup:check`
+- [x] `mise run public-api:update`, with the `corpus`,
       `research-declarations`, `design-declarations` and `declarations`
       snapshot diffs reviewed.
-- [ ] `mise run frontend:check`, `mise run test:unit:frontend`
-- [ ] `mise run`
+- [x] `mise run frontend:check`, `mise run test:unit:frontend`
+- [x] `mise run`
 
 #### Manual Verification:
 
 - [ ] `curl localhost:<port>/api/types` shows both sets' shapes and
       presentations.
+
+### Implementation notes
+
+- **The model.** `corpus::set` holds the declared data (`SetDeclaration`,
+  `SetShape`, `MemberSlot`, `MemberKind`, `Presentation`); `set/shape.rs`
+  holds `SlotPattern`, `SlotPatternError` (`AbsolutePath`,
+  `EmptySegment`, `ParentSegment`, `RecursiveWildcard`), `SetPlace` and
+  `SetMatcher`. A `*` never matches a name that starts with a dot. The
+  catalogue builds matchers through the crate-private
+  `SetMatcher::compiled`; `test-support` exposes it as `SetMatcher::new`,
+  which returns the failing pattern with its cause.
+- **The catalogue.** `CatalogueError` is now an enum; the identity clash
+  is `SharedIdentity { identity, value }`. Beyond the plan, `NotASet`
+  also refuses a set declaration for a type outside the catalogue, and
+  `DocTypeCatalogue` derives `Default`, an empty catalogue.
+- **Test doubles.** With `DocTypeCatalogue::built_in()` gone, `migrate`
+  and `migrate-adapters` take `declarations` as a dev-dependency: the
+  `migrate` doubles serve `declarations::catalogue().unwrap_or_default()`,
+  and `migrate-adapters`' `Composition::at` propagates the assembly's
+  error. The corpus's own tests read `built_in::doc_types()`, pairing the
+  two set types with a stand-in set declaration where they need a
+  catalogue. The server's unit-test helper is `assembled_catalogue()`.
+- **Server.** `LocalFileDriver::new` takes `&Arc<DocTypeCatalogue>` and
+  holds it, reading a set type's root from `set_matcher`. The watcher and
+  indexer need no matcher yet: the indexer reads `kind.is_set()`.
+  `DocTypeView.set` is a `SetView` serialised as the spec gives it.
+  `declared_doc_types.rs` gains a test-only set type declared through
+  `catalogue_with`'s `extra_sets`, listed and described like a built-in.
+- **Owners.** `research_declarations::topic::SET` builds its slots with a
+  `document(pattern)` `const fn`. The contract test was checked against a
+  mutation: with `findings/*.level/*.md` in place of the levels slot, it
+  fails on `findings/01-cost-model-web.levels/1.md`.
+- **`mise run`** exited 0 on the final code, with `test:unit:cli`
+  coverage at lines 93.96%, functions 93.28%, regions 92.69%.
 
 ---
 
