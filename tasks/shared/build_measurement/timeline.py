@@ -241,6 +241,13 @@ def _exit_status(line: StampedLine) -> int | None:
     return None if exited is None else int(exited["status"])
 
 
+def _says_it_failed(line: StampedLine) -> bool:
+    return (
+        _exit_status(line) is not None
+        or _last_segment(line.text) == _TASK_FAILED
+    )
+
+
 def _is_skip(line: StampedLine) -> bool:
     return _last_segment(line.text) == _SKIPPING
 
@@ -285,7 +292,7 @@ def tasks_mise_reported_failing(
         dict.fromkeys(
             task
             for task, line in attributed_lines(lines)
-            if _exit_status(line) is not None
+            if _says_it_failed(line)
         )
     )
 
