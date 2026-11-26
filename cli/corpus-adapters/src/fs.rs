@@ -123,21 +123,21 @@ fn walk_markdown_into(
 }
 
 /// The real-filesystem adapter for [`DirectoryLister`]: lists a type
-/// directory's resolvable entries — `.md` files for a flat type, immediate
-/// subdirectories for a nested-manifest type.
-pub struct TypeDirectoryLister {
+/// directory's resolvable entries — `.md` files for a flat type, the
+/// directories holding their root file for a set type.
+pub struct TypeDirectoryLister<'m> {
     dir: PathBuf,
-    shape: TypeShape,
+    shape: TypeShape<'m>,
 }
 
-impl TypeDirectoryLister {
+impl<'m> TypeDirectoryLister<'m> {
     #[must_use]
-    pub const fn new(dir: PathBuf, shape: TypeShape) -> Self {
+    pub const fn new(dir: PathBuf, shape: TypeShape<'m>) -> Self {
         Self { dir, shape }
     }
 }
 
-impl DirectoryLister for TypeDirectoryLister {
+impl DirectoryLister for TypeDirectoryLister<'_> {
     fn entries(&self) -> Vec<String> {
         let Ok(reader) = fs::read_dir(&self.dir) else {
             return Vec::new();
@@ -151,7 +151,15 @@ impl DirectoryLister for TypeDirectoryLister {
                     TypeShape::Flat => {
                         file_type.is_file() && is_markdown(&name)
                     }
-                    TypeShape::NestedManifest => file_type.is_dir(),
+                    TypeShape::Set(matcher) => {
+                        file_type.is_dir()
+                            && !name.starts_with('.')
+                            && self
+                                .dir
+                                .join(&name)
+                                .join(matcher.root())
+                                .is_file()
+                    }
                 };
                 keep.then_some(name)
             })
@@ -167,6 +175,7 @@ fn is_markdown(name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
     use std::path::Path;
     use std::path::PathBuf;
 
@@ -176,6 +185,10 @@ mod tests {
     use corpus::scan::DirReader;
     use corpus::scan::DirectoryProbe;
     use corpus::scan::FileReader;
+    use corpus::set::Presentation;
+    use corpus::set::SetDeclaration;
+    use corpus::set::SetMatcher;
+    use corpus::set::SetShape;
 
     use super::RealFs;
     use super::TypeDirectoryLister;
@@ -293,22 +306,48 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn a_nested_manifest_type_lists_subdirectories_only(
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let dir = tempfile::tempdir()?;
-        std::fs::create_dir(dir.path().join("set-one"))?;
-        std::fs::create_dir(dir.path().join("set-two"))?;
-        std::fs::write(dir.path().join("stray.md"), "")?;
+    static INDEXED: SetDeclaration = SetDeclaration {
+        shape: SetShape {
+            root: "index.md",
+            member_slots: &[],
+        },
+        presentation: Presentation::SetPage,
+    };
 
+    fn set_entries(dir: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+        let matcher = SetMatcher::new(&INDEXED)
+            .map_err(|(pattern, cause)| format!("{pattern}: {cause}"))?;
         let lister = TypeDirectoryLister::new(
-            dir.path().to_path_buf(),
-            TypeShape::NestedManifest,
+            dir.to_path_buf(),
+            TypeShape::Set(&matcher),
         );
         let mut entries = lister.entries();
         entries.sort();
+        Ok(entries)
+    }
 
-        assert_eq!(entries, vec!["set-one".to_owned(), "set-two".to_owned()]);
+    #[test]
+    fn a_set_type_lists_directories_holding_their_root(
+    ) -> Result<(), Box<dyn Error>> {
+        let dir = tempfile::tempdir()?;
+        std::fs::create_dir(dir.path().join("set-one"))?;
+        std::fs::write(dir.path().join("set-one/index.md"), "")?;
+        std::fs::create_dir(dir.path().join("set-two"))?;
+        std::fs::create_dir(dir.path().join(".x.tmp"))?;
+        std::fs::write(dir.path().join(".x.tmp/index.md"), "")?;
+        std::fs::write(dir.path().join("stray.md"), "")?;
+
+        assert_eq!(set_entries(dir.path())?, vec!["set-one".to_owned()]);
+        Ok(())
+    }
+
+    #[test]
+    fn a_directory_named_as_the_root_does_not_make_a_set(
+    ) -> Result<(), Box<dyn Error>> {
+        let dir = tempfile::tempdir()?;
+        std::fs::create_dir_all(dir.path().join("set-three/index.md"))?;
+
+        assert!(set_entries(dir.path())?.is_empty());
         Ok(())
     }
 
