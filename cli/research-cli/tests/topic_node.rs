@@ -250,6 +250,29 @@ fn a_repeat_plan_keeps_pending_nodes_first_context() -> Result<(), TestError> {
     Ok(())
 }
 
+#[test]
+fn a_parent_note_rewritten_mid_batch_leaves_pending_nodes_first_context(
+) -> Result<(), TestError> {
+    let project = node_query_set()?;
+    let run = budgeted_run(&project)?;
+    project.write_note(WEB_STEM, "1", "A?", &["A1?", "A2?", "A5?"])?;
+
+    let plan = continued(&project, &run, &DEPTH)?;
+
+    assert_eq!(
+        plan_node(&plan, "03-a-web:2-3")?["spawn"],
+        json!("03-a-web:2-3")
+    );
+    let context = queried(&project, &run, "03-a-web:2-3")?;
+    assert_eq!(context["question"], json!("A3?"));
+    assert_eq!(context["known_questions"], json!(WEB_KNOWN));
+    assert_eq!(
+        queried(&project, &run, "03-a-web:2-2")?["known_questions"],
+        json!(WEB_KNOWN)
+    );
+    Ok(())
+}
+
 fn every_level_two_note_written(project: &Project) -> Result<(), TestError> {
     project.write_note(WEB_STEM, "2-1", "A1?", &["A4?"])?;
     project.write_note(WEB_STEM, "2-2", "A2?", &[])?;
