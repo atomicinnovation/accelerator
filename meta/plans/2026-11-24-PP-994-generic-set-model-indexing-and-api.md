@@ -663,7 +663,7 @@ The ADR records these decisions:
 - **Where.** In configuration's shared resolver for the full set of doc
   roots (`config::paths::doc_type_dirs`), so every command that resolves
   that set refuses: the visualiser, the configuration commands
-  (`accelerator config path --doc-types`), the corpus and work commands,
+  (`accelerator config paths --doc-types`), the corpus and work commands,
   and `migrate`. `migrate` refuses before it applies or lists any
   migration, and a migration that writes an overlapping configuration
   stops the run and is not recorded as applied.
@@ -949,14 +949,14 @@ and migrations stop rather than run over no directories.
 
 **File**: `cli/launcher/tests/config_read.rs`
 
-- `config path --doc-types` over an overlapping config exits non-zero
+- `config paths --doc-types` over an overlapping config exits non-zero
   and names both keys.
 - `config path plans` (one doc type's key) over an overlapping config
   exits non-zero and names both keys.
 - `config path tmp` (a path key that is not a doc root) over an
   overlapping config still resolves.
 - `config set paths.research_codebase meta/research/codebase` over an
-  overlapping config succeeds, and a following `config path --doc-types`
+  overlapping config succeeds, and a following `config paths --doc-types`
   exits 0.
 
 **File**: `cli/config/src/paths.rs` (inline tests)
@@ -1119,16 +1119,54 @@ Add `### Breaking` entries under `[Unreleased]` in `CHANGELOG.md`:
 
 #### Manual Verification:
 
-- [ ] In a scratch repo with `research_codebase: meta/research`,
-      `accelerator config path --doc-types`, `accelerator corpus
+- [x] In a scratch repo with `research_codebase: meta/research`,
+      `accelerator config paths --doc-types`, `accelerator corpus
       frontmatter validate` and `accelerator migrate` each print the
       refusal naming both keys, and `migrate` records nothing as
       applied.
-- [ ] In the same repo, `accelerator config path research_topics` and
+- [x] In the same repo, `accelerator config path research_topics` and
       `/research-topic` print the refusal, `accelerator config path tmp`
       still prints a path, and `accelerator config set
       paths.research_codebase meta/research/codebase` succeeds and clears
       the refusal.
+
+### Implementation notes
+
+- **Command name.** The doc-types listing is `accelerator config paths
+  --doc-types`; `config path` takes one key. This plan said `config
+  path --doc-types` in four places, now corrected; the CHANGELOG and the
+  launcher tests already used `config paths`.
+- **Manual checks, 2026-11-26.** Run in a scratch jj repo with the local
+  builds through the dev launcher. Each refusal read `paths.research_codebase
+  (meta/research) overlaps paths.research_issues (meta/research/issues);
+  doc roots may not equal or contain one another` and exited 1, also with
+  `--fail-safe`. `migrate` and `migrate --list` wrote no
+  `.accelerator/state/migrations-applied`. `/research-topic`, run headless
+  with `--plugin-dir`, failed to load on its `config path research_topics`
+  site with that refusal. That needs this checkout's `bin/accelerator`
+  first on `PATH`: otherwise the skill's bare `accelerator` resolves to
+  the installed plugin's launcher link in `~/.local/bin` and runs the
+  released binary. `config set` writes the personal
+  `.accelerator/config.local.md`, whose value overrides the team one and
+  clears the refusal.
+- **Unplanned commits made to get `mise run` green.**
+  - The docs site's zod advisory ignore, which expired on 2026-11-25,
+    was dropped from `docs-site/audit-ignores.toml` (`uzpklpvk`). The
+    override already pins zod 4.6.7, past the advisory's range.
+  - The GitHub client is confined to the bundled trust roots
+    (`pqmltkww`). octocrab built its TLS connector over the host
+    certificate store. On macOS, reading that store under the test lane's
+    process-per-test load times out (`errSecIO`), so `OctocrabClient`
+    failed to build, intermittently, with octocrab's `Other` error.
+    Enabling octocrab's `rustls-webpki-tokio` feature gives it the
+    bundled Mozilla roots every reqwest client already trusts. The
+    bundled-roots guard (`tests/integration/deny/test_bundled_trust_roots.py`)
+    now covers octocrab, and `webpki-roots` joined the third-party
+    notices. This is unrelated to PP-994.
+- **`mise run`** exited 0 twice in a row after those commits, with
+  `test:unit:cli` coverage at lines 94.46%, functions 93.89%, regions
+  93.23%. An earlier 90.07% lines reading came from stale instrumented
+  artefacts, which the run swept.
 
 ---
 
