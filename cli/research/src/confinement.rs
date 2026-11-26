@@ -13,6 +13,8 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use crate::conduct::template::ConductTemplate;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PermittedCommand {
     Exactly(&'static str),
@@ -54,6 +56,22 @@ pub const FINDING_TEMPLATE: PermittedCommand = PermittedCommand::Exactly(
 pub const LEVEL_NOTE_TEMPLATE: PermittedCommand = PermittedCommand::Exactly(
     "accelerator config template topic-research --kind level-note",
 );
+
+const RESEARCHER_COMMAND_COUNT: usize = 2 + ConductTemplate::ALL.len();
+
+const RESEARCHER_COMMANDS: [PermittedCommand; RESEARCHER_COMMAND_COUNT] =
+    researcher_commands();
+
+const fn researcher_commands() -> [PermittedCommand; RESEARCHER_COMMAND_COUNT] {
+    let mut commands = [FETCH; RESEARCHER_COMMAND_COUNT];
+    commands[1] = NODE_QUERY;
+    let mut index = 0;
+    while index < ConductTemplate::ALL.len() {
+        commands[2 + index] = ConductTemplate::ALL[index].permitted_command();
+        index += 1;
+    }
+    commands
+}
 
 pub const DEFAULT_RESEARCHER: &str = "accelerator:researcher";
 
@@ -108,9 +126,7 @@ pub enum Role {
 impl Role {
     pub const fn permitted_commands(self) -> &'static [PermittedCommand] {
         match self {
-            Self::Researcher => {
-                &[FETCH, NODE_QUERY, FINDING_TEMPLATE, LEVEL_NOTE_TEMPLATE]
-            }
+            Self::Researcher => &RESEARCHER_COMMANDS,
             Self::Composer => &[],
         }
     }
