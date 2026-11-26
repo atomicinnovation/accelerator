@@ -700,6 +700,94 @@ mod tests {
         assert_eq!(got, vec!["PP-1-item.md", "draft-k7mq3x-idea.md"]);
     }
 
+    fn seed_every_listing_shape(root: &Path) {
+        for directory in ["", "drafts", "set", ".hidden-set", "rootless"] {
+            std::fs::create_dir_all(root.join(directory)).unwrap();
+        }
+        for file in [
+            "0001-item.md",
+            "a-note.md",
+            "notes.txt",
+            "UPPER.MD",
+            "drafts/UPPER.MD",
+            "drafts/0002-draft.md",
+            "drafts/a-draft.md",
+            "set/manifest.md",
+            "set/inventory.md",
+            ".hidden-set/manifest.md",
+            ".hidden-set/inventory.md",
+            "rootless/other.md",
+        ] {
+            std::fs::write(root.join(file), "# x\n").unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn every_built_in_doc_type_lists_by_its_declared_rule() {
+        let expected: [(&str, &[&str]); 14] = [
+            ("decisions", &["0001-item.md", "a-note.md"]),
+            (
+                "work-items",
+                &[
+                    "0001-item.md",
+                    "UPPER.MD",
+                    "a-note.md",
+                    "drafts/0002-draft.md",
+                    "drafts/UPPER.MD",
+                    "drafts/a-draft.md",
+                ],
+            ),
+            ("plans", &["0001-item.md", "a-note.md"]),
+            ("codebase-research", &["0001-item.md", "a-note.md"]),
+            ("plan-reviews", &["0001-item.md", "a-note.md"]),
+            ("pr-reviews", &["0001-item.md", "a-note.md"]),
+            ("work-item-reviews", &["0001-item.md", "a-note.md"]),
+            ("validations", &["0001-item.md", "a-note.md"]),
+            ("notes", &["0001-item.md", "a-note.md"]),
+            ("pr-descriptions", &["0001-item.md", "a-note.md"]),
+            ("design-gaps", &["0001-item.md", "a-note.md"]),
+            ("design-inventories", &["set/inventory.md"]),
+            ("topic-research", &["set/manifest.md"]),
+            ("root-cause-analyses", &["0001-item.md", "a-note.md"]),
+        ];
+        let catalogue = corpus::DocTypeCatalogue::built_in();
+        let listed: Vec<&str> =
+            expected.iter().map(|(token, _)| *token).collect();
+        let configured: Vec<&str> = catalogue
+            .doc_types()
+            .iter()
+            .filter(|kind| kind.config_path_key().is_some())
+            .map(|kind| kind.wire_token())
+            .collect();
+        assert_eq!(listed, configured);
+        for (token, files) in expected {
+            let kind = catalogue.from_wire_token(token).unwrap();
+            let tmp = tempfile::tempdir().unwrap();
+            let root = std::fs::canonicalize(tmp.path()).unwrap();
+            seed_every_listing_shape(&root);
+            let mut map = HashMap::new();
+            map.insert(
+                kind.config_path_key().unwrap().to_owned(),
+                root.clone(),
+            );
+            let driver = LocalFileDriver::new(&map, vec![], vec![]);
+            let mut got: Vec<String> = driver
+                .list(kind)
+                .await
+                .unwrap()
+                .iter()
+                .map(|path| {
+                    path.strip_prefix(&root)
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned()
+                })
+                .collect();
+            got.sort();
+            assert_eq!(got, files, "{token}");
+        }
+    }
+
     #[tokio::test]
     async fn list_missing_directory_returns_empty() {
         let tmp = tempfile::tempdir().unwrap();

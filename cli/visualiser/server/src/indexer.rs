@@ -3076,6 +3076,34 @@ mod tests {
         assert!(facets_for(DocTypeKey::TEMPLATES).is_empty());
     }
 
+    #[test]
+    fn every_built_in_doc_type_declares_its_facets() {
+        let declared: Vec<(&str, &[&str])> = DocTypeCatalogue::built_in()
+            .doc_types()
+            .iter()
+            .map(|kind| (kind.wire_token(), facets_for(*kind)))
+            .collect();
+        let status_and_cluster: &[&str] = &["status", "clusterSlug"];
+        let expected: Vec<(&str, &[&str])> = vec![
+            ("decisions", status_and_cluster),
+            ("work-items", &["status", "project", "clusterSlug"]),
+            ("plans", status_and_cluster),
+            ("codebase-research", status_and_cluster),
+            ("plan-reviews", status_and_cluster),
+            ("pr-reviews", status_and_cluster),
+            ("work-item-reviews", status_and_cluster),
+            ("validations", status_and_cluster),
+            ("notes", status_and_cluster),
+            ("pr-descriptions", status_and_cluster),
+            ("design-gaps", status_and_cluster),
+            ("design-inventories", status_and_cluster),
+            ("topic-research", status_and_cluster),
+            ("root-cause-analyses", status_and_cluster),
+            ("templates", &[]),
+        ];
+        assert_eq!(declared, expected);
+    }
+
     fn key_served(
         id: &str,
         pattern: &str,
