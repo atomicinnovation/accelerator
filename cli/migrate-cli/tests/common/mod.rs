@@ -8,27 +8,20 @@ use std::path::Path;
 
 use tempfile::TempDir;
 use vcs_test_support::hermetic::Hermetic;
-use vcs_test_support::stalled_migration::corpus::migrate_command;
-use vcs_test_support::stalled_migration::corpus::work_item;
-use vcs_test_support::stalled_migration::corpus::MIGRATIONS_BEFORE_0007;
+use vcs_test_support::stalled_migration::stalling_corpus::mark_applied;
+use vcs_test_support::stalled_migration::stalling_corpus::migrate_command;
+use vcs_test_support::stalled_migration::stalling_corpus::migrations_before;
+use vcs_test_support::stalled_migration::stalling_corpus::work_item;
+use vcs_test_support::stalled_migration::stalling_corpus::MIGRATIONS;
+pub use vcs_test_support::stalled_migration::stalling_corpus::MIGRATION_0007;
 
 pub type TestError = Box<dyn std::error::Error>;
 
 pub const BIN: &str = env!("CARGO_BIN_EXE_accelerator-migrate");
 
-pub const MIGRATION_0007: &str = "0007-unify-meta-corpus-frontmatter";
-
 pub const RUN_BASE_FILE: &str = ".accelerator/state/migrations-run.id";
 
 pub const MANIFEST_FILE: &str = ".accelerator/state/migrations-run-paths.txt";
-
-const MIGRATIONS_FROM_0007: [&str; 5] = [
-    MIGRATION_0007,
-    "0008-canonical-frontmatter-quoting",
-    "0009-split-work-key-from-tracker-scope-key",
-    "0010-strip-research-title-prefix",
-    "0011-ignore-machine-local-sync-state",
-];
 
 pub struct Outcome {
     pub stdout: String,
@@ -74,22 +67,13 @@ pub fn run(
 }
 
 pub fn mark_all_migrations_applied(root: &Path) -> Result<(), TestError> {
-    let ledger: String = MIGRATIONS_BEFORE_0007
-        .iter()
-        .chain(MIGRATIONS_FROM_0007.iter())
-        .flat_map(|id| [*id, "\n"])
-        .collect();
-    write(root, ".accelerator/state/migrations-applied", &ledger)
+    Ok(mark_applied(root, &MIGRATIONS)?)
 }
 
 pub fn mark_migrations_before_0007_applied(
     root: &Path,
 ) -> Result<(), TestError> {
-    let ledger: String = MIGRATIONS_BEFORE_0007
-        .iter()
-        .flat_map(|id| [*id, "\n"])
-        .collect();
-    write(root, ".accelerator/state/migrations-applied", &ledger)
+    Ok(mark_applied(root, migrations_before(MIGRATION_0007)?)?)
 }
 
 /// One work item whose reference to another resolves ambiguously, so 0007

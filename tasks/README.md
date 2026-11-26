@@ -406,6 +406,12 @@ let stall = stalls.stall(key)?;
 A stall that does not stall fails the whole build step, naming its key,
 migrate's exit code and its stderr.
 
+The build step runs before any test, so the recipe it follows cannot live in
+`migrate-cli`'s tests. `vcs-test-support`'s `stalled_migration` module holds
+all of migrate's test knowledge instead: the corpus the run stalls on, how a
+test invokes migrate, and the ordered ledger of every migration in
+`stalling_corpus::MIGRATIONS`. Adding a migration means appending it there.
+
 The private sets (the cap, bookmark and parity states) are never shared.
 Pass their builder to the workbench, which builds the set in its directory
 and logs it under "private sets":

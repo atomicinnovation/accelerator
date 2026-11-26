@@ -9,13 +9,23 @@ use std::process::Stdio;
 use crate::hermetic::Hermetic;
 use crate::Error;
 
-pub const MIGRATIONS_BEFORE_0007: [&str; 6] = [
+const MIGRATION_0006: &str = "0006-canonicalise-work-item-id-and-author";
+
+pub const MIGRATION_0007: &str = "0007-unify-meta-corpus-frontmatter";
+
+/// Every migration migrate's registry holds, in the order it applies them.
+pub const MIGRATIONS: [&str; 11] = [
     "0001-rename-tickets-to-work",
     "0002-rename-work-items-with-project-prefix",
     "0003-relocate-accelerator-state",
     "0004-restructure-meta-research-into-subject-subcategories",
     "0005-rename-work-item-type-to-kind",
-    "0006-canonicalise-work-item-id-and-author",
+    MIGRATION_0006,
+    MIGRATION_0007,
+    "0008-canonical-frontmatter-quoting",
+    "0009-split-work-key-from-tracker-scope-key",
+    "0010-strip-research-title-prefix",
+    "0011-ignore-machine-local-sync-state",
 ];
 
 pub const OWNED_NOTE: &str = "meta/research/codebase/2026-01-01-one.md";
@@ -53,14 +63,28 @@ pub fn work_item(id: &str, title: &str, body: &str) -> String {
     )
 }
 
+/// The migrations [`MIGRATIONS`] applies before `migration`.
+///
+/// # Errors
+///
+/// When [`MIGRATIONS`] holds no `migration`.
+pub fn migrations_before(
+    migration: &str,
+) -> Result<&'static [&'static str], Error> {
+    MIGRATIONS
+        .iter()
+        .position(|id| *id == migration)
+        .map(|end| &MIGRATIONS[..end])
+        .ok_or_else(|| Error::message(format!("no migration {migration}")))
+}
+
+/// Records `migrations` in the ledger as already applied.
+///
 /// # Errors
 ///
 /// When the ledger cannot be written.
-pub fn mark_migrations_before_0006_applied(root: &Path) -> Result<(), Error> {
-    let ledger: String = MIGRATIONS_BEFORE_0007[..5]
-        .iter()
-        .flat_map(|id| [*id, "\n"])
-        .collect();
+pub fn mark_applied(root: &Path, migrations: &[&str]) -> Result<(), Error> {
+    let ledger: String = migrations.iter().flat_map(|id| [*id, "\n"]).collect();
     write(root, LEDGER, &ledger)
 }
 
@@ -97,7 +121,7 @@ pub fn seed_output_then_ambiguous_reference(root: &Path) -> Result<(), Error> {
          revision: \"0123456789abcdef0123456789abcdef01234567\"\n\
          topic: \"One\"\n---\n\n# One\n",
     )?;
-    mark_migrations_before_0006_applied(root)
+    mark_applied(root, migrations_before(MIGRATION_0006)?)
 }
 
 fn write(root: &Path, relative: &str, content: &str) -> Result<(), Error> {

@@ -4,11 +4,11 @@ use std::path::Path;
 use vcs_test_support::colocation::JjColocation;
 use vcs_test_support::family::CopyableFamily;
 use vcs_test_support::family::SharedFamily;
+use vcs_test_support::stalled_migration::manifest::StalledMigrationManifest;
 use vcs_test_support::stalled_migration::ParentShape;
 use vcs_test_support::stalled_migration::Stall;
 use vcs_test_support::stalled_migration::StallKey;
 use vcs_test_support::stalled_migration::StalledMigrations;
-use vcs_test_support::stalled_migration_manifest::StalledMigrationManifest;
 
 type TestError = Box<dyn std::error::Error>;
 

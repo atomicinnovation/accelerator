@@ -1,7 +1,8 @@
 //! A jj repository on which migrate's run has stalled, in each colocation and
 //! parent shape the guarded-resume tests start from.
 
-pub mod corpus;
+pub mod manifest;
+pub mod stalling_corpus;
 
 use std::collections::BTreeMap;
 use std::env;
@@ -19,8 +20,8 @@ use crate::family::PrivateBuild;
 use crate::family::SharedFamily;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
-use crate::stalled_migration_manifest::StalledMigrationManifest;
 use crate::Error;
+use manifest::StalledMigrationManifest;
 
 /// Names the migrate executable a shared build of the set runs.
 pub const MIGRATE_VARIABLE: &str = "ACCELERATOR_SHARED_FIXTURES_MIGRATE";
@@ -137,7 +138,7 @@ impl Stall {
         let root = directory.join(key.to_string());
         fs::create_dir_all(&root)?;
         hermetic.jj(&["git", "init", key.colocation.flag()], &root)?;
-        corpus::seed_output_then_ambiguous_reference(&root)?;
+        stalling_corpus::seed_output_then_ambiguous_reference(&root)?;
         hermetic.jj(&["commit", "-m", "corpus"], &root)?;
         let base = change_id(hermetic, &root, "@-")?;
         hermetic.jj(&["describe", "-m", "sibling"], &root)?;
@@ -150,7 +151,8 @@ impl Stall {
             }
         };
         let output =
-            corpus::migrate_command(&migrate.0, &root, hermetic).output()?;
+            stalling_corpus::migrate_command(&migrate.0, &root, hermetic)
+                .output()?;
         let stderr = String::from_utf8_lossy(&output.stderr);
         if output.status.code() != Some(1) || !stderr.contains(STALL_MARKER) {
             let exit = output.status.code().map_or_else(

@@ -20,7 +20,6 @@ pub mod path_scan;
 pub mod repository_state;
 pub mod shared_build;
 pub mod stalled_migration;
-pub mod stalled_migration_manifest;
 pub mod status_log;
 pub mod status_log_manifest;
 pub mod stubs;

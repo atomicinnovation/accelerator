@@ -19,7 +19,7 @@ use vcs_test_support::counted::each_of;
 use vcs_test_support::hermetic::Hermetic;
 use vcs_test_support::repository_state::RepositoryKind;
 use vcs_test_support::repository_state::RepositoryState;
-use vcs_test_support::stalled_migration::corpus;
+use vcs_test_support::stalled_migration::stalling_corpus;
 use vcs_test_support::stalled_migration::MigrateBinary;
 use vcs_test_support::stalled_migration::ParentShape;
 use vcs_test_support::stalled_migration::Stall;
@@ -243,7 +243,7 @@ fn prefix_the_way_the_scenarios_always_have(
     let root = work.path().join("repo");
     fs::create_dir_all(&root)?;
     env.jj(&["git", "init", colocation.flag()], &root)?;
-    corpus::seed_output_then_ambiguous_reference(&root)?;
+    stalling_corpus::seed_output_then_ambiguous_reference(&root)?;
     env.jj(&["commit", "-m", "corpus"], &root)?;
     let base = change_id(&env, &root, "@-")?;
     env.jj(&["describe", "-m", "sibling"], &root)?;
@@ -389,7 +389,7 @@ fn a_jj_stall_resumes_across_jj_status() -> Result<(), TestError> {
         );
         assert_resumed(&resumed);
         assert!(
-            resumed.stderr.contains(corpus::OWNED_NOTE),
+            resumed.stderr.contains(stalling_corpus::OWNED_NOTE),
             "{}",
             resumed.stderr
         );
@@ -409,9 +409,10 @@ fn a_jj_stall_resumes_across_owned_edits_and_describing_the_working_copy(
             Stalled::copied(&workbench, colocation, ParentShape::SingleParent)?;
         stalled.write_decisions()?;
         fs::write(
-            stalled.root().join(corpus::OWNED_NOTE),
-            fs::read_to_string(stalled.root().join(corpus::OWNED_NOTE))?
-                + "\nedited\n",
+            stalled.root().join(stalling_corpus::OWNED_NOTE),
+            fs::read_to_string(
+                stalled.root().join(stalling_corpus::OWNED_NOTE),
+            )? + "\nedited\n",
         )?;
         stalled.jj(&["status"])?;
         stalled.jj(&["describe", "-m", "x"])?;
@@ -452,7 +453,7 @@ fn a_jj_refusal_lists_only_the_current_runs_unowned_changes(
             refused.stderr
         );
         assert!(
-            !refused.stderr.contains(corpus::OWNED_NOTE),
+            !refused.stderr.contains(stalling_corpus::OWNED_NOTE),
             "{}",
             refused.stderr
         );
@@ -495,9 +496,10 @@ fn rewriting_or_rebasing_the_parent_makes_a_jj_stall_stale(
                     refused.stderr
                 );
                 assert!(
-                    refused
-                        .stderr
-                        .contains(&format!("  {}\n", corpus::OWNED_NOTE)),
+                    refused.stderr.contains(&format!(
+                        "  {}\n",
+                        stalling_corpus::OWNED_NOTE
+                    )),
                     "{args:?}: {}",
                     refused.stderr
                 );
@@ -601,7 +603,7 @@ fn a_manifested_path_edited_on_a_new_change_with_the_same_parent_is_unowned(
         stalled.jj(&["new", stalled.base()])?;
         common::write(
             stalled.root(),
-            corpus::OWNED_NOTE,
+            stalling_corpus::OWNED_NOTE,
             "rewritten by hand\n",
         )?;
 
@@ -611,7 +613,7 @@ fn a_manifested_path_edited_on_a_new_change_with_the_same_parent_is_unowned(
         assert!(
             refused.stderr.ends_with(&format!(
                 "Unowned changes (1):\n  {}\n",
-                corpus::OWNED_NOTE
+                stalling_corpus::OWNED_NOTE
             )),
             "{}: {}",
             colocation.flag(),
@@ -635,9 +637,10 @@ fn a_stall_on_a_merge_resumes_until_one_parent_is_rewritten(
         assert!(stalled.recorded_run_base()?.contains('+'));
         stalled.write_decisions()?;
         fs::write(
-            stalled.root().join(corpus::OWNED_NOTE),
-            fs::read_to_string(stalled.root().join(corpus::OWNED_NOTE))?
-                + "\nedited\n",
+            stalled.root().join(stalling_corpus::OWNED_NOTE),
+            fs::read_to_string(
+                stalled.root().join(stalling_corpus::OWNED_NOTE),
+            )? + "\nedited\n",
         )?;
         stalled.jj(&["status"])?;
 
@@ -760,7 +763,7 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
                 refused.stderr
             );
             assert!(
-                refused.stderr.contains(corpus::OWNED_NOTE),
+                refused.stderr.contains(stalling_corpus::OWNED_NOTE),
                 "{}",
                 refused.stderr
             );
@@ -808,7 +811,7 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
             fs::read_to_string(
                 stalled.root().join("meta/work/0001-source.md")
             )?,
-            corpus::work_item(
+            stalling_corpus::work_item(
                 "0001",
                 "Source",
                 "\n## References\n- `meta/work/0042-target.md`\n"
