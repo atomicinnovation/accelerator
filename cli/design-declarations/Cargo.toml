@@ -16,3 +16,6 @@ workspace = true
 [dependencies]
 corpus = { path = "../corpus" }
 kernel = { path = "../kernel" }
+
+[dev-dependencies]
+corpus = { path = "../corpus", features = ["test-support"] }
