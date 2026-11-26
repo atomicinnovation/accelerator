@@ -3449,3 +3449,17 @@ def test_conduct_warns_when_the_finding_template_changes_mid_run() -> None:
     ) in spawn
     assert f'"{TEMPLATE_DRIFT}"' in spawn
     assert "checks the finding template again" in _prose(DOCS_RESEARCH)
+
+
+def test_the_node_query_docs_scope_additivity_to_stable() -> None:
+    node_query = _section(
+        _prose(DOCS_RESEARCH),
+        "### `research topic node`",
+        "#### Exit codes",
+        path=DOCS_RESEARCH,
+    )
+    assert (
+        "From the first stable release the JSON is additive-only: keys may be "
+        "added, never renamed or removed, and consumers ignore keys they do "
+        "not know."
+    ) in node_query

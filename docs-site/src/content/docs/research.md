@@ -873,6 +873,9 @@ It prints one JSON object with the context the node was offered with:
 | `path` | the level note's absolute path |
 | `search_budget` | the node's `WebSearch` allowance, for a `web` node only |
 
+From the first stable release the JSON is additive-only: keys may be added,
+never renamed or removed, and consumers ignore keys they do not know.
+
 The context is the snapshot the run's ledger took when the node was first
 offered, so a sibling's note written mid-batch never changes it. The command
 answers only for a node in the run's current offered batch, and writes
