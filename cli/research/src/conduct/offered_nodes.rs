@@ -14,35 +14,59 @@ pub struct NodeContext {
     pub known_questions: Vec<String>,
 }
 
+/// The contexts of a batch's pending nodes, or none at all when the stored
+/// snapshot could not be read.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct OfferedNodes(BTreeMap<NoteRef, NodeContext>);
+pub struct OfferedNodes {
+    contexts: BTreeMap<NoteRef, NodeContext>,
+    unreadable: bool,
+}
 
 impl OfferedNodes {
     #[must_use]
     pub fn of(
         contexts: impl IntoIterator<Item = (NoteRef, NodeContext)>,
     ) -> Self {
-        Self(contexts.into_iter().collect())
+        Self {
+            contexts: contexts.into_iter().collect(),
+            unreadable: false,
+        }
     }
 
     #[must_use]
     pub const fn empty() -> Self {
-        Self(BTreeMap::new())
+        Self {
+            contexts: BTreeMap::new(),
+            unreadable: false,
+        }
+    }
+
+    #[must_use]
+    pub const fn unreadable() -> Self {
+        Self {
+            contexts: BTreeMap::new(),
+            unreadable: true,
+        }
+    }
+
+    #[must_use]
+    pub const fn is_unreadable(&self) -> bool {
+        self.unreadable
     }
 
     #[must_use]
     pub fn retained_for(mut self, spawns: &[SpawnRef]) -> Self {
-        self.0
+        self.contexts
             .retain(|at, _| spawns.contains(&SpawnRef::Node(at.clone())));
         self
     }
 
     #[must_use]
     pub fn context(&self, at: &NoteRef) -> Option<&NodeContext> {
-        self.0.get(at)
+        self.contexts.get(at)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&NoteRef, &NodeContext)> {
-        self.0.iter()
+        self.contexts.iter()
     }
 }

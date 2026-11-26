@@ -13,6 +13,12 @@ pub fn corrupt_notice() -> String {
         .to_owned()
 }
 
+pub fn discarded_snapshot_notice() -> String {
+    "discarded the run ledger's malformed offered-node snapshot; the node \
+     query refused every node of the batch it held until this plan"
+        .to_owned()
+}
+
 pub fn replaced_notice(replaced: &ReplacedRun) -> String {
     let notice = format!(
         "replaced the ledger of run {}; if it is still going it stops at \

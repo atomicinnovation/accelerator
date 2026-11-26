@@ -14,6 +14,7 @@ use topic_project::budgeting;
 use topic_project::continued;
 use topic_project::node_query_set;
 use topic_project::started;
+use topic_project::stored_ledger;
 use topic_project::tree;
 use topic_project::Project;
 use topic_project::TestError;
@@ -519,5 +520,34 @@ fn an_ended_run_is_refused() -> Result<(), TestError> {
     project.run("end-run", &["s", "--run", &run])?;
 
     assert_exits_1(&project.node(&run, AT)?, &no_usable_ledger(&run));
+    Ok(())
+}
+
+const DISCARDED_SNAPSHOT: &str = "discarded the run ledger's malformed \
+     offered-node snapshot; the node query refused every node of the batch \
+     it held until this plan";
+
+fn warnings(plan: &Value) -> Result<&Vec<Value>, TestError> {
+    Ok(plan["warnings"].as_array().ok_or("no warnings")?)
+}
+
+#[test]
+fn the_plan_after_a_malformed_snapshot_says_it_was_discarded(
+) -> Result<(), TestError> {
+    let project = node_query_set()?;
+    let run = budgeted_run(&project)?;
+    let mut stored = stored_ledger(&project)?;
+    stored["pending"]["offered_nodes"] = json!("malformed");
+    fs::write(project.ledger(), stored.to_string())?;
+
+    let plan = continued(&project, &run, &DEPTH)?;
+
+    assert!(
+        warnings(&plan)?.contains(&json!(DISCARDED_SNAPSHOT)),
+        "{plan}"
+    );
+    queried(&project, &run, AT)?;
+    let next = continued(&project, &run, &DEPTH)?;
+    assert!(!warnings(&next)?.contains(&json!(DISCARDED_SNAPSHOT)));
     Ok(())
 }

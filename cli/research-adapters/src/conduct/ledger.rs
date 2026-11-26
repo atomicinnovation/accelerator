@@ -224,12 +224,16 @@ fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
 }
 
 /// Lenient where every other field is strict: the snapshot only answers
-/// node queries, so a malformed one empties the snapshot rather than
+/// node queries, so a malformed one is discarded as unreadable rather than
 /// discarding the run's claims, attempts and withheld profiles with the
-/// ledger.
+/// ledger. An absent one is an empty snapshot, as a ledger written before
+/// snapshots were kept has.
 fn offered_nodes_from(value: Option<&Value>) -> OfferedNodes {
+    let Some(value) = value else {
+        return OfferedNodes::empty();
+    };
     value
-        .and_then(Value::as_object)
+        .as_object()
         .and_then(|entries| {
             entries
                 .iter()
@@ -241,7 +245,7 @@ fn offered_nodes_from(value: Option<&Value>) -> OfferedNodes {
                 })
                 .collect::<Option<Vec<_>>>()
         })
-        .map_or_else(OfferedNodes::empty, OfferedNodes::of)
+        .map_or_else(OfferedNodes::unreadable, OfferedNodes::of)
 }
 
 /// A node always has a profile and a question, so an empty one is as
@@ -841,7 +845,7 @@ mod tests {
     }
 
     #[test]
-    fn a_malformed_snapshot_decodes_empty_and_keeps_the_ledger(
+    fn a_malformed_snapshot_decodes_as_unreadable_and_keeps_the_ledger(
     ) -> Result<(), TestError> {
         let malformed = [
             json!("03-a-web:2-1"),
@@ -875,10 +879,27 @@ mod tests {
                 "03-a-web:2-2": {"profile": "web", "known_questions": []}
             }),
         ];
+        let mut claims = ClaimedIndexes::default();
+        claims.claim(NormalisedQuestion::of("A?", &UnicodeTables), 1);
+        let discarded = RunLedger::from_parts(
+            RunId::parse("r1").ok_or("run id")?,
+            claims,
+            RunMemory {
+                pending: PendingBatch::restored(
+                    1,
+                    Offer::new(
+                        vec![spawn("03-a-web:2-1"), spawn("03-a-web:2-2")],
+                        OfferedNodes::unreadable(),
+                    ),
+                ),
+                ..RunMemory::default()
+            },
+            None,
+        );
         for snapshot in malformed {
             assert_eq!(
                 snapshotting(snapshot.clone())?,
-                unsnapshotted()?,
+                discarded,
                 "{snapshot}"
             );
         }

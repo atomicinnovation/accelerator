@@ -874,7 +874,10 @@ It prints one JSON object with the context the node was offered with:
 The context is the snapshot the run's ledger took when the node was first
 offered, so a sibling's note written mid-batch never changes it. The command
 answers only for a node in the run's current offered batch, and writes
-nothing. A node of an earlier batch, or one withheld, is refused.
+nothing. A node of an earlier batch, or one withheld, is refused. A
+malformed snapshot is discarded rather than failing the run: the query
+refuses every node of its batch, and the next `--run` plan names the
+discard in its `warnings`.
 
 The web profile and the level-note outputter use `{search budget}` without
 defining it. The researcher resolves it: the query's `search_budget` when it

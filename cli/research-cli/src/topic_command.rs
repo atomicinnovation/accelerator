@@ -517,13 +517,13 @@ fn opened<F: FileReader>(
             spawned,
             withheld,
         } => {
-            let ledger = continued_ledger(set_root, run, *spawned, fs)?
-                .withholding(withheld);
+            let (ledger, notices) =
+                continued_ledger(set_root, run, *spawned, fs)?;
             let continuing = OpenedRun::Continuing {
-                ledger: Box::new(ledger),
+                ledger: Box::new(ledger.withholding(withheld)),
                 withholding: withheld.clone(),
             };
-            Ok((continuing, Vec::new()))
+            Ok((continuing, notices))
         }
         RunMode::Start(run) => {
             let mut notices = start_notices(&request.concurrency);
@@ -594,10 +594,21 @@ fn continued_ledger<F: FileReader>(
     run: &RunId,
     spawned: Option<u32>,
     fs: &F,
-) -> Result<RunLedger, String> {
+) -> Result<(RunLedger, Vec<String>), String> {
     match read_run_ledger(set_root, fs, &UnicodeTables) {
-        Ok(Some(stored)) => RunLedger::continue_as(stored, run, spawned)
-            .map_err(|owner| ledger_wording::superseded(run, &owner.by)),
+        Ok(Some(stored)) => {
+            let notices = stored
+                .memory()
+                .pending
+                .nodes()
+                .is_unreadable()
+                .then(ledger_wording::discarded_snapshot_notice)
+                .into_iter()
+                .collect();
+            RunLedger::continue_as(stored, run, spawned)
+                .map(|ledger| (ledger, notices))
+                .map_err(|owner| ledger_wording::superseded(run, &owner.by))
+        }
         Ok(None) | Err(LedgerError::Corrupt) => {
             Err(ledger_wording::no_usable_ledger(run))
         }

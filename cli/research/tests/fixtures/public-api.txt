@@ -263,13 +263,15 @@ pub fn research::conduct::offered_nodes::NodeContext::eq(&self, other: &research
 impl core::fmt::Debug for research::conduct::offered_nodes::NodeContext
 pub fn research::conduct::offered_nodes::NodeContext::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::offered_nodes::NodeContext
-pub struct research::conduct::offered_nodes::OfferedNodes(_)
+pub struct research::conduct::offered_nodes::OfferedNodes
 impl research::conduct::offered_nodes::OfferedNodes
 pub fn research::conduct::offered_nodes::OfferedNodes::context(&self, at: &research::topic::layout::note_ref::NoteRef) -> core::option::Option<&research::conduct::offered_nodes::NodeContext>
 pub const fn research::conduct::offered_nodes::OfferedNodes::empty() -> Self
+pub const fn research::conduct::offered_nodes::OfferedNodes::is_unreadable(&self) -> bool
 pub fn research::conduct::offered_nodes::OfferedNodes::iter(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&research::topic::layout::note_ref::NoteRef, &research::conduct::offered_nodes::NodeContext)>
 pub fn research::conduct::offered_nodes::OfferedNodes::of(contexts: impl core::iter::traits::collect::IntoIterator<Item = (research::topic::layout::note_ref::NoteRef, research::conduct::offered_nodes::NodeContext)>) -> Self
 pub fn research::conduct::offered_nodes::OfferedNodes::retained_for(self, spawns: &[research::conduct::spawn::SpawnRef]) -> Self
+pub const fn research::conduct::offered_nodes::OfferedNodes::unreadable() -> Self
 impl core::clone::Clone for research::conduct::offered_nodes::OfferedNodes
 pub fn research::conduct::offered_nodes::OfferedNodes::clone(&self) -> research::conduct::offered_nodes::OfferedNodes
 impl core::cmp::Eq for research::conduct::offered_nodes::OfferedNodes

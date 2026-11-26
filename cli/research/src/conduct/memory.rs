@@ -250,6 +250,21 @@ mod tests {
     }
 
     #[test]
+    fn the_next_offer_replaces_an_unreadable_snapshot() {
+        let mut batch = PendingBatch::restored(
+            0,
+            Offer::new(spawns(&["01-a:2-1"]), OfferedNodes::unreadable()),
+        );
+        assert!(batch.nodes().is_unreadable());
+        batch.replace(Offer::new(
+            spawns(&["01-a:2-1"]),
+            contexts(&[("01-a:2-1", "A?")]),
+        ));
+        assert!(!batch.nodes().is_unreadable());
+        assert_eq!(batch.context(&node("01-a:2-1")), Some(&asking("A?")));
+    }
+
+    #[test]
     fn a_stale_acknowledgement_keeps_the_contexts() {
         let mut batch = PendingBatch::restored(
             0,
