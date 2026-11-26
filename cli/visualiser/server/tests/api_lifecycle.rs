@@ -206,3 +206,47 @@ async fn work_item_review_with_path_target_appears_in_work_item_cluster() {
     assert!(kinds.contains(&"work-items"), "kinds={kinds:?}");
     assert!(kinds.contains(&"work-item-reviews"), "kinds={kinds:?}");
 }
+
+async fn lifecycle_of(cfg: accelerator_visualiser::config::Config) -> String {
+    let activity = Arc::new(Activity::new());
+    let state = AppState::build(cfg, activity).await.unwrap();
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .uri("/api/lifecycle")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    String::from_utf8(bytes.to_vec()).unwrap()
+}
+
+fn seeded_cfg_with_colliding_decisions(
+    tmp: &std::path::Path,
+) -> accelerator_visualiser::config::Config {
+    let cfg = common::seeded_cfg(tmp);
+    let decisions = tmp.join("meta/decisions");
+    for adr in ["ADR-0002-foo.md", "ADR-0003-foo.md"] {
+        std::fs::write(decisions.join(adr), "---\ntitle: Foo\n---\n").unwrap();
+    }
+    for dir in ["decisions", "plans", "reviews/plans", "research/issues"] {
+        for file in std::fs::read_dir(tmp.join("meta").join(dir)).unwrap() {
+            common::set_mtime_ms(&file.unwrap().path(), 1_000).unwrap();
+        }
+    }
+    cfg
+}
+
+#[tokio::test]
+async fn every_build_over_colliding_slugs_serves_the_same_lifecycle() {
+    let tmp = tempfile::tempdir().unwrap();
+    let first =
+        lifecycle_of(seeded_cfg_with_colliding_decisions(tmp.path())).await;
+    for _ in 0..16 {
+        let cfg = seeded_cfg_with_colliding_decisions(tmp.path());
+        assert_eq!(lifecycle_of(cfg).await, first);
+    }
+}

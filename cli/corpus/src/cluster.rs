@@ -393,8 +393,10 @@ pub fn compute<E: ClusterEntry>(
         cluster_key_by_path.insert(e.path().to_path_buf(), key);
     }
 
+    let mut in_path_order: Vec<&E> = entries.iter().collect();
+    in_path_order.sort_by(|a, b| a.path().cmp(b.path()));
     let mut slug_to_cluster_key: HashMap<String, String> = HashMap::new();
-    for e in entries {
+    for e in &in_path_order {
         if !e.doc_type().cluster_anchor() {
             continue;
         }
@@ -402,10 +404,12 @@ pub fn compute<E: ClusterEntry>(
             e.slug(),
             cluster_key_by_path.get(e.path()).and_then(|o| o.as_deref()),
         ) {
-            slug_to_cluster_key.insert(slug.to_owned(), ck.to_owned());
+            slug_to_cluster_key
+                .entry(slug.to_owned())
+                .or_insert_with(|| ck.to_owned());
         }
     }
-    for e in entries {
+    for e in &in_path_order {
         if e.doc_type().cluster_anchor() {
             continue;
         }
@@ -459,6 +463,7 @@ pub fn compute<E: ClusterEntry>(
                 canonical_rank(entries[a].doc_type())
                     .cmp(&canonical_rank(entries[b].doc_type()))
                     .then(entries[a].mtime_ms().cmp(&entries[b].mtime_ms()))
+                    .then_with(|| entries[a].path().cmp(entries[b].path()))
             });
             let bucket: Vec<&E> =
                 members.iter().map(|&i| &entries[i]).collect();
@@ -485,7 +490,14 @@ pub fn compute<E: ClusterEntry>(
         })
         .collect();
 
-    clusters.sort_by(|a, b| a.slug.cmp(&b.slug));
+    let lowest_path = |cluster: &Cluster| {
+        cluster.members.iter().map(|&i| entries[i].path()).min()
+    };
+    clusters.sort_by(|a, b| {
+        a.slug
+            .cmp(&b.slug)
+            .then_with(|| lowest_path(a).cmp(&lowest_path(b)))
+    });
     Clustering {
         clusters,
         completeness_by_path,
@@ -953,6 +965,81 @@ mod tests {
         let plb = HashMap::new();
         let out = compute(&entries, &ctx_for(&entries, &wib, &plb));
         assert_eq!(out.clusters.len(), 2);
+    }
+
+    fn entry_at(
+        doc_type: DocTypeKey,
+        slug: &str,
+        path: &str,
+        mtime_ms: i64,
+    ) -> TestEntry {
+        let mut entry = TestEntry::new(doc_type, slug);
+        entry.path = PathBuf::from(path);
+        entry.title = path.to_owned();
+        entry.mtime_ms = mtime_ms;
+        entry
+    }
+
+    fn colliding_corpus() -> Vec<TestEntry> {
+        let mut first_item =
+            entry_at(DocTypeKey::WORK_ITEMS, "shared", "/repo/w/1.md", 1);
+        first_item.work_item_id = Some("0001".into());
+        let mut second_item =
+            entry_at(DocTypeKey::WORK_ITEMS, "shared", "/repo/w/2.md", 1);
+        second_item.work_item_id = Some("0002".into());
+        vec![
+            first_item,
+            second_item,
+            entry_at(DocTypeKey::PLANS, "shared", "/repo/p/a.md", 1),
+            entry_at(DocTypeKey::PLANS, "shared", "/repo/p/b.md", 1),
+            entry_at(DocTypeKey::PLANS, "alone", "/repo/p/c.md", 1),
+            entry_at(DocTypeKey::PLANS, "alone", "/repo/p/d.md", 1),
+            entry_at(DocTypeKey::NOTES, "alone", "/repo/n/a.md", 1),
+            entry_at(DocTypeKey::NOTES, "alone", "/repo/n/b.md", 1),
+            entry_at(DocTypeKey::DECISIONS, "alone", "/repo/d/a.md", 1),
+        ]
+    }
+
+    fn described(
+        entries: &[TestEntry],
+        clustering: &Clustering,
+    ) -> Vec<(String, Option<String>, String, Vec<PathBuf>)> {
+        clustering
+            .clusters
+            .iter()
+            .map(|cluster| {
+                (
+                    cluster.slug.clone(),
+                    cluster.cluster_key.clone(),
+                    cluster.title.clone(),
+                    cluster
+                        .members
+                        .iter()
+                        .map(|&i| entries[i].path.clone())
+                        .collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn clustering_does_not_depend_on_the_order_entries_arrive_in() {
+        let forwards = colliding_corpus();
+        let mut backwards = colliding_corpus();
+        backwards.reverse();
+        let wib = HashMap::new();
+        let plb = HashMap::new();
+        let expected = described(
+            &forwards,
+            &compute(&forwards, &ctx_for(&forwards, &wib, &plb)),
+        );
+        for _ in 0..32 {
+            for entries in [&forwards, &backwards] {
+                let clustering =
+                    compute(entries, &ctx_for(entries, &wib, &plb));
+                assert_eq!(described(entries, &clustering), expected);
+            }
+        }
     }
 
     #[test]
