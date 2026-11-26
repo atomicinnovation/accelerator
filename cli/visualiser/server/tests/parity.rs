@@ -204,6 +204,7 @@ fn entry(
         completeness: None,
         linked_count: 0,
         cluster_key: None,
+        set: None,
     }
 }
 

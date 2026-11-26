@@ -50,12 +50,12 @@ pub struct LatestPreview {
 }
 
 impl LatestPreview {
-    fn from_entry(entry: &IndexEntry) -> Self {
+    fn from_entry(entry: &IndexEntry, modified_at: i64) -> Self {
         Self {
             title: entry.title.clone(),
             slug: entry.slug.clone(),
             rel_path: entry.rel_path.to_string_lossy().into_owned(),
-            modified_at: entry.mtime_ms,
+            modified_at,
         }
     }
 }
@@ -193,6 +193,94 @@ pub struct IndexEntry {
     /// bucket (lifecycle-participating types) or a per-path orphan bucket
     /// (orphan-by-design types). Serialises on the wire as `clusterKey`.
     pub cluster_key: Option<String>,
+    #[serde(flatten, serialize_with = "serialize_set_wire_fields")]
+    pub set: Option<SetDocument>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetContext {
+    pub set_id: String,
+    pub set_slug: Option<String>,
+    pub set_directory: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub struct SetPlacement {
+    pub context: Arc<SetContext>,
+    pub set_relative_path: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetDocumentRole {
+    Root,
+    Member,
+}
+
+#[derive(Debug, Clone)]
+pub struct SetDocument {
+    pub placement: SetPlacement,
+    pub role: SetDocumentRole,
+}
+
+impl SetDocument {
+    pub const fn root(
+        context: Arc<SetContext>,
+        set_relative_path: String,
+    ) -> Self {
+        Self::placed(context, set_relative_path, SetDocumentRole::Root)
+    }
+
+    pub const fn member(
+        context: Arc<SetContext>,
+        set_relative_path: String,
+    ) -> Self {
+        Self::placed(context, set_relative_path, SetDocumentRole::Member)
+    }
+
+    const fn placed(
+        context: Arc<SetContext>,
+        set_relative_path: String,
+        role: SetDocumentRole,
+    ) -> Self {
+        Self {
+            placement: SetPlacement {
+                context,
+                set_relative_path,
+            },
+            role,
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SetWireFields<'a> {
+    set_id: Option<&'a str>,
+    set_relative_path: Option<&'a str>,
+}
+
+fn serialize_set_wire_fields<S: serde::Serializer>(
+    set: &Option<SetDocument>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let placement = set.as_ref().map(|set| &set.placement);
+    SetWireFields {
+        set_id: placement.map(|p| p.context.set_id.as_str()),
+        set_relative_path: placement.map(|p| p.set_relative_path.as_str()),
+    }
+    .serialize(serializer)
+}
+
+fn set_id_of(
+    root_frontmatter: &FrontmatterState,
+    set_directory: &Path,
+) -> String {
+    document_id(root_frontmatter).unwrap_or_else(|| {
+        set_directory
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    })
 }
 
 /// Test rendezvous point used by the concurrency tests to inspect
@@ -235,6 +323,148 @@ impl IndexEntry {
     pub fn served_rel_path(&self) -> String {
         self.rel_path.to_string_lossy().replace('\\', "/")
     }
+
+    pub fn is_member(&self) -> bool {
+        self.set_role() == Some(SetDocumentRole::Member)
+    }
+
+    pub fn is_set_root(&self) -> bool {
+        self.set_role() == Some(SetDocumentRole::Root)
+    }
+
+    /// No slug rule applies to a member's filename, so search keys a
+    /// member on its stem.
+    pub fn search_key(&self) -> Option<&str> {
+        if self.is_member() {
+            return Path::new(&self.set_placement()?.set_relative_path)
+                .file_stem()?
+                .to_str();
+        }
+        self.slug.as_deref()
+    }
+
+    pub fn set_placement(&self) -> Option<&SetPlacement> {
+        self.set.as_ref().map(|set| &set.placement)
+    }
+
+    fn set_role(&self) -> Option<SetDocumentRole> {
+        self.set.as_ref().map(|set| set.role)
+    }
+}
+
+pub struct LinkKeys {
+    pub slug: Option<String>,
+    pub id: Option<String>,
+}
+
+pub fn link_keys_of(entry: &IndexEntry) -> LinkKeys {
+    match entry.set_placement() {
+        Some(placement) if entry.is_member() => LinkKeys {
+            slug: placement.context.set_slug.clone(),
+            id: Some(placement.context.set_id.clone()),
+        },
+        _ => LinkKeys {
+            slug: entry.slug.clone(),
+            id: entry.id.clone(),
+        },
+    }
+}
+
+/// The roots and ordinary documents among `entries`: every default view
+/// of the index reads through here, so no member reaches one.
+fn listed<'a>(
+    entries: impl IntoIterator<Item = &'a IndexEntry>,
+) -> impl Iterator<Item = &'a IndexEntry> {
+    entries.into_iter().filter(|entry| !entry.is_member())
+}
+
+fn latest_change_of(
+    entry: &IndexEntry,
+    latest_change_by_set: &HashMap<PathBuf, i64>,
+) -> i64 {
+    entry
+        .set_placement()
+        .and_then(|p| latest_change_by_set.get(&p.context.set_directory))
+        .copied()
+        .unwrap_or(entry.mtime_ms)
+}
+
+struct IndexMaps {
+    work_item_by_identity_key: HashMap<String, PathBuf>,
+    documents_by_address: HashMap<LinkageAddress, PathBuf>,
+    reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>>,
+    work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>>,
+    latest_change_by_set: HashMap<PathBuf, i64>,
+}
+
+impl IndexMaps {
+    fn build(
+        records: &[IndexEntry],
+        reading: &crate::config::WorkItemConfig,
+        project_root: &Path,
+    ) -> Self {
+        let mut work_item_by_identity_key: HashMap<String, PathBuf> =
+            HashMap::new();
+        let mut documents_by_address: HashMap<LinkageAddress, PathBuf> =
+            HashMap::new();
+        for entry in listed(records) {
+            if let Some(id) = identity_key_of_entry(entry) {
+                hold_if_lower(&mut work_item_by_identity_key, id, &entry.path);
+            }
+            if let Some(address) =
+                linkage_address_of(entry, reading.linkage_ids())
+            {
+                documents_by_address.insert(address, entry.path.clone());
+            }
+        }
+        let reviews_by_target = reviews_by_target_of(
+            listed(records),
+            &documents_by_address,
+            &work_item_by_identity_key,
+            reading,
+            project_root,
+        );
+        Self {
+            work_item_by_identity_key,
+            documents_by_address,
+            reviews_by_target,
+            work_item_refs_by_target: work_item_refs_by_target_of(
+                records, reading,
+            ),
+            latest_change_by_set: latest_change_by_set_of(records),
+        }
+    }
+}
+
+fn work_item_refs_by_target_of(
+    records: &[IndexEntry],
+    reading: &crate::config::WorkItemConfig,
+) -> HashMap<String, BTreeSet<PathBuf>> {
+    let mut refs: HashMap<String, BTreeSet<PathBuf>> = HashMap::new();
+    for entry in records {
+        for id in identity_keys_of(entry.work_item_refs.clone(), reading) {
+            if entry.identity_key.as_deref() == Some(id.as_str()) {
+                continue;
+            }
+            refs.entry(id).or_default().insert(entry.path.clone());
+        }
+    }
+    refs
+}
+
+fn latest_change_by_set_of<'a>(
+    records: impl IntoIterator<Item = &'a IndexEntry>,
+) -> HashMap<PathBuf, i64> {
+    let mut latest: HashMap<PathBuf, i64> = HashMap::new();
+    for entry in records {
+        if let Some(placement) = entry.set_placement() {
+            latest
+                .entry(placement.context.set_directory.clone())
+                .and_modify(|newest| *newest = (*newest).max(entry.mtime_ms))
+                .or_insert(entry.mtime_ms);
+        }
+    }
+    latest
 }
 
 pub struct Indexer {
@@ -276,6 +506,9 @@ pub struct Indexer {
     /// paths of entries that reference that work-item via `work_item_id:`,
     /// `parent:`, or `related:` frontmatter keys.
     work_item_refs_by_target: Arc<RwLock<HashMap<String, BTreeSet<PathBuf>>>>,
+    /// Each set's newest modification time over its root and members, by
+    /// set directory. Acquire after `work_item_refs_by_target`.
+    latest_change_by_set: Arc<RwLock<HashMap<PathBuf, i64>>>,
     // Serialises rescan() against refresh_one() so they cannot interleave.
     rescan_lock: Arc<Semaphore>,
     #[cfg(test)]
@@ -302,7 +535,18 @@ impl Indexer {
                 path: project_root.clone(),
                 source,
             })?;
-        let me = Self {
+        let me = Self::empty(driver, doc_types, project_root, work_item_cfg);
+        me.rescan().await?;
+        Ok(me)
+    }
+
+    fn empty(
+        driver: Arc<dyn FileDriver>,
+        doc_types: Arc<DocTypeCatalogue>,
+        project_root: PathBuf,
+        work_item_cfg: Arc<crate::config::WorkItemConfig>,
+    ) -> Self {
+        Self {
             driver,
             doc_types,
             project_root,
@@ -315,12 +559,11 @@ impl Indexer {
             documents_by_address: Arc::new(RwLock::new(HashMap::new())),
             reviews_by_target: Arc::new(RwLock::new(HashMap::new())),
             work_item_refs_by_target: Arc::new(RwLock::new(HashMap::new())),
+            latest_change_by_set: Arc::new(RwLock::new(HashMap::new())),
             rescan_lock: Arc::new(Semaphore::new(1)),
             #[cfg(test)]
             test_post_secondary_update: tokio::sync::Mutex::new(None),
-        };
-        me.rescan().await?;
-        Ok(me)
+        }
     }
 
     pub fn rescan_lock(&self) -> Arc<Semaphore> {
@@ -333,14 +576,6 @@ impl Indexer {
         // acquire() errors only if the semaphore is closed, which never happens.
         #[allow(clippy::unwrap_used)]
         let _permit = self.rescan_lock.acquire().await.unwrap();
-
-        let mut entries: HashMap<PathBuf, IndexEntry> = HashMap::new();
-        let mut work_item_by_identity_key: HashMap<String, PathBuf> =
-            HashMap::new();
-        let mut documents_by_address: HashMap<LinkageAddress, PathBuf> =
-            HashMap::new();
-        let mut work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>> =
-            HashMap::new();
 
         // Phase 1: enumerate every (kind, path) up front, preserving doc-type
         // and per-type listing order so the dedup folds below stay deterministic.
@@ -396,76 +631,76 @@ impl Indexer {
         let trust = self.judge_trust();
         let reading = self.reading_under(&trust);
 
-        // Phase 3 Pass A: parse and fold serially, in original order.
-        // Build entries and every primary-id map. Defer reviews_by_target
-        // until Pass B because resolving `target: "plan:<id>"` requires
-        // the fully-populated `documents_by_address`.
+        let mut records: Vec<IndexEntry> =
+            Vec::with_capacity(read_results.len());
         for (kind, path, content) in read_results {
             let content = match content {
                 Ok(c) => c,
                 Err(FileDriverError::NotFound { .. }) => continue,
                 Err(e) => return Err(e),
             };
-            let entry = build_entry(
+            records.push(build_entry(
                 kind,
-                path.clone(),
+                path,
                 &content,
                 &self.project_root,
                 &reading,
-            );
-
-            if let Some(id) = identity_key_of_entry(&entry) {
-                hold_if_lower(&mut work_item_by_identity_key, id, &path);
-            }
-            if let Some(address) =
-                linkage_address_of(&entry, reading.linkage_ids())
-            {
-                documents_by_address.insert(address, path.clone());
-            }
-            for id in identity_keys_of(entry.work_item_refs.clone(), &reading) {
-                // Skip self-references: a doc must not appear in its own index.
-                if entry.identity_key.as_deref() == Some(id.as_str()) {
-                    continue;
-                }
-                work_item_refs_by_target
-                    .entry(id)
-                    .or_default()
-                    .insert(path.clone());
-            }
-
-            entries.insert(path, entry);
+            ));
         }
+        self.install(records, &reading, trust).await;
+        Ok(())
+    }
 
-        // Phase 3 Pass B: resolve reviews_by_target with the fully-
-        // populated `documents_by_address` so typed-linkage
-        // `target: "plan:<id>"` references resolve regardless of
-        // file-driver iteration order.
-        let reviews_by_target = reviews_by_target_of(
-            &entries,
-            &documents_by_address,
-            &work_item_by_identity_key,
-            &reading,
-            &self.project_root,
-        );
-
-        // Hold all five write locks simultaneously and replace contents
-        // so readers never observe a partial (entries, secondary)
-        // snapshot. Always acquire in the same order: entries → work_item
-        // → documents_by_address → reviews_by_target →
-        // work_item_refs_by_target.
+    /// Replaces the index with `records`, swapping every map under the
+    /// same ordered write locks so readers never see a partial index.
+    async fn install(
+        &self,
+        records: Vec<IndexEntry>,
+        reading: &crate::config::WorkItemConfig,
+        trust: Trust,
+    ) {
+        let maps = IndexMaps::build(&records, reading, &self.project_root);
+        let mut entries: HashMap<PathBuf, IndexEntry> = records
+            .into_iter()
+            .map(|entry| (entry.path.clone(), entry))
+            .collect();
         publish_document_ids(&mut entries);
         let mut entries_w = self.entries.write().await;
         let mut work_item_w = self.work_item_by_identity_key.write().await;
         let mut addresses_w = self.documents_by_address.write().await;
         let mut reviews_w = self.reviews_by_target.write().await;
         let mut refs_w = self.work_item_refs_by_target.write().await;
+        let mut latest_w = self.latest_change_by_set.write().await;
         *entries_w = entries;
-        *work_item_w = work_item_by_identity_key;
-        *addresses_w = documents_by_address;
-        *reviews_w = reviews_by_target;
-        *refs_w = work_item_refs_by_target;
+        *work_item_w = maps.work_item_by_identity_key;
+        *addresses_w = maps.documents_by_address;
+        *reviews_w = maps.reviews_by_target;
+        *refs_w = maps.work_item_refs_by_target;
+        *latest_w = maps.latest_change_by_set;
         self.hold_trust(trust);
-        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn from_records(
+        project_root: PathBuf,
+        records: Vec<IndexEntry>,
+    ) -> Self {
+        let doc_types = crate::test_support::assembled_catalogue();
+        let driver = Arc::new(crate::file_driver::LocalFileDriver::new(
+            &doc_types,
+            &HashMap::new(),
+            vec![],
+            vec![],
+        ));
+        let me = Self::empty(
+            driver,
+            doc_types,
+            project_root,
+            Arc::new(crate::config::WorkItemConfig::default_numeric()),
+        );
+        let reading = me.work_item_cfg();
+        me.install(records, &reading, Trust::Trusted).await;
+        me
     }
 
     /// Refreshes a single index entry for the given path without a full rescan.
@@ -602,6 +837,9 @@ impl Indexer {
                 let entry = entries[&canonical].clone();
                 self.rehome_reviews_if_holders_moved(&holders_before, &entries)
                     .await;
+                for set in [previous.as_ref(), Some(&entry)] {
+                    self.refresh_latest_change(set, &entries).await;
+                }
 
                 #[cfg(test)]
                 if let Some(hook) =
@@ -685,6 +923,30 @@ impl Indexer {
         entries.remove(&previous.path);
         self.rehome_reviews_if_holders_moved(&holders_before, entries)
             .await;
+        self.refresh_latest_change(Some(previous), entries).await;
+    }
+
+    async fn refresh_latest_change(
+        &self,
+        document: Option<&IndexEntry>,
+        entries: &HashMap<PathBuf, IndexEntry>,
+    ) {
+        let Some(placement) = document.and_then(IndexEntry::set_placement)
+        else {
+            return;
+        };
+        let directory = &placement.context.set_directory;
+        let in_set = entries.values().filter(|entry| {
+            entry
+                .set_placement()
+                .is_some_and(|p| &p.context.set_directory == directory)
+        });
+        let newest = latest_change_by_set_of(in_set).remove(directory);
+        let mut latest = self.latest_change_by_set.write().await;
+        match newest {
+            Some(newest) => latest.insert(directory.clone(), newest),
+            None => latest.remove(directory),
+        };
     }
 
     /// Re-resolves every review once an identity key changed holder, so a
@@ -700,7 +962,7 @@ impl Indexer {
         }
         let addresses = self.documents_by_address.read().await.clone();
         *self.reviews_by_target.write().await = reviews_by_target_of(
-            entries,
+            listed(entries.values()),
             &addresses,
             &holders,
             &self.work_item_cfg(),
@@ -717,10 +979,7 @@ impl Indexer {
     }
 
     pub async fn all_by_type(&self, kind: DocTypeKey) -> Vec<IndexEntry> {
-        self.entries
-            .read()
-            .await
-            .values()
+        listed(self.entries.read().await.values())
             .filter(|e| e.r#type == kind)
             .cloned()
             .collect()
@@ -728,7 +987,7 @@ impl Indexer {
 
     pub async fn counts_by_type(&self) -> HashMap<DocTypeKey, usize> {
         let mut out: HashMap<DocTypeKey, usize> = HashMap::new();
-        for entry in self.entries.read().await.values() {
+        for entry in listed(self.entries.read().await.values()) {
             *out.entry(entry.r#type).or_insert(0) += 1;
         }
         out
@@ -749,14 +1008,18 @@ impl Indexer {
         selection: &Selection,
     ) -> LibraryAggregates {
         let entries = self.entries.read().await;
+        let latest_change_by_set = self.latest_change_by_set.read().await;
         let mut agg = LibraryAggregates::default();
 
         // First pass: counts and latest preview (selection-unaware).
-        for entry in entries.values() {
+        for entry in listed(entries.values()) {
             let per = agg.per_type.entry(entry.r#type).or_default();
             per.count += 1;
 
-            let preview = LatestPreview::from_entry(entry);
+            let preview = LatestPreview::from_entry(
+                entry,
+                latest_change_of(entry, &latest_change_by_set),
+            );
             per.latest = Some(match per.latest.take() {
                 None => preview,
                 Some(existing) => {
@@ -775,8 +1038,9 @@ impl Indexer {
         // Second pass: facet scoping per doc type, under the same lock.
         for (doc_type, per) in &mut agg.per_type {
             let type_selection = selection.get(doc_type);
-            let type_entries: Vec<&IndexEntry> =
-                entries.values().filter(|e| e.r#type == *doc_type).collect();
+            let type_entries: Vec<&IndexEntry> = listed(entries.values())
+                .filter(|e| e.r#type == *doc_type)
+                .collect();
 
             per.filtered_count = type_entries
                 .iter()
@@ -809,7 +1073,34 @@ impl Indexer {
     }
 
     pub async fn all(&self) -> Vec<IndexEntry> {
+        listed(self.entries.read().await.values())
+            .cloned()
+            .collect()
+    }
+
+    pub async fn documents_including_members(&self) -> Vec<IndexEntry> {
         self.entries.read().await.values().cloned().collect()
+    }
+
+    pub async fn set_members(&self, set_directory: &Path) -> Vec<IndexEntry> {
+        let mut members: Vec<IndexEntry> = self
+            .entries
+            .read()
+            .await
+            .values()
+            .filter(|e| e.is_member())
+            .filter(|e| {
+                e.set_placement()
+                    .is_some_and(|p| p.context.set_directory == set_directory)
+            })
+            .cloned()
+            .collect();
+        members.sort_by(|a, b| {
+            a.set_placement()
+                .map(|p| &p.set_relative_path)
+                .cmp(&b.set_placement().map(|p| &p.set_relative_path))
+        });
+        members
     }
 
     /// Returns a cloned snapshot of `work_item_by_identity_key` for callers
@@ -1221,8 +1512,7 @@ fn release(
     if map.get(key).map(PathBuf::as_path) != Some(leaving) {
         return;
     }
-    let next = entries
-        .values()
+    let next = listed(entries.values())
         .filter(|entry| entry.path != leaving)
         .filter(|entry| identity_key_of_entry(entry).as_deref() == Some(key))
         .map(|entry| entry.path.clone())
@@ -1346,15 +1636,15 @@ async fn remove_from_documents_by_address(
 }
 
 /// Every review, by the path of the document it targets.
-fn reviews_by_target_of(
-    entries: &HashMap<PathBuf, IndexEntry>,
+fn reviews_by_target_of<'a>(
+    entries: impl IntoIterator<Item = &'a IndexEntry>,
     documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
 ) -> HashMap<PathBuf, BTreeSet<PathBuf>> {
     let mut reviews: HashMap<PathBuf, BTreeSet<PathBuf>> = HashMap::new();
-    for entry in entries.values() {
+    for entry in entries {
         if let Some(target) = target_path_from_entry(
             entry,
             documents_by_address,
@@ -1586,6 +1876,20 @@ fn build_entry(
     let rel_path = path
         .strip_prefix(project_root)
         .map_or_else(|_| path.clone(), std::path::Path::to_path_buf);
+    let set =
+        kind.is_set()
+            .then(|| path.parent())
+            .flatten()
+            .map(|set_directory| {
+                SetDocument::root(
+                    Arc::new(SetContext {
+                        set_id: set_id_of(&parsed.state, set_directory),
+                        set_slug: slug_val.clone(),
+                        set_directory: set_directory.to_path_buf(),
+                    }),
+                    filename.to_owned(),
+                )
+            });
 
     IndexEntry {
         r#type: kind,
@@ -1613,12 +1917,13 @@ fn build_entry(
         completeness: None,
         linked_count: 0,
         cluster_key: None,
+        set,
     }
 }
 
 fn publish_document_ids(entries: &mut HashMap<PathBuf, IndexEntry>) {
     let mut holders: HashMap<(DocTypeKey, &str), usize> = HashMap::new();
-    for entry in entries.values() {
+    for entry in listed(entries.values()) {
         if let Some(id) = entry.frontmatter_id.as_deref() {
             *holders.entry((entry.r#type, id)).or_insert(0) += 1;
         }
@@ -1629,6 +1934,10 @@ fn publish_document_ids(entries: &mut HashMap<PathBuf, IndexEntry>) {
         .map(|((kind, id), _)| (kind, id.to_owned()))
         .collect();
     for entry in entries.values_mut() {
+        if entry.is_member() {
+            entry.id.clone_from(&entry.frontmatter_id);
+            continue;
+        }
         let unique_frontmatter_id = entry
             .frontmatter_id
             .clone()
@@ -1638,12 +1947,10 @@ fn publish_document_ids(entries: &mut HashMap<PathBuf, IndexEntry>) {
 }
 
 fn set_directory_of(entry: &IndexEntry) -> Option<String> {
-    if !entry.r#type.is_set() {
-        return None;
-    }
     entry
-        .path
-        .parent()?
+        .set_placement()?
+        .context
+        .set_directory
         .file_name()?
         .to_str()
         .map(str::to_owned)
@@ -1827,6 +2134,66 @@ mod document_id_tests {
         )
         .await;
         assert_eq!(id.as_deref(), Some("2026-05-06-135214-current-app"));
+    }
+
+    async fn set_wire_fields_of(
+        path: &str,
+        content: &str,
+    ) -> (serde_json::Value, serde_json::Value) {
+        let wire = serde_json::to_value(entry_at(path, content).await).unwrap();
+        (wire["setId"].clone(), wire["setRelativePath"].clone())
+    }
+
+    #[tokio::test]
+    async fn a_set_root_carries_its_set_id_and_set_relative_path() {
+        let fields = set_wire_fields_of(
+            "meta/research/topics/caching-dir/manifest.md",
+            "---\nid: \"prompt-caching\"\n---\n",
+        )
+        .await;
+        assert_eq!(
+            fields,
+            (
+                serde_json::json!("prompt-caching"),
+                serde_json::json!("manifest.md")
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn a_set_root_without_an_id_takes_its_directory_as_set_id() {
+        let fields = set_wire_fields_of(
+            "meta/research/design-inventories/2026-05-06-app/inventory.md",
+            "---\ntitle: \"App\"\n---\n",
+        )
+        .await;
+        assert_eq!(
+            fields,
+            (
+                serde_json::json!("2026-05-06-app"),
+                serde_json::json!("inventory.md")
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn a_malformed_set_root_takes_its_directory_as_set_id() {
+        let (set_id, _) = set_wire_fields_of(
+            "meta/research/topics/caching-dir/manifest.md",
+            "---\nid: [\"unclosed\n---\n",
+        )
+        .await;
+        assert_eq!(set_id, serde_json::json!("caching-dir"));
+    }
+
+    #[tokio::test]
+    async fn a_document_outside_a_set_has_null_set_fields() {
+        let fields = set_wire_fields_of(
+            "meta/plans/2026-01-01-foo.md",
+            "---\nid: \"foo\"\n---\n",
+        )
+        .await;
+        assert_eq!(fields, (serde_json::Value::Null, serde_json::Value::Null));
     }
 
     #[tokio::test]
@@ -3278,6 +3645,7 @@ mod tests {
             completeness: None,
             linked_count: 0,
             cluster_key: None,
+            set: None,
         }
     }
 
@@ -3304,6 +3672,7 @@ mod tests {
             completeness: None,
             linked_count: 0,
             cluster_key: None,
+            set: None,
         }
     }
 
@@ -5562,5 +5931,295 @@ mod target_path_resolution_tests {
             resolved,
             Some(PathBuf::from("/repo/alt/meta/plans/foo.md"))
         );
+    }
+}
+
+#[cfg(test)]
+mod set_membership_tests {
+    use super::*;
+    use crate::test_support::{
+        dossier, dossiers, entry_for_test, set_member_for_test,
+        set_root_for_test,
+    };
+
+    async fn indexed(records: Vec<IndexEntry>) -> Indexer {
+        Indexer::from_records(PathBuf::from("/x"), records).await
+    }
+
+    fn paths_of(entries: &[IndexEntry]) -> Vec<PathBuf> {
+        let mut paths: Vec<PathBuf> =
+            entries.iter().map(|e| e.path.clone()).collect();
+        paths.sort();
+        paths
+    }
+
+    #[tokio::test]
+    async fn the_listing_accessors_hold_the_root_and_no_member() {
+        let root = dossier("dossier-a");
+        let member = set_member_for_test(&root, "notes/a.md");
+        let indexer = indexed(vec![root.clone(), member]).await;
+
+        assert_eq!(paths_of(&indexer.all().await), vec![root.path.clone()]);
+        assert_eq!(
+            paths_of(&indexer.all_by_type(dossiers()).await),
+            vec![root.path.clone()]
+        );
+        assert_eq!(indexer.counts_by_type().await.get(&dossiers()), Some(&1));
+    }
+
+    #[tokio::test]
+    async fn the_explicit_accessors_reach_members() {
+        let root = dossier("dossier-a");
+        let report = set_member_for_test(&root, "reports/r.md");
+        let brief = set_member_for_test(&root, "brief.md");
+        let finding = set_member_for_test(&root, "findings/01-a.md");
+        let other = dossier("dossier-b");
+        let stranger = set_member_for_test(&other, "brief.md");
+        let indexer = indexed(vec![
+            root.clone(),
+            report.clone(),
+            brief.clone(),
+            finding.clone(),
+            other.clone(),
+            stranger.clone(),
+        ])
+        .await;
+
+        let members: Vec<PathBuf> = indexer
+            .set_members(Path::new("/x/dossier-a"))
+            .await
+            .into_iter()
+            .map(|e| e.path)
+            .collect();
+        assert_eq!(
+            members,
+            vec![
+                brief.path.clone(),
+                finding.path.clone(),
+                report.path.clone()
+            ]
+        );
+        assert_eq!(
+            paths_of(&indexer.documents_including_members().await),
+            paths_of(&[root, report, brief, finding.clone(), other, stranger])
+        );
+        assert_eq!(
+            indexer.get(&finding.path).await.map(|e| e.path),
+            Some(finding.path)
+        );
+    }
+
+    #[tokio::test]
+    async fn library_aggregates_count_and_facet_the_root_alone() {
+        let mut root = dossier("dossier-a");
+        root.frontmatter = serde_json::json!({ "status": "draft" });
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.frontmatter = serde_json::json!({ "status": "final" });
+        member.slug = Some("another-slug".into());
+        let indexer = indexed(vec![root, member]).await;
+
+        let aggregates = indexer.library_aggregates(&Selection::new()).await;
+        let per = &aggregates.per_type[&dossiers()];
+        assert_eq!(per.count, 1);
+        assert_eq!(
+            per.facet_options["status"],
+            BTreeMap::from([("draft".to_string(), 1)])
+        );
+        assert_eq!(
+            per.facet_options["clusterSlug"],
+            BTreeMap::from([("dossier-a".to_string(), 1)])
+        );
+    }
+
+    #[tokio::test]
+    async fn a_sets_latest_change_is_its_newest_document() {
+        let mut root = dossier("dossier-a");
+        root.mtime_ms = 10;
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.mtime_ms = 50;
+        let mut other = dossier("dossier-b");
+        other.mtime_ms = 30;
+        let indexer = indexed(vec![root.clone(), member, other]).await;
+
+        let aggregates = indexer.library_aggregates(&Selection::new()).await;
+        let latest = aggregates.per_type[&dossiers()].latest.clone().unwrap();
+        assert_eq!(latest.rel_path, root.served_rel_path());
+        assert_eq!(latest.modified_at, 50);
+    }
+
+    fn set_mtime_ms(path: &Path, ms: u64) {
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(
+                std::time::SystemTime::UNIX_EPOCH
+                    + std::time::Duration::from_millis(ms),
+            )
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn refreshing_a_set_root_moves_its_sets_latest_change() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let topics = root.join("meta/research/topics");
+        let manifest = topics.join("caching/manifest.md");
+        std::fs::create_dir_all(manifest.parent().unwrap()).unwrap();
+        std::fs::write(&manifest, "---\nid: \"caching\"\n---\n").unwrap();
+        set_mtime_ms(&manifest, 1_000);
+        let catalogue = crate::test_support::assembled_catalogue();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(crate::file_driver::LocalFileDriver::new(
+                &catalogue,
+                &HashMap::from([("research_topics".to_string(), topics)]),
+                vec![],
+                vec![],
+            ));
+        let indexer = Indexer::build(
+            driver,
+            catalogue,
+            root,
+            Arc::new(crate::config::WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
+
+        set_mtime_ms(&manifest, 9_000);
+        indexer.refresh_one(&manifest).await.unwrap();
+
+        let aggregates = indexer.library_aggregates(&Selection::new()).await;
+        let latest = aggregates.per_type[&DocTypeKey::TOPIC_RESEARCH]
+            .latest
+            .clone()
+            .unwrap();
+        assert_eq!(latest.modified_at, 9_000);
+    }
+
+    #[tokio::test]
+    async fn a_member_sharing_its_roots_id_leaves_the_root_its_id() {
+        let root = set_root_for_test(dossiers(), "dir-a", "cover.md", "set-x");
+        let member = set_member_for_test(&root, "notes/a.md");
+        let indexer = indexed(vec![root.clone(), member.clone()]).await;
+
+        let id_of = |entry: Option<IndexEntry>| entry.and_then(|e| e.id);
+        assert_eq!(
+            id_of(indexer.get(&root.path).await).as_deref(),
+            Some("set-x")
+        );
+        assert_eq!(
+            id_of(indexer.get(&member.path).await).as_deref(),
+            Some("set-x")
+        );
+    }
+
+    #[tokio::test]
+    async fn documents_by_address_holds_no_member() {
+        let root = dossier("dossier-a");
+        let sharing = set_member_for_test(&root, "notes/a.md");
+        let mut own = set_member_for_test(&root, "notes/b.md");
+        own.frontmatter_id = Some("member-only".into());
+        let indexer = indexed(vec![root.clone(), sharing, own]).await;
+
+        let at = |id: &str| LinkageAddress::new("dossier", id);
+        assert_eq!(
+            indexer.document_at(&at("dossier-a")).await.map(|e| e.path),
+            Some(root.path)
+        );
+        assert!(indexer.document_at(&at("member-only")).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn work_item_by_identity_key_holds_no_member() {
+        let root = dossier("dossier-a");
+        let mut sharing = set_member_for_test(&root, "notes/a.md");
+        sharing.identity_key = Some("0007".into());
+        let mut alone = set_member_for_test(&root, "notes/b.md");
+        alone.identity_key = Some("0008".into());
+        let mut item = entry_for_test(DocTypeKey::WORK_ITEMS, "w", 0, "W");
+        item.path = PathBuf::from("/x/work/0007-w.md");
+        item.identity_key = Some("0007".into());
+        let indexer = indexed(vec![root, sharing, alone, item.clone()]).await;
+
+        let holders = indexer.work_item_by_identity_key_snapshot().await;
+        assert_eq!(holders.get("0007"), Some(&item.path));
+        assert_eq!(holders.get("0008"), None);
+    }
+
+    #[tokio::test]
+    async fn reviews_by_target_holds_no_member() {
+        let mut root = dossier("dossier-a");
+        root.frontmatter = serde_json::json!({ "target": "meta/plans/p.md" });
+        let member = set_member_for_test(&root, "notes/a.md");
+        let indexer = indexed(vec![root.clone(), member]).await;
+
+        let reviews = indexer
+            .reviews_by_target(Path::new("/x/meta/plans/p.md"))
+            .await;
+        assert_eq!(paths_of(&reviews), vec![root.path]);
+    }
+
+    #[tokio::test]
+    async fn work_item_refs_by_target_holds_members() {
+        let root = dossier("dossier-a");
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.work_item_refs = vec!["0042".into()];
+        let indexer = indexed(vec![root, member.clone()]).await;
+
+        assert_eq!(
+            paths_of(&indexer.work_item_refs_by_id("0042").await),
+            vec![member.path]
+        );
+    }
+
+    #[test]
+    fn a_members_link_keys_are_its_sets() {
+        let root = set_root_for_test(dossiers(), "dossier-a", "cover.md", "s");
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.slug = None;
+        member.id = Some("own".into());
+
+        let keys = link_keys_of(&member);
+
+        assert_eq!(
+            (keys.slug.as_deref(), keys.id.as_deref()),
+            (Some("dossier-a"), Some("s"))
+        );
+    }
+
+    #[test]
+    fn a_roots_link_keys_are_its_own() {
+        let mut root = dossier("dossier-a");
+        root.slug = Some("root-slug".into());
+        root.id = Some("root-id".into());
+
+        let keys = link_keys_of(&root);
+
+        assert_eq!(
+            (keys.slug.as_deref(), keys.id.as_deref()),
+            (Some("root-slug"), Some("root-id"))
+        );
+    }
+
+    #[test]
+    fn a_documents_link_keys_outside_a_set_are_its_own() {
+        let mut plan = entry_for_test(DocTypeKey::PLANS, "foo", 0, "Foo");
+        plan.id = Some("plan-id".into());
+
+        let keys = link_keys_of(&plan);
+
+        assert_eq!(
+            (keys.slug.as_deref(), keys.id.as_deref()),
+            (Some("foo"), Some("plan-id"))
+        );
+    }
+
+    #[test]
+    fn a_members_search_key_is_its_stem_and_anything_elses_its_slug() {
+        let root = dossier("dossier-a");
+        let member = set_member_for_test(&root, "findings/01-cost.md");
+
+        assert_eq!(member.search_key(), Some("01-cost"));
+        assert_eq!(root.search_key(), Some("dossier-a"));
     }
 }
