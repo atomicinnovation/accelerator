@@ -2857,8 +2857,10 @@ def test_each_outputter_names_its_template_command(
 def test_every_skill_injecting_a_template_outputter_grants_its_command(
     outputter: Path, command: str
 ) -> None:
-    assert command in frontmatter_bash_rules(_read(outputter)), (
-        f"{outputter.parent.name} must grant its exact template command"
+    frontmatter, _ = _split(_read(outputter))
+    assert "allowed-tools" not in frontmatter, (
+        f"{outputter.parent.name} is read, not invoked, so its frontmatter "
+        "grants nothing; the injecting skill's grant is what reaches a spawn"
     )
     outputters = REPO_ROOT / "skills/research/outputters"
     injected = outputter.relative_to(REPO_ROOT).as_posix()

@@ -518,10 +518,9 @@ and `research-topic`'s `allowed-tools` covers all of them:
 - `Bash(accelerator research topic node *)` covers the node query.
 - `Bash(accelerator config template *)` covers both template commands.
 
-The finding and level-note outputters each list their template command under
-`allowed-tools`, but a researcher reads an outputter rather than invoking it
-as a skill, so that frontmatter grants nothing: the command runs under the
-grant the spawn inherits.
+A researcher reads the finding and level-note outputters rather than
+invoking them as skills, so they grant nothing: each template command runs
+under the grant the spawn inherits.
 
 `research-topic` grants only the config reads and `research topic`
 subcommands it runs, each by name, so no spawn inherits a grant for

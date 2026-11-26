@@ -6,8 +6,6 @@ description: Output contract for a research finding. Owns the finding's
   directly.
 user-invocable: false
 disable-model-invocation: true
-allowed-tools:
-  - Bash(accelerator config template topic-research --kind finding)
 ---
 
 # Finding Outputter

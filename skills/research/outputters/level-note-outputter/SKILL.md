@@ -6,8 +6,6 @@ description: Output contract for a research level note, one node of a pair's
   researcher by the research-topic conduct verb — not invoked directly.
 user-invocable: false
 disable-model-invocation: true
-allowed-tools:
-  - Bash(accelerator config template topic-research --kind level-note)
 ---
 
 # Level-Note Outputter

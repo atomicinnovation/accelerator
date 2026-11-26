@@ -98,9 +98,11 @@ stays the current offered batch until the next plan.
   researcher runs it, without `--fail-safe`, before any search or fetch.
   The launcher resolves the template as it does today, so an override
   outside the project needs no `Read` rule and the plugin root stays the
-  launcher's own concern. Each outputter grants its exact command in
-  frontmatter, and `research-topic`'s `Bash(accelerator config *)` reaches
-  the researchers it spawns.
+  launcher's own concern. A researcher reads its outputter rather than
+  invoking it, so an outputter's frontmatter grants nothing: every skill
+  that injects an outputter grants a rule covering its command, and
+  `research-topic`'s `Bash(accelerator config template *)` reaches the
+  researchers it spawns.
 - **Composer stays command-free**: the composer keeps only `Read` and
   `Write`, because the research guard fails open and the composer reads
   every note of a pair. Its prompt carries the finding template inline, as
