@@ -557,6 +557,38 @@ fn a_different_working_copy_parent_differs() -> Result<(), TestError> {
     Ok(())
 }
 
+fn siblings_with_the_working_copy_on_the_second(
+    root: &Path,
+    env: &Hermetic,
+) -> Result<(), TestError> {
+    env.jj(&["git", "init", JjColocation::Pure.flag()], root)?;
+    write(root, "a.txt", "one\n")?;
+    env.jj(&["commit", "-m", "parent"], root)?;
+    env.jj(&["describe", "-m", "first"], root)?;
+    env.jj(&["new", "@-", "-m", "second"], root)?;
+    Ok(())
+}
+
+#[test]
+fn a_working_copy_on_a_different_sibling_differs() -> Result<(), TestError> {
+    let on_second =
+        Build::of(siblings_with_the_working_copy_on_the_second)?.state()?;
+    let on_first = Build::of(siblings_with_the_working_copy_on_the_second)?
+        .then(|root, env| {
+            env.jj(&["edit", "@-+ ~ @"], root)?;
+            Ok(())
+        })?
+        .state()?;
+
+    assert_eq!(on_second.commits, on_first.commits);
+    assert_eq!(
+        on_second.working_copy_parents,
+        on_first.working_copy_parents
+    );
+    assert_ne!(on_second, on_first);
+    Ok(())
+}
+
 #[test]
 fn a_different_colocation_differs() -> Result<(), TestError> {
     let pure = Build::of(jj_history(JjColocation::Pure))?.state()?;

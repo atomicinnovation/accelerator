@@ -21,6 +21,7 @@ struct TieBreak<'r> {
     parents: Vec<CommitPosition>,
     references: Vec<&'r str>,
     is_working_copy_parent: bool,
+    is_working_copy: bool,
 }
 
 /// Each commit's position, keyed by commit ID.
@@ -64,6 +65,8 @@ pub(super) fn ordered_positions(
                         .unwrap_or_default(),
                     is_working_copy_parent: working_copy_parents
                         .contains(commit.id.as_str()),
+                    is_working_copy: repository.working_copy_commit.as_ref()
+                        == Some(&commit.id),
                 };
                 Some((tie_break, commit))
             })
@@ -175,6 +178,7 @@ mod tests {
             bookmarks: BTreeMap::new(),
             git: None,
             working_copy_parents: Vec::new(),
+            working_copy_commit: None,
         }
     }
 
@@ -200,6 +204,16 @@ mod tests {
                 .iter()
                 .map(|&parent| parent.to_owned())
                 .collect(),
+            ..repository
+        }
+    }
+
+    fn on_working_copy_commit(
+        commit: &str,
+        repository: RawRepository,
+    ) -> RawRepository {
+        RawRepository {
+            working_copy_commit: Some(commit.to_owned()),
             ..repository
         }
     }
@@ -285,6 +299,16 @@ mod tests {
     fn commits_alike_but_for_the_working_copy_are_ordered_by_it() {
         let order = ordered_either_way(on_working_copy_parents(
             &["x"],
+            repository(vec![commit("x", &[]), commit("y", &[])]),
+        ));
+
+        assert_eq!(order, ["y", "x"]);
+    }
+
+    #[test]
+    fn commits_alike_but_for_being_the_working_copy_are_ordered_by_it() {
+        let order = ordered_either_way(on_working_copy_commit(
+            "x",
             repository(vec![commit("x", &[]), commit("y", &[])]),
         ));
 

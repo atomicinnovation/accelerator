@@ -25,6 +25,8 @@ pub struct RepositoryState {
     pub bookmarks: BTreeMap<String, CommitPosition>,
     pub git: Option<GitSide>,
     pub working_copy_parents: Vec<CommitPosition>,
+    /// jj's `@`; git's working copy is no commit.
+    pub working_copy_commit: Option<CommitPosition>,
     pub working_copy: BTreeMap<String, FileState>,
 }
 
@@ -100,6 +102,11 @@ impl RepositoryState {
                 .transpose()?,
             working_copy_parents: projection
                 .positions_of(&raw.working_copy_parents)?,
+            working_copy_commit: raw
+                .working_copy_commit
+                .as_ref()
+                .map(|id| projection.position_of(id))
+                .transpose()?,
             working_copy: projection.files(&working_copy(root)?),
         })
     }
@@ -225,6 +232,7 @@ struct RawRepository {
     bookmarks: BTreeMap<String, String>,
     git: Option<RawGitSide>,
     working_copy_parents: Vec<String>,
+    working_copy_commit: Option<String>,
 }
 
 #[derive(Debug)]

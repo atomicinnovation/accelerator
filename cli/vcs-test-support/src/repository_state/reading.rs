@@ -78,6 +78,7 @@ pub(super) fn git(
         bookmarks: BTreeMap::new(),
         git: Some(git),
         working_copy_parents,
+        working_copy_commit: None,
     })
 }
 
@@ -191,6 +192,7 @@ pub(super) fn jj(
     let mut commits = Vec::new();
     let mut bookmarks = BTreeMap::new();
     let mut working_copy_parents = Vec::new();
+    let mut working_copy_commit = None;
     for record in listing
         .split(RECORD)
         .filter(|record| !record.trim().is_empty())
@@ -216,6 +218,7 @@ pub(super) fn jj(
         }
         if !working_copy.is_empty() {
             working_copy_parents.clone_from(&parents);
+            working_copy_commit = Some(id.clone());
         }
         let tree = store.commit(&id)?.tree;
         commits.push(RawCommit {
@@ -236,6 +239,7 @@ pub(super) fn jj(
         bookmarks,
         git,
         working_copy_parents,
+        working_copy_commit,
     })
 }
 
