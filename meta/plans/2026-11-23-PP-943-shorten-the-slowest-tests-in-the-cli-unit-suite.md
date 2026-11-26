@@ -5,7 +5,7 @@ title: "Shorten the Slowest Tests in the CLI Unit Suite Implementation Plan"
 date: "2026-11-23T14:36:51+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:PP-943"
 parent: "work-item:PP-943"
 derived_from: ["codebase-research:2026-11-23-PP-943-shorten-the-slowest-tests-in-the-cli-unit-suite"]
@@ -1856,10 +1856,12 @@ check 2.8 s, and `guarded_resume`'s two reused-state tests 14.3 s and
 
 #### Manual Verification
 
-- [ ] Every row of Recorded Figures is filled and meets its threshold.
-      Every row is filled; four miss, and go to the author under the
-      half-ratio review rule.
-- [ ] A reviewer confirms the test-mapping tables against both `nextest
+- [x] Every row of Recorded Figures is filled and meets its threshold.
+      Every row is filled; four miss. On 2026-11-26 the author reviewed them
+      under the half-ratio rule and accepted all four as PP-943's outcome:
+      every alone figure is under half its before median, and the nextest
+      phase fell beyond noise.
+- [x] A reviewer confirms the test-mapping tables against both `nextest
       list` outputs.
 
 ---
