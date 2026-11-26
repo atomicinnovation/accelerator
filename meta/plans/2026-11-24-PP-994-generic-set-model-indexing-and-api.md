@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-26T00:07:54+00:00"
+last_updated: "2026-11-26T00:20:47+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -34,33 +34,42 @@ a set whole.
 The author chose to make doc types **fully data-driven** (planning decision
 Q2, 2026-11-24). A doc type becomes a declared value, with its identity, its
 facts and its rules, held in a catalogue. It is no longer a closed enum with
-a `match` arm per variant. A set doc type's declaration carries its
-presentation. Its shape is declared, in `corpus`'s terms, by the domain
-that writes the set, in that domain's **declarations crate** beside its
-layout constants (ADR-0080). One **declarations assembly** crate builds
-the complete catalogue from the corpus's built-in declarations and every
-owner's shape, and every composition root that needs a catalogue takes
-it from there. Server code therefore branches on declared facts and
-never on a named doc type, and test code can declare a doc type and its
-shape through the same constructor the assembly uses.
+a `match` arm per variant. A set listing carries the set's shape and
+presentation (ADR-0078). Each doc type is declared once: by its owner in
+the owner's **declarations crate** (ADR-0080), or by the corpus while it
+has no owner. In this story the two set types' **set declarations**, each
+a shape and a presentation, move to their owners: the domain that writes
+the set declares both, in `corpus`'s terms, beside its layout constants.
+Every other fact and rule of every doc type stays in the corpus's built-in
+declarations, where a set type's declaration only marks it as a set. This
+is the interim state ADR-0078 and ADR-0080 describe, in which a doc
+type's facts stay in the corpus beside a shape its owner declares;
+PP-1007 moves whole declarations to their owners. One **declarations
+assembly** crate builds the complete catalogue from every declaration,
+pairing each corpus-declared set type with its owner's set declaration,
+and every composition root that needs a catalogue takes it from there.
+Server code therefore branches on declared facts and never on a named doc
+type, and test code can declare a doc type and its set declaration
+through the same constructor the assembly uses.
 
 The corpus CLI's resolver conforms to the same model in this story:
 `corpus resolve`, and the research commands that resolve a topic set
-through it, read a set through its shape and stop treating rootless or
-dot-prefixed directories, or unslotted files, as sets.
+through it, read a set through its shape. They stop treating rootless or
+dot-prefixed directories as sets, and resolve a path to a set only when
+it is the set directory, its root, a member, or a directory that can
+hold members.
 
 The plan has two stages, as the work item prescribes:
 
-1. **Stage one (Phase 1): decisions.** This stage writes ADR-0077 (the set
+1. **Stage one (Phase 1): decisions. Complete.** ADR-0077 (the set
    model), ADR-0078 (doc types as declared data), ADR-0079 (doc roots may
-   not overlap), ADR-0080 (domain declarations crates) and the member API
-   specification. It ends when the author accepts all four ADRs through
-   `/review-adr` and the dated decisions line exists in PP-994's Drafting
-   Notes.
-2. **Stage two (Phases 2–12): implementation.** Each phase is test-first
-   and mergeable on its own with `mise run` green.
+   not overlap) and ADR-0080 (domain declarations crates) are accepted,
+   the member API specification is written, and PP-994's Drafting Notes
+   carry the decisions line dated 2026-11-26.
+2. **Stage two (Phases 2–12): implementation. Next: Phase 2.** Each phase
+   is test-first and mergeable on its own with `mise run` green.
 
-## Sizing consequence and recommended split
+## Sizing consequence and the decision not to split
 
 The work item is sized **L**. That estimate assumed set declarations as
 methods on the `DocTypeKey` enum. Making doc types data-driven adds a
@@ -90,21 +99,23 @@ The owner-declared shapes grow it further:
 
 **This plan is therefore XL as a whole, and Phases 3–5 alone are about L.**
 
-**Recommendation (not actioned, since the work item is not edited here):**
-split Phases 3–6 into their own enabling work item, for example "Doc types
-as declared data", parented to PP-868. It would carry no behaviour change,
-and PP-994's implementation would depend on it.
+**Decision: one work item.** A split of Phases 3–6 into their own
+enabling work item (for example "Doc types as declared data", parented to
+PP-868, carrying no behaviour change) was considered. On 2026-11-26 the
+author decided to keep all 12 phases under PP-994. The facts that
+recommendation rested on still hold:
 
-- Phase 1's ADR-0078 and ADR-0080 are that item's decision records.
-- Phase 2 (overlapping-root refusal) is independent of both and could ship
-  first under either item.
-- After the split, PP-994 returns to roughly its original L, plus the
+- Phase 1's ADR-0078 and ADR-0080 are the decision records Phases 3–6
+  implement.
+- Phase 2 (overlapping-root refusal) is independent of the refactor and
+  can ship first.
+- Without Phases 3–6, the rest would be roughly the original L, plus the
   resolver's conformance (Phases 7–12).
 - The planning release that the decisions line gives PP-998, PP-1001,
-  PP-1000, PP-134 and PP-1002 is unaffected, because it depends only on
-  Phase 1.
+  PP-1000, PP-134 and PP-1002 is unaffected: it depended only on Phase 1,
+  and the line has existed since 2026-11-26.
 
-The work item's Technical Notes size would need updating to match.
+The work item's Technical Notes size (L) understates the whole plan.
 
 ## Current State Analysis
 
@@ -214,39 +225,60 @@ The work item's Technical Notes size would need updating to match.
     handle to a `&'static DocType`, compared by wire token.
   - A `DocTypeCatalogue` holds an ordered list of declarations, with
     lookup by wire token, linkage name and config path key.
-    `corpus::doc_type::built_in` declares today's 15 types; the
-    catalogue built from them is the `declarations` assembly's.
+    `corpus::doc_type::built_in` declares today's 15 types, none of which
+    has moved to an owner yet; the `declarations` assembly builds the
+    complete catalogue from them and the owners' set declarations.
   - Every fact and rule that used to be a `match` arm is a field of the
     declaration.
-  - No production module outside the built-in declaration module names a
-    built-in doc type.
+  - No production code names a built-in doc type outside the declarations
+    themselves (the corpus's built-in declaration module and the
+    declarations crates) and the assembly, except code that owns one doc
+    type's domain: the research topic set commands and `corpus-cli`'s ADR
+    commands. A boundary test enforces this.
 - **The server takes its catalogue from `Config`.** It defaults to the
   assembled catalogue, and test code replaces it.
 - **Declarations crates and an assembly (ADR-0080).** The crate-rule lint
   knows the declarations and declarations assembly roles.
   `research-declarations` and `design-declarations` hold their contexts'
-  layout constants and set shapes, and `research` takes its layout from
+  layout constants and set declarations (shape and presentation), and
+  `research` takes its layout from
   `research-declarations`. The `declarations` assembly exposes
   `catalogue() -> Result<Arc<DocTypeCatalogue>, CatalogueError>`, which
   the visualiser server, `corpus-cli`, `research-cli` and `migrate-cli`
-  use; adapters take the catalogue by injection. Neither `research` nor
-  `design` depends on `corpus`.
-- **A set doc type declares its presentation; its owner declares its
-  shape:**
-  - the declaration's listing is `Listing::Set { presentation }`, with
-    `Presentation::SetPage | EntryPoint`;
-  - `corpus::set` owns the shape types: `SetShape { root, member_slots }`,
+  use; adapters take the catalogue by injection, and tests take the
+  assembly as a dev-dependency. The launcher may depend on declarations
+  crates and the assembly. Neither `research` nor `design` depends on
+  `corpus`.
+- **A set listing carries the set's shape and presentation.** In this
+  story a set type's declaration is split, the interim state ADR-0078
+  and ADR-0080 allow, and the assembly joins the parts:
+  - the corpus's built-in declaration of a set type keeps its other facts
+    and rules, and its listing, `Listing::Set`, only marks it as a set;
+  - `corpus::set` owns the set declaration types:
+    `SetDeclaration { shape, presentation }`,
+    `Presentation::SetPage | EntryPoint`,
+    `SetShape { root, member_slots }`,
     `MemberSlot { pattern: &'static str, kind: MemberKind }`,
     `MemberKind::Document | Asset`, `SlotPattern`, `SetMatcher` and
     `SetPlace`;
-  - `research_declarations::topic::SHAPE` and
-    `design_declarations::inventory::SHAPE` declare the two shapes in the
-    work item's table, built from each crate's own layout constants.
-- **The catalogue holds the shapes.** `DocTypeCatalogue::new(doc_types,
-  shapes)` parses every slot pattern and refuses a set type with no
-  shape, a shape for a type that is not a set, a type given two shapes
-  and an unparseable pattern. `catalogue.set_matcher(kind)` is the only
-  production source of a `SetMatcher`. There is no separate registry.
+  - `research_declarations::topic::SET` and
+    `design_declarations::inventory::SET` declare the two sets' shapes, as
+    the work item's table gives them, built from each crate's own layout
+    constants, and their presentations: a set page for topic research and
+    an entry point for design inventories;
+  - the assembled catalogue answers both for a set type through
+    `catalogue.set_matcher(kind)`, whose `shape()` and `presentation()`
+    are the owner's. When PP-1007 moves a set type's whole declaration to
+    its owner, the owner declares the type with its set declaration and
+    the pairing goes.
+- **The catalogue holds the set declarations.**
+  `DocTypeCatalogue::new(doc_types, set_declarations)` parses every slot
+  pattern and refuses a duplicate declaration (a type declared twice by
+  wire token, linkage name or config path key, or given two set
+  declarations), a set type with no set declaration, a set declaration
+  for a type that is not a set and an unparseable pattern.
+  `catalogue.set_matcher(kind)` is the only production source of a
+  `SetMatcher`. There is no separate registry.
 - **`corpus resolve` conforms to the set model.** A set is a non-dot
   directory holding its root file. A slug resolves only such a set. A
   path resolves to its set when it is the set directory, its root, a
@@ -255,8 +287,16 @@ The work item's Technical Notes size would need updating to match.
   directory are not found. The research commands inherit this through
   `topic_set::resolve_set`.
 - **Configuration refuses a doc root that equals or contains another,**
-  and the error names both path keys. The fixtures run on the default
-  paths.
+  and the error names both path keys.
+  - Every command that resolves the full set of doc roots refuses, and so
+    does a single-key lookup of a doc type's root; lookups of other path
+    keys and configuration-editing commands are unaffected, so the
+    overlap can always be fixed.
+  - `migrate` refuses before it applies or lists any migration, and a
+    migration that writes an overlap stops the run unrecorded.
+  - The visualiser checks its canonical roots again, refusing a symlink
+    alias.
+  - The fixtures run on the default paths.
 - **Every member of a set is indexed.**
   - Member documents become index records, with their frontmatter state
     and their set-relative path. Assets go in a separate asset index, with
@@ -279,11 +319,12 @@ The work item's Technical Notes size would need updating to match.
 - **`GET /api/sets/{type}/{setId}`** returns the set, its root and every
   member in one response.
 - **`/api/docs/{path}`** returns not-found for an asset, for an unslotted
-  file in a set directory, for a member of a set that has no root, and for
-  a directory.
-- **ADR-0077, ADR-0078, ADR-0079 and ADR-0080 are accepted.**
-  `meta/specs/2026-11-24-set-member-api.md` records the member API.
-  PP-994's Drafting Notes carry the dated decisions line.
+  file in a set directory, for a file in a directory that has no root,
+  and for a directory.
+- **ADR-0077, ADR-0078, ADR-0079 and ADR-0080 are accepted,**
+  `meta/specs/2026-11-24-set-member-api.md` records the member API, and
+  PP-994's Drafting Notes carry the decisions line dated 2026-11-26.
+  Phase 1 achieved this.
 
 Verify with `mise run` (the bare default task) exiting 0, and the manual
 steps under Testing Strategy.
@@ -319,7 +360,7 @@ steps under Testing Strategy.
   runs.
   The migrate adapter swallows the resolver's errors today
   (`unwrap_or_default()`), so Phase 2 makes it propagate them.
-- **The owner edges and their enforcement.** Shapes live in
+- **The owner edges and their enforcement.** Set declarations live in
   declarations crates, so `research` and `design` gain no `corpus` edge.
   The new edges are `research-declarations` → `corpus`,
   `design-declarations` → `corpus`, `research` →
@@ -392,9 +433,12 @@ steps under Testing Strategy.
 - **Registering working files with the corpus.** Owners declare no
   dot-prefixed working files; every other reader ignores them.
 - **Moving whole doc type declarations to their owners.** Only layouts and
-  shapes move. Every doc type's facts and rules stay in `corpus`'s
-  built-in declarations, and doc types without an owning domain stay
-  wholly in `corpus`. PP-1007 and PP-1008 move the rest.
+  set declarations (shape and presentation) move. Every doc type's other
+  facts and rules stay in `corpus`'s built-in declarations, the interim
+  state ADR-0078 and ADR-0080 describe, and doc types without an
+  owning domain stay wholly in `corpus`. PP-1007 moves the owned doc
+  types' whole declarations, and PP-1008 decides homes for the unowned
+  ones and for templates.
 - **Changing what frozen migrations do.** `m0007` and the others keep
   compiling against built-in keys with unchanged behaviour.
 
@@ -414,7 +458,8 @@ and this plan touch the same wire types and fixtures. Either may land first.
 
 ## Implementation Approach
 
-- **Stage one** produces the decision records and stops for the author.
+- **Stage one** produced the decision records and is complete: all four
+  ADRs are accepted and the decisions line is dated 2026-11-26.
 - **Stage two** runs in this order:
   1. Phase 2: the independent configuration guard.
   2. Phases 3–5: the data-driven refactor, each phase pure refactor
@@ -422,9 +467,9 @@ and this plan touch the same wire types and fixtures. Either may land first.
   3. Phase 6: the declarations roles in the crate-rule lint, the two
      declarations crates and the assembly, and the composition roots
      taking the assembled catalogue, a pure refactor.
-  4. Phase 7: the shape types and the catalogue's shapes in `corpus`, the
-     owners' shapes in their declarations crates, and the doc types
-     response.
+  4. Phase 7: the set declaration types and the catalogue's pairing in
+     `corpus`, the owners' set declarations (shape and presentation) in
+     their declarations crates, and the doc types response.
   5. Phase 8: the corpus resolver reads sets through their shape. It
      needs only Phase 7 and is independent of Phases 9–12.
   6. Phase 9: the consumer rules, introduced before any member exists on
@@ -447,27 +492,32 @@ against the current code; they must pass before and after.
 Write the four ADRs and the member API specification, have the author
 accept them, and record the decisions line. No code changes.
 
+**Status: complete.** All four ADRs are `accepted`, and the decisions
+line dated 2026-11-26 is in PP-994's Drafting Notes. The summaries below
+match the accepted ADRs; the code names in them are this plan's, not
+the ADRs'.
+
 ### Changes Required:
 
 #### 1. ADR-0077: Generic set model
 
 **File**: `meta/decisions/ADR-0077-generic-set-model-for-directory-doc-types.md`
-(through `/create-adr`, status `proposed`, `parent: "work-item:PP-994"`,
-`relates_to: ["adr:ADR-0067", "adr:ADR-0068", "adr:ADR-0069", "adr:ADR-0078", "adr:ADR-0079"]`)
+(through `/create-adr`, status `accepted`, `parent: "work-item:PP-994"`,
+`relates_to: ["adr:ADR-0067", "adr:ADR-0068", "adr:ADR-0069", "adr:ADR-0078", "adr:ADR-0079", "adr:ADR-0080"]`)
 
-The ADR records the domain decision only, and is accepted. Declaration
-and catalogue mechanics are in ADR-0078, where declarations live in
-ADR-0080, the overlap refusal in ADR-0079, and the visualiser's behaviour
-in the specification.
+The ADR records the domain decision only. Declaration and catalogue
+mechanics are in ADR-0078, where declarations live in ADR-0080, the
+overlap refusal in ADR-0079, and the visualiser's behaviour in the
+specification.
 
 - **What a set is.** A directory doc type's entry is a document set: a
   root document plus members, where a member is a file fitting a member
   slot of the doc type's declared shape. A slot admits documents (any
   markdown file, whatever its frontmatter state) or assets.
-- **No root, no set.** A directory without its root file is not a set.
-  Removing the root removes the set.
-- **Outside the shape is outside the set.** Dot-prefixed paths and files
-  that fit no slot are not part of any set.
+- **No root, no set.** A directory without its root file is not a set
+  and has no members. Removing the root removes the set.
+- **Outside the shape is outside the set.** A file that fits no slot is
+  not part of any set.
 - **Identity.** A set's `id` is its root's frontmatter `id`, or else its
   directory's name.
 - **The owner declares the shape.** The domain that writes a set declares
@@ -476,26 +526,31 @@ in the specification.
 - **The shape is the contract.** Every reader other than the owner
   decides membership through the shape. The visualiser and the corpus
   CLI's resolver (ADR-0068) both conform in this story.
-- **The dot prefix is the owner's boundary.** Dot-prefixed files and
-  directories in a set directory (quarantined files, run ledgers,
-  temporary set directories) belong to the owner, which keeps reading
-  them, and are invisible to every other reader. Owners do not declare
-  them.
-- **Consequences recorded:** the resolver stops resolving rootless and
-  dot-prefixed directories, and resolves a path only through the set
-  directory, its root, a member or a directory that can hold members, so
-  some inputs that resolve today stop resolving; and the owners of
-  `research` and `design` gain a dependency on `corpus`, which ADR-0080
-  places on their declarations crates rather than their domain crates.
+- **The dot prefix is the owner's boundary.** Anything dot-prefixed at a
+  set doc root or inside a set directory (temporary set directories,
+  quarantined files, run ledgers) belongs to the owner, which keeps
+  reading it, and is invisible to every other reader, whether or not it
+  fits a slot. Owners do not declare these working files.
+- **Doc roots may not overlap** (ADR-0079), so every member belongs to
+  exactly one set doc type.
+- **Consequences recorded:** listings, counts and lifecycle clusters keep
+  to roots; the resolver stops treating a rootless or dot-prefixed
+  directory as a set, and resolves a path to a set only when it is the
+  set directory, its root, a member or a directory that can hold
+  members, so some inputs that resolve today stop resolving; and the
+  owners, the research and design contexts, gain a dependency on
+  `corpus` through their declarations crates (ADR-0080).
 - **Standalone.** The ADR names no work item, plan or research document
   in its body or references.
 - **Rejected alternatives:** each reader walking the directory its own
-  way, and a deny-list that admits every file not excluded.
+  way; a deny-list that admits every file not excluded; and an
+  allow-list shape declared in the corpus, kept aligned with each
+  owner's layout only by a contract test.
 
 #### 2. ADR-0078: Doc types as declared data
 
 **File**: `meta/decisions/ADR-0078-doc-types-as-declared-data.md`
-(through `/create-adr`, status `proposed`, `parent: "work-item:PP-994"`,
+(through `/create-adr`, status `accepted`, `parent: "work-item:PP-994"`,
 `relates_to: ["adr:ADR-0067", "adr:ADR-0069", "adr:ADR-0077", "adr:ADR-0080"]`)
 
 The ADR records these decisions:
@@ -505,7 +560,8 @@ The ADR records these decisions:
   declared rules (`SlugRule`, `ClusterKeyRule`, `LinkageIdRule`, lifecycle
   rank, `CompletenessMark`, library phase, facets), plus a `Listing`
   rule: flat (drafts subdirectory, filename filter) or set. A set listing
-  carries the type's presentation only.
+  carries the set's shape and presentation. Each rule is one of a closed,
+  named set of choices, so a declaration is typed data, not strings.
 - **Set shapes.**
   - A shape is a root filename plus member slots. A slot is a
     `/`-separated, set-relative pattern whose segments are literal names
@@ -526,22 +582,35 @@ The ADR records these decisions:
   - The presentation is a set page (topic research) or an entry point
     (design inventories). It is declared data and changes nothing until
     PP-1001 and PP-134 read it.
-- **Assembling the catalogue.** The corpus defines what a shape is and
-  holds the built-in doc type declarations. Each owner declares its
-  shape in its declarations crate (ADR-0080), and the declarations
-  assembly builds the complete catalogue from the built-in declarations
-  and every owner's shape. Building it refuses a set type with no shape,
-  a shape for a type that is not a set, a type given two shapes and an
-  unparseable slot pattern, so a missing or malformed shape fails at
-  startup. There is no separate shape registry. Tests build a catalogue
-  the same way, with their own declarations and shapes.
-- **Names.** The declaration is `corpus::DocType`. The server's existing
-  doc types response view is renamed `DocTypeView` so the two never
-  meet under one name. Each fact keeps one name from Phase 3 onward:
-  `wire_token` with a `wire_token()` accessor, replacing `wire_str()`.
-- **Identity.** `DocTypeKey` is a `Copy` handle to a `&'static DocType`,
-  with equality and hashing by wire token, and a pointer-equality fast
-  path.
+- **Assembling the catalogue.** The corpus defines what a doc type
+  declaration and a shape are. Each doc type is declared once: by its
+  owner, in the owner's declarations crate (ADR-0080), or by the corpus
+  while it has no owner. A set type's shape is part of its declaration.
+  The declarations assembly builds the complete catalogue from every
+  declaration. Building it refuses a duplicate declaration, a set type
+  with no shape, a shape for a type that is not a set and an unparseable
+  slot pattern, so a bad declaration fails at startup. There is no
+  separate shape registry. Tests build a catalogue the same way.
+- **The interim, in this plan.** Until a doc type moves to its owner, its
+  facts stay in the corpus beside a shape its owner declares (the ADR's
+  neutral consequence). In PP-994 no whole declaration moves: the owners
+  declare each set's shape and presentation together, as the set
+  listing's half, and the corpus's declaration of the type marks it as a
+  set and keeps its other facts. The assembly pairs the two, and the
+  refusals apply to the pairing: a set type with no owner set
+  declaration, a set declaration for a type that is not a set, a type
+  given two set declarations (a duplicate declaration) and an
+  unparseable slot pattern.
+- **Names (this plan's).** The declaration is `corpus::DocType`. The
+  server's existing doc types response view is renamed `DocTypeView` so
+  the two never meet under one name. Each fact keeps one name from
+  Phase 3 onward: `wire_token` with a `wire_token()` accessor, replacing
+  `wire_str()`.
+- **Identity.** A cheap, copyable key points at its declaration and
+  compares by wire token: in this plan, `DocTypeKey`, a `Copy` handle to
+  a `&'static DocType`, with equality and hashing by wire token and a
+  pointer-equality fast path. Existing call sites keep their shape, and
+  tests declare a type the way built-in types are declared.
 - **The catalogue.** `DocTypeCatalogue` is ordered. The assembled
   catalogue is the single source of today's types. Consumers that need
   runtime lookup (wire token, linkage name) are given a catalogue, and
@@ -552,11 +621,12 @@ The ADR records these decisions:
   (`DocType::FLAT_DEFAULTS`) exists for test-only declarations; the
   built-in module never uses it, so adding a built-in type forces a
   choice for every rule.
-- **No production code names a built-in doc type** outside the built-in
-  declaration module, apart from crates that own one type's domain (the
-  research crate's topic-set commands and `corpus-cli`'s ADR commands)
-  and the declarations crates and assembly that pair a set type with its
-  shape. A boundary test enforces this.
+- **No production code names a built-in doc type** outside the
+  declarations themselves, in the corpus and the declarations crates,
+  and the assembly that combines them. The exception is code that owns
+  one doc type's domain, such as the research domain's topic set
+  commands and `corpus-cli`'s ADR commands. A boundary test enforces
+  this.
 - **Accepted exception: typed linkage references.** `TypedRef`'s
   `work-item:`, `plan:`, `adr:` and `pr:` forms, and the work-item slug
   and identity helpers, encode the linkage grammar of ADR-0034, not
@@ -565,10 +635,14 @@ The ADR records these decisions:
 - **Root resolution stays bound to `config`.** Built-in types resolve
   their roots through `config::paths::doc_type_dirs`; a test-only type's
   root is supplied directly on the server's `Config`.
-- **Out of scope.** User-declared types and a data-driven frontend.
+- **Boundaries.** Doc types are declared in code only, never in
+  configuration; the frontend keeps its own static list; frozen
+  migrations keep working against built-in doc types with unchanged
+  behaviour.
 - **Configuration's doc type table** is derived from the same
-  declarations under ADR-0080; until a doc type moves, `config` keeps its
-  entry and the single-source test is the guard.
+  declarations under ADR-0080 (PP-1009); until a doc type moves,
+  `config` keeps its entry in a table of its own and the single-source
+  test is the guard.
 - **Rejected alternatives:**
   - per-type `const fn` methods, which can't support a test-only type;
   - an injected server-only `SetDeclarations` table, which leaves the
@@ -579,60 +653,79 @@ The ADR records these decisions:
 #### 3. ADR-0079: Doc roots may not overlap
 
 **File**: `meta/decisions/ADR-0079-doc-roots-may-not-overlap.md`
-(status `proposed`, `parent: "work-item:PP-994"`,
-`relates_to: ["adr:ADR-0077", "adr:ADR-0078"]`)
+(status `accepted`, `parent: "work-item:PP-994"`,
+`relates_to: ["adr:ADR-0068", "adr:ADR-0077", "adr:ADR-0078"]`)
 
 The ADR records these decisions:
 
 - **The refusal.** A configuration in which one doc root equals or
   contains another is refused, naming both `paths.*` keys.
-- **Where.** In `config::paths::doc_type_dirs`, so every command that
-  resolves the full set of roots refuses: the visualiser,
-  `accelerator config path --doc-types`, the corpus and work commands,
-  and `migrate`, including `--list`, before any migration runs. A
-  migration that writes an overlapping configuration is not recorded as
-  applied.
-- **Comparison** by normalised path components, with no filesystem
-  access. The visualiser checks its canonical roots again, so a symlink
-  alias is refused too.
+- **Where.** In configuration's shared resolver for the full set of doc
+  roots (`config::paths::doc_type_dirs`), so every command that resolves
+  that set refuses: the visualiser, the configuration commands
+  (`accelerator config path --doc-types`), the corpus and work commands,
+  and `migrate`. `migrate` refuses before it applies or lists any
+  migration, and a migration that writes an overlapping configuration
+  stops the run and is not recorded as applied.
+- **Comparison** by path segments after normalisation, with no
+  filesystem access: `meta/plans/` and `./meta/plans` equal
+  `meta/plans`, and `meta/plansx` does not overlap it.
+- **Symlinks.** The visualiser applies the same rule again to the real
+  directories it serves from, so a symlink alias is refused too.
 - **Single-key lookups check too.** A lookup of one doc type's root
   resolves the full set and refuses the same way; lookups of path keys
   that are not doc roots are unaffected.
 - **Correction stays possible.** Commands that edit configuration never
   resolve doc roots, so an overlap can always be fixed.
+- **Consequences recorded:** the visualiser's end-to-end and API smoke
+  tests move to the default paths; frozen migrations that read one root
+  directly need no change; reading the doc roots inside a migration can
+  now fail, and migrations pass that failure on.
 - **Rejected alternatives:** longest-match attribution, and refusing
   only a set root nested inside another root.
 
 #### 4. ADR-0080: Domain declarations crates
 
 **File**: `meta/decisions/ADR-0080-domain-declarations-crates.md`
-(through `/create-adr`, status `proposed`, `parent: "work-item:PP-994"`,
+(through `/create-adr`, status `accepted`, `parent: "work-item:PP-994"`,
 `relates_to: ["adr:ADR-0069", "adr:ADR-0077", "adr:ADR-0078"]`)
 
 The ADR records these decisions:
 
 - **A declarations role.** A context's declarations crate,
   `<context>-declarations`, holds what the context declares to
-  cross-cutting platform crates: its layout and set shapes now, its
-  configuration later. It holds declared data and no behaviour, and
-  depends only on `kernel` and platform domain crates. Its own context's
-  crates, composition roots and the launcher may depend on it.
+  cross-cutting platform crates: its doc types, with their layouts, set
+  shapes and configuration path keys. It holds declared data and no
+  behaviour, and depends only on `kernel` and platform domain crates.
+  Any crate in its own context, any composition root and the launcher
+  may depend on it.
 - **A declarations assembly.** One crate, `declarations`, combines every
   context's declarations into the complete registrations each platform
-  crate needs, such as the complete doc type catalogue. It depends on
-  platform domain crates and declarations crates, and only composition
-  roots and the launcher depend on it. It is the single place a new
-  declarations crate is added.
+  crate needs. It depends on platform domain crates and declarations
+  crates, and only composition roots, the launcher and tests depend on
+  it. It is the single place a new declarations crate is added.
+- **One declaration per doc type.** A doc type is declared once, by its
+  owner. The assembly derives both the complete corpus catalogue and
+  configuration's doc type table (path keys, defaults, linkage names)
+  from those declarations; configuration receives its table and gains
+  no dependency on the corpus. Deriving configuration's table is
+  PP-1009, not this plan.
 - **Domains depend on their declarations.** A domain crate takes the
   facts it shares with platform crates, such as its layout, from its own
   context's declarations crate, so the two cannot drift.
-- **ADR-0069.** The role table gains both roles, and the launcher rule is
-  partially superseded: the launcher may also depend on declarations
-  crates and the assembly. ADR-0069 stays `accepted` and unedited, after
-  the precedent it set for ADR-0054.
+- **ADR-0069.** The role table gains both roles and its inward rule
+  extends, since a domain crate may also depend on its own context's
+  declarations crate. The launcher rule is partially superseded: the
+  launcher may also depend on declarations crates and the assembly, and
+  its limit to platform crates otherwise stands. ADR-0069 stays
+  `accepted` and unedited, after the precedent it set for ADR-0054.
 - **Enforcement.** The crate-rule lint learns both roles.
-- **First crates.** `research-declarations` and `design-declarations`.
-  Domains without one keep their declarations in the platform crates.
+- **First crates.** `research-declarations` and `design-declarations`,
+  holding the topic research and design inventory layouts and set
+  shapes. Doc types move to their owners' declarations crates
+  incrementally; until a doc type moves, its declaration stays in the
+  corpus and configuration keeps its entry in its own table. Doc types
+  with no owning domain crate stay declared in the corpus.
 - **Rejected alternatives:** owners' domain crates holding declarations
   (every root depends on every owning domain, and the launcher cannot);
   platform crates holding every declaration (copies of product facts);
@@ -708,7 +801,8 @@ The specification contains:
     `?`, `#` or `%`.
 - **Change events.** A `doc-changed` event may name an asset member.
   Its `etag` is absent for an asset as well as for a deletion, so a
-  missing `etag` alone does not mean the path was deleted.
+  missing `etag` alone does not mean the path was deleted. Change events
+  carry a path and no `id`.
 - **Extension points:**
   - a document member's structured sources attach as an optional
     `sources` field on a document object (PP-1000), and are absent until
@@ -720,16 +814,18 @@ The specification contains:
   the set model:
   - roots only in the type listing, counts, facets and clusters;
   - member documents in search on their own title, stem and first
-    paragraph, with the set's slug and `setId` as link keys and their own
-    `setRelativePath`;
-  - a member's declared linkage attributed to the member, and members
-    kept out of inferred items;
+    paragraph, with the set's slug and `setId` as link keys, never
+    matched, and their own `setRelativePath`; no member ranks as an
+    exact match for its set's slug, and assets are never results;
+  - a member's declared linkage attributed to the member, members kept
+    out of inferred items, and a related item that is a member carrying
+    `setId`;
   - one activity row per set, keyed on the root path, its action from
-    the root and its time from the latest change;
+    the root and its time from the latest change, with no `id`;
   - the latest time includes members, assets and removals observed in
     memory, falling back to mtimes after a restart;
-  - `/api/docs/{path}` not-found for assets, unslotted files, members of
-    a rootless directory, and directories;
+  - `/api/docs/{path}` not-found for assets, unslotted files, files in a
+    directory that has no root, and directories;
   - no descent into symlinked directories, and members resolving outside
     the doc roots dropped.
 - **The doc types response field.** `set`:
@@ -737,17 +833,16 @@ The specification contains:
 
 #### 6. Acceptance gate
 
-The author runs `/review-adr` on ADR-0077, ADR-0078, ADR-0079 and
-ADR-0080 until all four are `accepted` (ADR-0077 already is). Then append one dated decisions line to
-PP-994's Drafting Notes, through `/update-work-item` or a direct edit by
-the author:
+The author ran `/review-adr` on ADR-0077, ADR-0078, ADR-0079 and
+ADR-0080 until all four were `accepted`, and this dated decisions line
+was appended to PP-994's Drafting Notes:
 
-> - Decisions recorded, YYYY-MM-DD: ADR-0077 (the set model), ADR-0078
+> - Decisions recorded, 2026-11-26: ADR-0077 (the set model), ADR-0078
 >   (doc types as declared data), ADR-0079 (doc roots may not overlap)
 >   and ADR-0080 (domain declarations crates) are accepted; the member
 >   API shape is in `meta/specs/2026-11-24-set-member-api.md`.
 
-**Phases 2–12 do not start until this line exists.**
+Phases 2–12 waited on this line; it exists, so Phase 2 is next.
 
 ### Success Criteria:
 
@@ -772,7 +867,8 @@ the author:
 ### Overview
 
 This phase implements ADR-0079. It is independent of the set model and
-mergeable before everything else in stage two. The refusal lives in the shared resolver,
+mergeable before everything else in stage two. The refusal lives in the
+shared resolver,
 so every CLI that reads doc roots refuses an overlapping configuration,
 and migrations stop rather than run over no directories.
 
@@ -919,7 +1015,8 @@ may not equal or contain one another`.
 
 The resolver compares configured paths, with no filesystem access.
 `first_overlap` is public, so `refuse_overlapping_roots` and the
-visualiser's compose share the one containment rule. Compose runs it again over the
+visualiser's compose share the one containment rule. Compose runs it
+again over the
 canonical roots it builds for `LocalFileDriver` (`file_driver.rs:126-127`)
 and returns the same `ConfigError::OverlappingDocRoots`. A symlink alias
 therefore cannot place one root inside a set root, where it would undo
@@ -1206,8 +1303,9 @@ pub listing: Listing,
 - **`Listing`:** `Flat { drafts_subdirectory: Option<&'static str>,
   filename_filter: FilenameFilter }` or `Nested { root }`.
   `nested_root_filename` folds into `Listing::Nested`. Phase 7 replaces
-  `Nested { root }` with `Set { presentation }` and moves the root
-  filename into the owner's declared shape.
+  `Nested { root }` with `Set`, which only marks the type as a set, and
+  moves the root filename into the owner's set declaration, beside the
+  presentation the owner declares with it.
 
 #### 3. Consumers read the rules
 
@@ -1230,8 +1328,12 @@ pub listing: Listing,
 added to the existing `cli-test-support` crate
 
 - Walk every `src/**/*.rs` under `cli/` except `corpus/src/doc_type/built_in.rs`
-  and the allow-list (`research-cli/src/topic_set.rs`,
-  `corpus-cli/src/main.rs`, `migrate/src/migrations/**`).
+  and the allow-list. The allow-list holds ADR-0078's exceptions for code
+  that owns one doc type's domain (`research-cli/src/topic_set.rs`, the
+  topic set commands, and `corpus-cli/src/main.rs`, the ADR commands),
+  and the frozen migrations (`migrate/src/migrations/**`), which
+  ADR-0078's boundaries keep working against built-in doc types
+  unchanged. Phase 6 adds the declarations crates and the assembly.
 - Strip `#[cfg(test)]` modules and `#[cfg(test)]` items.
 - Assert that no production code contains `DocTypeKey::` followed by an
   upper-case constant, a `use` that brings a built-in constant into
@@ -1366,6 +1468,16 @@ built-in one.
 - `test_only_composition_roots_and_the_launcher_depend_on_the_assembly`:
   a domain, an adapter and a declarations crate depending on it each
   break the rule.
+- `test_a_dev_dependency_on_the_assembly_is_not_judged`: an adapter that
+  takes the assembly as a dev-dependency only is clean, so tests may
+  build the complete catalogue.
+- `test_a_domain_may_depend_on_its_own_contexts_declarations_crate`,
+  judged from the domain's side: `research` depending on
+  `research-declarations` is clean, and on `design-declarations` breaks
+  the domain rule.
+- `test_the_launcher_may_depend_on_declarations_crates_and_the_assembly`:
+  the launcher depending on `research-declarations` and on the assembly
+  is clean, and on a product domain crate still breaks `LAUNCHER`.
 - `_EXPECTED_DECLARATIONS` gains
   `"research-declarations": ("declarations", "research", None, None)`,
   `"design-declarations": ("declarations", "design", None, None)` and
@@ -1445,6 +1557,11 @@ Each follows `tasks/README.md`'s "Registering a library crate":
    is the one every composition root builds against. Each gets
    `tests/fixtures/public-api.txt`.
 
+`tasks/README.md`'s "Registering a library crate" names the roles that
+carry a `context`; it gains the declarations role, the assembly's lack of
+one, the `<context>-declarations` naming, and that a new declarations
+crate is also added to the assembly.
+
 **`cli/research-declarations`**, depending on `kernel` and `corpus`:
 
 - `src/topic.rs` takes `MANIFEST`, `BRIEF`, `OUTLINE`, `SYNTHESIS`,
@@ -1466,7 +1583,9 @@ Each follows `tasks/README.md`'s "Registering a library crate":
   `SCREENSHOTS = "screenshots"`.
 - Nothing in `design`, `design-adapters` or `design-cli` names the
   inventory layout in production code today, so `design` does not
-  depend on `design-declarations` yet.
+  depend on `design-declarations` yet: ADR-0080 gives a domain that edge
+  for the facts it shares with platform crates, and `design` shares
+  none. It gains the edge when its own code first names the layout.
 
 **`cli/declarations`**, the assembly, depending on `corpus`,
 `research-declarations` and `design-declarations`:
@@ -1517,9 +1636,11 @@ depend on the assembly, so each takes the catalogue from its root:
 #### 5. Boundary test
 
 `doc_type_declarations_are_single_source.rs` allows
-`cli/*-declarations/src/**` and `cli/declarations/src/**`, under
-ADR-0078's exception for the declarations crates and assembly that pair
-a set type with its shape.
+`cli/*-declarations/src/**` and `cli/declarations/src/**`: ADR-0078
+places the declarations themselves, in the corpus and the declarations
+crates, and the assembly that combines them outside its boundary. A
+seeded case first proves the scanner skips a built-in name under
+`cli/declarations/src` and still reports one under `cli/research/src`.
 
 ### Success Criteria:
 
@@ -1543,23 +1664,28 @@ a set type with its shape.
 
 ---
 
-## Phase 7: Set shapes on the catalogue
+## Phase 7: Set declarations on the catalogue
 
 ### Overview
 
-The domain model for sets, in `corpus::set`: shapes, slot patterns and
-classification of a set-relative path. The owners' declarations crates
-declare the two shapes from their layout constants, and the assembly
-builds the catalogue from the corpus's built-in declarations and those
-shapes. The doc types response exposes them. Nothing indexes members
+The domain model for sets, in `corpus::set`: set declarations, shapes,
+slot patterns and classification of a set-relative path. The owners'
+declarations crates declare the two sets, each a shape built from their
+layout constants and a presentation, and the assembly builds the
+catalogue from the corpus's built-in declarations and those set
+declarations. This is ADR-0078's interim pairing: both set types' other
+facts and rules stay in the corpus, which only marks them as sets, beside
+the set declarations their owners make, until PP-1007 moves the whole
+declarations. The doc types response exposes shape and presentation
+together. Nothing indexes members
 yet, and the corpus resolver is unchanged until Phase 8.
 
 ### Changes Required:
 
 #### 1. Failing tests first
 
-**File**: `cli/corpus/src/set/shape.rs` (inline tests, against test
-shapes built with `SetMatcher::new`)
+**File**: `cli/corpus/src/set/shape.rs` (inline tests, against test set
+declarations built with `SetMatcher::new`)
 
 - **`SlotPattern::parse`:**
   - accepts `brief.md`, `findings/*.md`, `findings/*.levels/*.md` and
@@ -1591,12 +1717,14 @@ shapes built with `SetMatcher::new`)
 **File**: `cli/corpus/src/doc_type/catalogue.rs` (inline tests, over test
 declarations of one flat and two set types)
 
-- Giving each set type a shape builds, and `set_matcher(kind)` is `Some`
-  for each set type and `None` for the flat type.
-- Building refuses a set type with no shape, a shape for the flat type
-  and a type given two shapes, each naming the type.
-- Building refuses a shape with a `**` slot, naming the type and the
-  pattern.
+- Giving each set type a set declaration builds, and `set_matcher(kind)`
+  is `Some` for each set type, with that declaration's shape and
+  presentation, and `None` for the flat type.
+- Building refuses a set type with no set declaration, a set declaration
+  for the flat type and a type given two set declarations (a duplicate
+  declaration), each naming the type.
+- Building refuses a set declaration with a `**` slot, naming the type
+  and the pattern.
 - The duplicate token, linkage name and path key refusals keep passing.
 
 **File**: `cli/research-declarations/src/topic.rs` (inline tests, through
@@ -1608,6 +1736,7 @@ declarations of one flat and two set types)
   `.conduct-run.json` are `None`.
 - `findings/01-a.MD` is `Some(Member(Document))`; `Findings/01-a.md` and
   `findings/01-a.LEVELS/2-1.md` are `None`.
+- `SET.presentation` is `Presentation::SetPage`.
 
 **File**: `cli/research/tests/topic_set_shape.rs` (new; the contract
 with the layout)
@@ -1617,7 +1746,7 @@ lives in the one crate that sees both them and the shape. It is an
 integration test with a `corpus` dev-dependency (`test-support`), so the
 `research` library gains no `corpus` edge. Every path the builders
 produce classifies as a document member under
-`research_declarations::topic::SHAPE`: `BRIEF`, `OUTLINE`, `SYNTHESIS`,
+`research_declarations::topic::SET`'s shape: `BRIEF`, `OUTLINE`, `SYNTHESIS`,
 `Stem::finding_path` for allocated stems, `NoteRef::path` for a root and
 a nested lineage, and `ReportSlug::free_report_path` with and without a
 taken name.
@@ -1631,18 +1760,21 @@ taken name.
   `screenshots/sub/a.png` and `Screenshots/a.png` are `None`.
 - `may_contain_members("screenshots")` holds, and
   `may_contain_members("prototype-full")` does not.
+- `SET.presentation` is `Presentation::EntryPoint`.
 
 **File**: `cli/declarations/src/lib.rs` (inline tests)
 
-- The assembled catalogue's matchers have roots `manifest.md` for topic
-  research and `inventory.md` for design inventories.
+- The assembled catalogue's matchers have roots `manifest.md` and the
+  set-page presentation for topic research, and `inventory.md` and the
+  entry-point presentation for design inventories.
 
 **File**: `cli/corpus/tests/built_in_doc_type_facts.rs`
 
 - **Characterisation.** Topic research and design inventories are
-  `Listing::Set` with the declared presentation, and no other built-in
-  type is. The table's nested-root column moves to the assembly's test
-  above, because `corpus` cannot see the owners' shapes.
+  `Listing::Set`, and no other built-in type is. The table's nested-root
+  column moves to the assembly's test above, which also pins each set's
+  presentation, because `corpus` cannot see the owners' set
+  declarations.
 
 **File**: `cli/visualiser/server/tests/api_types.rs` (or the existing
 types test)
@@ -1672,18 +1804,24 @@ pub enum MemberKind { Document, Asset }
 
 pub enum Presentation { SetPage, EntryPoint }
 
+pub struct SetDeclaration {
+    pub shape: SetShape,
+    pub presentation: Presentation,
+}
+
 pub enum SetPlace { Root, Member(MemberKind) }
 
 pub struct SetMatcher {
-    shape: &'static SetShape,
+    declaration: &'static SetDeclaration,
     slots: Vec<(SlotPattern, MemberKind)>,
 }
 
 impl SetMatcher {
     pub(crate) fn new(
-        shape: &'static SetShape,
+        declaration: &'static SetDeclaration,
     ) -> Result<SetMatcher, SlotPatternError>;
     pub fn shape(&self) -> &'static SetShape;
+    pub fn presentation(&self) -> Presentation;
     pub fn root(&self) -> &'static str;
     pub fn classify(&self, set_relative: &str) -> Option<SetPlace>;
     pub fn may_contain_members(&self, set_relative_dir: &str) -> bool;
@@ -1693,23 +1831,25 @@ impl SetMatcher {
 **File**: `cli/corpus/src/doc_type/catalogue.rs` and `declaration.rs`
 
 ```rust
-pub type ShapeOf = (DocTypeKey, &'static SetShape);
+pub type DeclaredSet = (DocTypeKey, &'static SetDeclaration);
 
 impl DocTypeCatalogue {
     pub fn new(
         doc_types: &[DocTypeKey],
-        shapes: &[ShapeOf],
+        set_declarations: &[DeclaredSet],
     ) -> Result<DocTypeCatalogue, CatalogueError>;
     pub fn set_matcher(&self, kind: DocTypeKey) -> Option<&SetMatcher>;
 }
 ```
 
-- `CatalogueError` gains `MissingShape { kind }`, `NotASet { kind }`,
-  `ShapedTwice { kind }` and
-  `UnparseableSlot { kind, pattern, cause: SlotPatternError }`.
+- `CatalogueError` gains `MissingSetDeclaration { kind }`,
+  `NotASet { kind }`, `SetDeclaredTwice { kind }` and
+  `UnparseableSlot { kind, pattern, cause: SlotPatternError }`, ADR-0078's
+  refusals applied to the pairing of a corpus-declared set type with its
+  owner's set declaration.
 - `DocTypeCatalogue::new` parses every slot pattern, so `classify` never
-  meets an unparsed pattern, and a missing or malformed shape fails when
-  the catalogue is built.
+  meets an unparsed pattern, and a missing or malformed set declaration
+  fails when the catalogue is built.
 - `DocTypeCatalogue::built_in()` goes. `corpus::doc_type::built_in`
   exposes `doc_types() -> &'static [DocTypeKey]`, the built-in
   declarations in order, which only the assembly and test code build
@@ -1725,28 +1865,38 @@ impl DocTypeCatalogue {
   separately. The extension is compared with `eq_ignore_ascii_case`;
   every other segment, and the name before the extension, is compared
   exactly.
-- `Listing::Nested { root }` becomes `Listing::Set { presentation }`,
-  with `DocTypeKey::presentation() -> Option<Presentation>` and
-  `DocTypeKey::is_set()`.
+- `Listing::Nested { root }` becomes `Listing::Set`, which only marks the
+  type as a set, with `DocTypeKey::is_set()`. A set's root and
+  presentation are read from its paired set declaration, through
+  `catalogue.set_matcher(kind)`.
 
-#### 3. Owners declare their shapes
+#### 3. Owners declare their sets
 
 **File**: `cli/research-declarations/src/topic.rs`
 
 ```rust
-pub static SHAPE: SetShape = SetShape {
-    root: MANIFEST,
-    member_slots: &[
-        MemberSlot { pattern: BRIEF, kind: MemberKind::Document },
-        MemberSlot { pattern: OUTLINE, kind: MemberKind::Document },
-        MemberSlot { pattern: SYNTHESIS, kind: MemberKind::Document },
-        MemberSlot { pattern: "findings/*.md", kind: MemberKind::Document },
-        MemberSlot {
-            pattern: "findings/*.levels/*.md",
-            kind: MemberKind::Document,
-        },
-        MemberSlot { pattern: "reports/*.md", kind: MemberKind::Document },
-    ],
+pub static SET: SetDeclaration = SetDeclaration {
+    shape: SetShape {
+        root: MANIFEST,
+        member_slots: &[
+            MemberSlot { pattern: BRIEF, kind: MemberKind::Document },
+            MemberSlot { pattern: OUTLINE, kind: MemberKind::Document },
+            MemberSlot { pattern: SYNTHESIS, kind: MemberKind::Document },
+            MemberSlot {
+                pattern: "findings/*.md",
+                kind: MemberKind::Document,
+            },
+            MemberSlot {
+                pattern: "findings/*.levels/*.md",
+                kind: MemberKind::Document,
+            },
+            MemberSlot {
+                pattern: "reports/*.md",
+                kind: MemberKind::Document,
+            },
+        ],
+    },
+    presentation: Presentation::SetPage,
 };
 ```
 
@@ -1757,12 +1907,15 @@ are literals and the contract test binds them to the path builders.
 **File**: `cli/design-declarations/src/inventory.rs`
 
 ```rust
-pub static SHAPE: SetShape = SetShape {
-    root: INVENTORY,
-    member_slots: &[MemberSlot {
-        pattern: "screenshots/*.png",
-        kind: MemberKind::Asset,
-    }],
+pub static SET: SetDeclaration = SetDeclaration {
+    shape: SetShape {
+        root: INVENTORY,
+        member_slots: &[MemberSlot {
+            pattern: "screenshots/*.png",
+            kind: MemberKind::Asset,
+        }],
+    },
+    presentation: Presentation::EntryPoint,
 };
 ```
 
@@ -1771,19 +1924,26 @@ dev-dependency with the `test-support` feature, and `research` one for
 its integration test. No pup rule changes: the declarations crates
 already allow `corpus`.
 
-#### 4. The assembly builds from shapes
+#### 4. The assembly pairs set types with their set declarations
 
 **File**: `cli/declarations/src/lib.rs`
 
 ```rust
-pub fn shapes() -> &'static [ShapeOf];
+pub fn set_declarations() -> &'static [DeclaredSet];
 pub fn catalogue() -> Result<Arc<DocTypeCatalogue>, CatalogueError>;
 ```
 
-`shapes()` pairs `DocTypeKey::TOPIC_RESEARCH` with
-`research_declarations::topic::SHAPE` and `DocTypeKey::DESIGN_INVENTORIES`
-with `design_declarations::inventory::SHAPE`. `catalogue()` builds
-`DocTypeCatalogue::new(built_in::doc_types(), shapes())`.
+`set_declarations()` pairs `DocTypeKey::TOPIC_RESEARCH` with
+`research_declarations::topic::SET` and
+`DocTypeKey::DESIGN_INVENTORIES` with `design_declarations::inventory::SET`.
+`catalogue()` builds
+`DocTypeCatalogue::new(built_in::doc_types(), set_declarations())`.
+Naming the two built-in types here is inside ADR-0078's boundary, since
+the assembly combines the declarations. The pairing is the interim form
+of one declaration per doc type: once PP-1007 moves a set type's
+declaration to its owner, the owner's declarations crate supplies the
+type with its set declaration and `set_declarations()` loses that
+entry.
 
 #### 5. The visualiser server reads matchers from its catalogue
 
@@ -1794,10 +1954,11 @@ with `design_declarations::inventory::SHAPE`. `catalogue()` builds
   `indexer.rs:1534` and `:1652`, which only ask whether a type is a set,
   read `kind.is_set()`.
 - `test_support::catalogue_with` becomes
-  `catalogue_with(extra_types: &[&'static DocType], extra_shapes: &[ShapeOf]) -> Arc<DocTypeCatalogue>`.
+  `catalogue_with(extra_types: &[&'static DocType], extra_sets: &[DeclaredSet]) -> Arc<DocTypeCatalogue>`.
   It builds through `DocTypeCatalogue::new` from the built-in
-  declarations and `declarations::shapes()` plus the extras, so a
-  test-only set type's shape is checked as a built-in one is.
+  declarations and `declarations::set_declarations()` plus the extras,
+  so a test-only set type's shape and presentation are checked as a
+  built-in one's are.
 
 #### 6. Other readers of the old declaration
 
@@ -1807,8 +1968,9 @@ the nested manifest filename. Its behaviour is unchanged until Phase 8.
 #### 7. Doc types response
 
 - `server/src/doc_type_view.rs`: add a `set: Option<SetView>` to
-  `DocTypeView`, built from `kind.presentation()` and
-  `doc_types.set_matcher(kind).shape()`, serialised as in the spec.
+  `DocTypeView`, built from the paired set declaration,
+  `doc_types.set_matcher(kind)`'s `shape()` and `presentation()`,
+  serialised as in the spec.
 - `frontend/src/api/types.ts:112-123`: add `set: DocTypeSet | null` to
   `DocType`, and normalise a missing field to `null` in `fetch.ts`, with
   a `fetch.test.ts` case for a response that omits `set`.
@@ -1817,7 +1979,7 @@ the nested manifest filename. Its behaviour is unchanged until Phase 8.
 
 #### Automated Verification:
 
-- [ ] Shape, catalogue and owner tests pass:
+- [ ] Set declaration, catalogue and owner tests pass:
       `mise run test:unit:cli --filter 'package(corpus) | package(research) | package(research-declarations) | package(design-declarations) | package(declarations)'`
 - [ ] `mise run test:unit:cli`, `mise run test:unit:visualiser`,
       `mise run test:integration:visualiser`
@@ -2158,7 +2320,8 @@ pub struct LinkKeys {
   `listed_entries()`, which every default accessor reads from.
 - **One map builder.** The secondary maps and the `set_directory ->
   latest` map are built by one `IndexMaps::build(records, &ledger)`,
-  which `rescan` calls; the removal ledger is empty until Phase 12. A test-only `Indexer::from_records(records)` calls the
+  which `rescan` calls; the removal ledger is empty until Phase 12. A
+  test-only `Indexer::from_records(records)` calls the
   same builder, so Phase 9's fabricated members pass through the
   production map construction. Every default-accessor test goes through
   it; Phase 10 replaces none of them.
@@ -2174,7 +2337,8 @@ Consumers read the accessor that matches their rule, and carry no
 member filter of their own.
 
 - **`all_by_type`, `counts_by_type` and `library_aggregates`** read
-  `listed_entries()` inside the indexer. Aggregates' `latest` for a set root reads the
+  `listed_entries()` inside the indexer. Aggregates' `latest` for a set
+  root reads the
   set's `latest_change_ms` from a `set_directory -> latest` map. The
   indexer computes it during `rescan` as the maximum over the root and
   members, and swaps it with the other maps under the same ordered
@@ -2193,7 +2357,8 @@ member filter of their own.
   `IndexMaps::build` fills from members as well as roots; it is the one
   secondary map that includes members, because it records declared
   linkage. `resolve_related` makes no scan of its own, so
-  `collect_linked_counts` stays linear. Inferred items read the default accessors,
+  `collect_linked_counts` stays linear. Inferred items read the default
+  accessors,
   so no member is ever inferred.
 - **`api/search.rs`:**
   - candidates come from `documents_including_members()`;
@@ -2465,7 +2630,8 @@ page specs still pass unchanged.
 (`api/mod.rs:26-53`)
 
 - Resolve the type through `state.doc_types`, and 404 unless
-  `kind.is_set()`. The presentation comes from `kind.presentation()`.
+  `kind.is_set()`. The presentation comes from the paired set
+  declaration, `state.doc_types.set_matcher(kind)`'s `presentation()`.
 - Register the route as `/api/sets/:type/:set_id`, in matchit 0.7's
   syntax like its neighbours. The `Path` extractor's decoded `set_id` is
   used as is, with no second decode.
@@ -2612,12 +2778,14 @@ on the member API and `/api/docs` for the same scenarios live in
 
 **File**: `server/tests/generic_set_model.rs` (new; criteria 20 and 23)
 
-- **Setup.** Declare `static NOTEBOOKS` with
-  `listing: Listing::Set { presentation: Presentation::SetPage }`, and
-  `static NOTEBOOKS_SHAPE: SetShape = SetShape { root: "index.md", member_slots: &[docs/*.md Document, img/*.png Asset] }`.
+- **Setup.** Declare `static NOTEBOOKS` with `listing: Listing::Set`,
+  and its set declaration, shape and presentation together, as an owner
+  declares one:
+  `static NOTEBOOKS_SET: SetDeclaration = SetDeclaration { shape: SetShape { root: "index.md", member_slots: &[docs/*.md Document, img/*.png Asset] }, presentation: Presentation::SetPage }`.
   Configure the server with
-  `catalogue_with(&[&NOTEBOOKS], &[(notebooks, &NOTEBOOKS_SHAPE)])`,
-  which builds through the constructor the assembly uses. Build a tempdir set holding the root, two `docs/*.md`, one
+  `catalogue_with(&[&NOTEBOOKS], &[(notebooks, &NOTEBOOKS_SET)])`,
+  which builds through the constructor the assembly uses. Build a
+  tempdir set holding the root, two `docs/*.md`, one
   `img/a.png`, `other/z.md` and `.hidden.md`. Run through
   `InjectedWatcher` (`tests/sse_e2e.rs`).
 - **Assertions (criterion 20):**
@@ -2638,14 +2806,18 @@ on the member API and `/api/docs` for the same scenarios live in
 **File**: `cli/corpus-adapters/tests/doc_type_declarations_are_single_source.rs`
 (criterion 21)
 
-Phase 4's guard already walks `server/src` with no allow-list entry;
-shapes are paired with their types in the declarations crates and the
-assembly, never in a root. Add a named case,
-`visualiser_server_names_no_set_doc_type`, that seeds
-`DocTypeKey::TOPIC_RESEARCH` into a copy of `api/search.rs`'s source and
-asserts the scanner reports it, and asserts that the real `server/src`
-scan found files and no violation. After Phase 4, phases are declared
-too, so the library's phase table needs no exception.
+Criterion 21 allows the two set types to be named only in their
+declarations (corpus and declarations crates), the assembly, domain-owning
+code and the frozen migrations, with test modules unsearched. That is
+exactly Phase 4's guard with Phase 6's allow-list, which walks every
+`src/**/*.rs` under `cli/`. `server/src` has no allow-list entry: set
+declarations are made in the declarations crates and paired with their
+types in the assembly, never in a root, and after Phase 4 a doc type's
+library phase is a declared rule, so the library's phase table needs no
+exception. Add a named case, `visualiser_server_names_no_set_doc_type`,
+that seeds `DocTypeKey::TOPIC_RESEARCH` into a copy of `api/search.rs`'s
+source and asserts the scanner reports it, and asserts that the real
+`server/src` scan found files and no violation.
 
 #### 2. Watcher
 
@@ -2904,9 +3076,13 @@ Replace the existing tests that assert client-built live rows.
   layout's path builders classifying as members (`research`'s
   integration test); and the assembled catalogue building.
 - **Build system.** The crate-rule lint's declarations and assembly
-  roles, and a pup probe pair per new crate.
+  roles, a domain's edge to its own declarations crate, the launcher's
+  widened rule, and a pup probe pair per new crate.
 - **Config.** Overlap refusal for equal, nested and prefix-but-not-segment
-  roots, and the defaults.
+  roots, and the defaults; single-key lookups of a doc root refusing,
+  other path keys unaffected.
+- **Migrate.** The runner refusing before applying or listing, and a
+  migration that writes an overlap stopping the run unrecorded.
 - **Server:**
   - root-only default accessors and explicit member accessors, on
     fabricated members;
@@ -2974,6 +3150,8 @@ Replace the existing tests that assert client-built live rows.
   - move the contained directory's files to a sibling path, or point
     the containing key at a subdirectory (for example
     `research_codebase: meta/research/codebase`), and update the config;
+  - `accelerator config set` never resolves doc roots, so it works
+    while the overlap stands;
   - then run `accelerator migrate` for any pending migrations; it
     refuses until the overlap is gone.
 
@@ -2992,8 +3170,16 @@ Replace the existing tests that assert client-built live rows.
 - Overlapping plan: `meta/plans/2026-11-24-PP-996-library-links-by-document-id.md`
 - Precedent ADRs: `meta/decisions/ADR-0067-kind-discriminated-corpus-schema-and-templates.md`,
   `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
-- Decisions: ADR-0077, ADR-0078, ADR-0079 and
-  `meta/decisions/ADR-0080-domain-declarations-crates.md`
+- Decisions (accepted):
+  - `meta/decisions/ADR-0077-generic-set-model-for-directory-doc-types.md`
+  - `meta/decisions/ADR-0078-doc-types-as-declared-data.md`
+  - `meta/decisions/ADR-0079-doc-roots-may-not-overlap.md`
+  - `meta/decisions/ADR-0080-domain-declarations-crates.md`
+- Member API: `meta/specs/2026-11-24-set-member-api.md`
+- Follow-ups out of scope here: PP-1006 (domain-owned doc type
+  declarations), PP-1007 (whole declarations to their owners), PP-1008
+  (homes for unowned doc types), PP-1009 (configuration's doc type table
+  derived from the declarations)
 - Crate registration: `tasks/README.md`, "Registering a library crate"
 - Set layouts: `skills/research/research-topic/SKILL.md`,
   `skills/design/inventory-design/SKILL.md`, `cli/research/src/topic/layout.rs`

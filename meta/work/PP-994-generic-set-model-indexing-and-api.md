@@ -12,7 +12,7 @@ kind: "story"
 priority: "high"
 parent: "work-item:PP-868"
 tags: ["research", "visualiser"]
-last_updated: "2026-11-26T00:07:54+00:00"
+last_updated: "2026-11-26T00:20:47+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 blocks: ["work-item:PP-134", "work-item:PP-998", "work-item:PP-1001", "work-item:PP-1000", "work-item:PP-1002"]
@@ -21,7 +21,7 @@ relates_to: ["work-item:PP-862", "work-item:PP-995", "work-item:PP-996", "work-i
 # PP-994: Generic Set Model: Indexing and API
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Ready
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -289,11 +289,15 @@ PP-998.
       lifecycle cluster holds a member; a dot-prefixed file in the set and
       `other/z.md` are absent from all of these; the rows carry the set's
       `id`; and the doc types response marks the type as a set.
-- [ ] A search of the visualiser server's sources for `TopicResearch` and
-      `DesignInventories` finds matches only in the doc-type declarations,
-      test modules, and the library's phase table, which assigns a phase
-      to every doc type; and nowhere outside the declarations crates and
-      the declarations assembly that pair a set type with its shape.
+- [ ] A search of the `cli/` workspace's production sources for the topic
+      research and design inventory doc types finds them named only in
+      their declarations, in the corpus and the declarations crates; in
+      the declarations assembly, which pairs each set type with its
+      owner's set declaration; in code that owns one doc type's domain,
+      such as the research topic set commands; and in the frozen
+      migrations. Test modules are not searched. The visualiser server's
+      sources name neither outside test modules, since a doc type's
+      library phase is a declared rule.
 - [ ] Topic research declares the set-page presentation and design
       inventories the entry-point presentation, each readable from its doc
       type's declaration.
@@ -445,9 +449,12 @@ PP-998.
   inventory-design skills write: `inventory.md` with `screenshots/`, built
   in a dot-prefixed temporary directory and renamed. A change to either
   layout must be matched here.
-- Shared crate: the set declaration and its shape extend `DocTypeKey` in
-  the `corpus` crate, which every `cli/` crate that reads doc types depends
-  on; ADR-0069 governs that edge.
+- Shared crates: the `corpus` crate defines what a doc type declaration
+  and a set declaration are (ADR-0078). Each set's owner declares its
+  shape and presentation in its declarations crate, `research-declarations`
+  or `design-declarations`, and the `declarations` assembly builds the
+  complete catalogue every composition root takes (ADR-0080); ADR-0069,
+  as ADR-0080 extends it, governs those edges.
 - Existing consumers of change events: the frontend's query invalidation
   starts receiving member events when this story lands. No route shows a
   member yet, so the external-edit toast cannot fire for one.
