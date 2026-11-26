@@ -20,6 +20,20 @@ unchanged, with "level note" and the `topic-research-level-note` template in
 place of "finding" and its template. Its **Template** step is the exception:
 a level note takes its template as **Template** below says.
 
+## Node Query
+
+Your task prompt names your node by the set's slug, the run id and a spawn
+ref, not by its question. Run `accelerator research topic node <slug> --run
+<run> --node <spawn ref>` with the slug, run and spawn ref your task prompt
+injects, before your **Template** step. From its JSON take the `question` as
+your focus question, `lineage`, `level`, `cap` as the follow-up cap,
+`known_questions` as the known questions, `id`, `path` as the note path, and
+`search_budget` when it prints one. When Claude Code's permissions deny the
+query, write no file, and say "node query denied by permissions" in your
+summary. When it exits non-zero, a research-guard refusal
+(`E_RESEARCH_GUARD_COMMAND`) included, write no file, and say "node query
+failed" in your summary, quoting the first line of its stderr.
+
 ## Sink
 
 Write the note to the **single note path the node query prints**, and to no

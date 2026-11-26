@@ -879,6 +879,11 @@ malformed snapshot is discarded rather than failing the run: the query
 refuses every node of its batch, and the next `--run` plan names the
 discard in its `warnings`.
 
+The level-note outputter, which every node researcher is handed, says how to
+run the query and names its two failures, "node query denied by permissions"
+and "node query failed", so an `agents.researcher` override that follows its
+outputter reports them in words `conduct`'s troubleshooting rows match.
+
 The web profile resolves `{search budget}`, which the level-note outputter
 stamps: the query's `search_budget` when it prints one, else a search budget
 injected into the prompt, else none, and then as many `WebSearch` calls as

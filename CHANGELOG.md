@@ -919,8 +919,10 @@
   slug, the run id and its spawn ref, and reads its question, known
   questions, id, path and search budget with
   `accelerator research topic node`, so its prompt stays the same size at
-  every depth. An `agents.researcher` override must run that query when
-  given a spawn ref. The web profile resolves `{search budget}` as the
+  every depth. The level-note outputter, which every node researcher is
+  handed, says how to run that query and how to report a denied or failed
+  one, so an `agents.researcher` override that follows it runs the query
+  when given a spawn ref. The web profile resolves `{search budget}` as the
   query's `search_budget`, else an injected budget, else none, so an
   override that follows its profile keeps to the run's search quota.
   `research-topic`'s spawns inherit its

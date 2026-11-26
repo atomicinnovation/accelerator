@@ -3174,27 +3174,44 @@ def test_the_summary_names_a_node_by_its_lineage_and_pair_question() -> None:
         )
 
 
-def test_the_researcher_queries_its_node_first() -> None:
-    prose = _prose(RESEARCHER)
-    query = prose.index(
-        f"Given a spawn ref, run `{NODE_QUERY_CALL}` with the injected slug, "
-        "run and spawn ref, before anything else."
+def _node_query_step() -> str:
+    return _section(
+        _prose(LEVEL_NOTE_OUTPUTTER),
+        "## Node Query",
+        "## Sink",
+        path=LEVEL_NOTE_OUTPUTTER,
     )
-    assert query < prose.index("**Read your injected files**")
+
+
+def test_the_level_note_outputter_queries_the_node_first() -> None:
+    step = _node_query_step()
     for sentence in (
+        f"Run `{NODE_QUERY_CALL}` with the slug, run and spawn ref your task "
+        "prompt injects, before your **Template** step.",
         "From its JSON take the `question` as your focus question, "
         "`lineage`, `level`, `cap` as the follow-up cap, `known_questions` "
-        "as the known questions, `id`, `path` as the output path, and "
+        "as the known questions, `id`, `path` as the note path, and "
         "`search_budget` when it prints one.",
-        "Given an inline focus question, use it as given.",
     ):
-        assert sentence in prose, f"the researcher must state {sentence!r}"
+        assert sentence in step, f"the outputter must state {sentence!r}"
+    prose = _prose(RESEARCHER)
+    query = prose.index(
+        "Given a spawn ref, run the level-note outputter's **Node Query** "
+        "step first."
+    )
+    assert query < prose.index("the outputter's **Template** step")
+    assert "Given an inline focus question, use it as given." in prose
+    assert NODE_QUERY_CALL not in prose
     frontmatter, _ = _split(_read(RESEARCHER))
     assert "spawn ref" in frontmatter
 
 
-def test_the_researcher_reports_node_query_failures() -> None:
-    prose = _prose(RESEARCHER)
+def test_the_level_note_outputter_reports_node_query_failures() -> None:
+    prose = _node_query_step()
+    for outcome in (NODE_QUERY_DENIED, NODE_QUERY_FAILED):
+        assert outcome not in _prose(RESEARCHER), (
+            f"{outcome!r} belongs to the outputter an override also reads"
+        )
     for sentence in (
         "When Claude Code's permissions deny the query, write no file, and "
         f'say "{NODE_QUERY_DENIED}" in your summary.',
@@ -3203,7 +3220,7 @@ def test_the_researcher_reports_node_query_failures() -> None:
         f'"{NODE_QUERY_FAILED}" in your summary, quoting the first line of '
         "its stderr.",
     ):
-        assert sentence in prose, f"the researcher must state {sentence!r}"
+        assert sentence in prose, f"the outputter must state {sentence!r}"
     denied = _troubleshooting_row(NODE_QUERY_DENIED)
     assert f"`Bash({NODE_QUERY}*)`" in denied
     assert f"`research-topic`'s `Bash({NODE_QUERY}*)`" in denied

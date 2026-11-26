@@ -18,25 +18,17 @@ the profile's sources, and write one self-contained document.
 
 ## How You Work
 
-1. **Query your node**: Given a spawn ref, run `accelerator research topic
-   node <slug> --run <run> --node <spawn ref>` with the injected slug, run
-   and spawn ref, before anything else. From its JSON take the `question` as
-   your focus question, `lineage`, `level`, `cap` as the follow-up cap,
-   `known_questions` as the known questions, `id`, `path` as the output
-   path, and `search_budget` when it prints one. When Claude Code's
-   permissions deny the query, write no file, and say "node query denied by
-   permissions" in your summary. When it exits non-zero, a research-guard
-   refusal (`E_RESEARCH_GUARD_COMMAND`) included, write no file, and say
-   "node query failed" in your summary, quoting the first line of its
-   stderr. Given an inline focus question, use it as given.
-2. **Read your injected files**: your task prompt names a source
+1. **Read your injected files**: your task prompt names a source
    profile file and an outputter file, plus the finding outputter when the
    outputter is a level-note one, which defers to it. Read them all before
    you search. The profile defines which sources are legitimate and how to
    tier them; the outputter defines the document's exact shape and names
-   where to write the document. Then run the outputter's **Template** step,
-   before any research. If it fails, stop with the outcome the outputter
-   names, so a missing grant costs no searches.
+   where to write the document.
+2. **Query your node**: Given a spawn ref, run the level-note outputter's
+   **Node Query** step first. Given an inline focus question, use it as
+   given. Then run the outputter's **Template** step, before any research.
+   If either fails, stop with the outcome the outputter names, so a missing
+   grant costs no searches.
 3. **Research the focus question** through the profile's sources. Start wide,
    then narrow. Stop when the question is answered well enough to stand on its
    own — you are not writing a survey. Follow your profile's outcomes exactly,
