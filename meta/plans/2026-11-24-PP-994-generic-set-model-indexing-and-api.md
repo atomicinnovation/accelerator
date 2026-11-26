@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-26T17:19:00+00:00"
+last_updated: "2026-11-26T19:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -66,7 +66,7 @@ The plan has two stages, as the work item prescribes:
    not overlap) and ADR-0080 (domain declarations crates) are accepted,
    the member API specification is written, and PP-994's Drafting Notes
    carry the decisions line dated 2026-11-26.
-2. **Stage two (Phases 2–12): implementation. Next: Phase 5.** Each phase
+2. **Stage two (Phases 2–12): implementation. Next: Phase 6.** Each phase
    is test-first and mergeable on its own with `mise run` green.
 
 ## Sizing consequence and the decision not to split
@@ -1556,15 +1556,40 @@ test can then declare a doc type of its own.
 
 #### Automated Verification:
 
-- [ ] `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
-- [ ] `mise run server:check`
-- [ ] `mise run public-api:update`, with the `corpus` snapshot diff
+- [x] `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
+- [x] `mise run server:check`
+- [x] `mise run public-api:update`, with the `corpus` snapshot diff
       reviewed.
-- [ ] `mise run`
+- [x] `mise run`
 
 #### Manual Verification:
 
 - [ ] None: production serves the built-in catalogue unchanged.
+
+### Implementation notes
+
+- **`FLAT_DEFAULTS`.** `DocType::FLAT_DEFAULTS` replaces the corpus tests'
+  private `UNREMARKABLE` base. It slugs by the stem (`VerbatimStem`), so
+  search, which drops slug-less entries, finds a test-declared type's
+  documents. Only the server enables `test-support` from its
+  dev-dependencies, alongside `corpus`'s own self dev-dependency;
+  `corpus-adapters` gains it when a test there first needs it. The feature
+  is off in the public API snapshot, so the `corpus` snapshot is
+  unchanged.
+- **The default.** `Config.doc_types` defaults through a server-local
+  `built_in_doc_types()`, not a new `corpus` function; Phase 6 replaces
+  the default with the assembled catalogue.
+- **Injection.** `LocalFileDriver::new` and `refuse_overlapping_doc_roots`
+  take `&DocTypeCatalogue`; `Indexer::build` takes the
+  `Arc<DocTypeCatalogue>` as its second argument. The watcher reads no
+  doc type list, so it holds no catalogue yet. `parse_kind` is gone: the
+  docs handler resolves the wire token through `state.cfg.doc_types`, and
+  `parse_selection_query` takes the catalogue.
+- **Test helpers.** `catalogue_with` lives in the integration tests'
+  `common` module, because `src/test_support.rs` is compiled for unit
+  tests only; unit tests use `test_support::built_in_catalogue()`.
+- **`mise run`** exited 0, with `test:unit:cli` coverage at lines 94.33%,
+  functions 93.73%, regions 93.10%.
 
 ---
 
