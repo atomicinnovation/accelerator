@@ -205,6 +205,7 @@ pub struct SetContext {
     pub set_id: String,
     pub set_slug: Option<String>,
     pub set_directory: PathBuf,
+    pub root_rel_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -2354,6 +2355,7 @@ fn build_entry(
                 set_id: set_id_of(&parsed.state, set_directory),
                 set_slug: slug_val.clone(),
                 set_directory: set_directory.to_path_buf(),
+                root_rel_path: rel_path.clone(),
             }),
             filename.to_owned(),
         )),

@@ -93,6 +93,7 @@ pub fn set_root_for_test(
         set_id: set_id.to_string(),
         set_slug: Some(set_directory.to_string()),
         set_directory: directory.clone(),
+        root_rel_path: PathBuf::from(format!("{set_directory}/{root}")),
     });
     IndexEntry {
         path: directory.join(root),

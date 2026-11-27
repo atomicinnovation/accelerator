@@ -423,6 +423,10 @@ pub async fn run_with<W: crate::watcher::DirectoryWatcher>(
         state.indexer.clone(),
         Arc::new(crate::change_broadcast::ChangeBroadcast::of(&state)),
         state.write_coordinator.clone(),
+        crate::watcher::SetDocRoots::new(
+            &state.doc_types,
+            &state.cfg.doc_paths,
+        ),
         Some(state.template_change_handler.clone()),
         crate::watcher::Settings::DEFAULT,
     );
