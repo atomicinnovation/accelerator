@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use super::ApiError;
 use crate::doc_type_view::PresentationView;
-use crate::indexer::{AssetRecord, IndexEntry};
+use crate::indexer::{AssetRecord, IndexEntry, IndexedSet};
 use crate::server::AppState;
 
 #[derive(Serialize)]
@@ -100,27 +100,21 @@ pub(crate) async fn set_get(
         .ok_or(ApiError::InvalidDocType(type_token))?;
     let not_found = || ApiError::NotFound(set_id.clone());
     let set = state.doc_types.set_matcher(kind).ok_or_else(not_found)?;
-    let root = state
+    let IndexedSet {
+        root,
+        members,
+        assets,
+    } = state
         .indexer
-        .set_root(kind, &set_id)
+        .set(kind, &set_id)
         .await
         .ok_or_else(not_found)?;
     let context = root.set_placement().ok_or_else(not_found)?.context.clone();
 
-    let mut members: Vec<SetMember> = state
-        .indexer
-        .set_members(&context.set_directory)
-        .await
+    let mut members: Vec<SetMember> = members
         .into_iter()
         .map(|document| SetMember::Document(document.into()))
-        .chain(
-            state
-                .indexer
-                .set_assets(&context.set_directory)
-                .await
-                .into_iter()
-                .map(SetMember::from),
-        )
+        .chain(assets.into_iter().map(SetMember::from))
         .collect();
     members.sort_by(|a, b| a.set_relative_path().cmp(b.set_relative_path()));
 

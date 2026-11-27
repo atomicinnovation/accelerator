@@ -275,6 +275,48 @@ fn serialize_set_wire_fields<S: serde::Serializer>(
     .serialize(serializer)
 }
 
+pub struct IndexedSet {
+    pub root: IndexEntry,
+    pub members: Vec<IndexEntry>,
+    pub assets: Vec<AssetRecord>,
+}
+
+fn members_in<'a>(
+    entries: impl Iterator<Item = &'a IndexEntry>,
+    set_directory: &Path,
+) -> Vec<IndexEntry> {
+    let mut members: Vec<IndexEntry> = entries
+        .filter(|e| e.is_member())
+        .filter(|e| {
+            e.set_placement()
+                .is_some_and(|p| p.context.set_directory == set_directory)
+        })
+        .cloned()
+        .collect();
+    members.sort_by(|a, b| {
+        a.set_placement()
+            .map(|p| &p.set_relative_path)
+            .cmp(&b.set_placement().map(|p| &p.set_relative_path))
+    });
+    members
+}
+
+fn assets_in<'a>(
+    assets: impl Iterator<Item = &'a AssetRecord>,
+    set_directory: &Path,
+) -> Vec<AssetRecord> {
+    let mut assets: Vec<AssetRecord> = assets
+        .filter(|asset| asset.placement.context.set_directory == set_directory)
+        .cloned()
+        .collect();
+    assets.sort_by(|a, b| {
+        a.placement
+            .set_relative_path
+            .cmp(&b.placement.set_relative_path)
+    });
+    assets
+}
+
 fn set_id_of(
     root_frontmatter: &FrontmatterState,
     set_directory: &Path,
@@ -1525,60 +1567,34 @@ impl Indexer {
         self.entries.read().await.values().cloned().collect()
     }
 
-    pub async fn set_root(
+    pub async fn set(
         &self,
         kind: DocTypeKey,
         set_id: &str,
-    ) -> Option<IndexEntry> {
-        self.entries
-            .read()
-            .await
+    ) -> Option<IndexedSet> {
+        let entries = self.entries.read().await;
+        let assets = self.assets.read().await;
+        let root = entries
             .values()
             .filter(|e| e.r#type == kind && e.is_set_root())
             .filter_map(|e| Some((e.set_placement()?.context.clone(), e)))
             .filter(|(context, _)| context.set_id == set_id)
             .min_by(|(a, _), (b, _)| a.set_directory.cmp(&b.set_directory))
-            .map(|(_, root)| root.clone())
+            .map(|(_, root)| root.clone())?;
+        let directory = root.set_placement()?.context.set_directory.clone();
+        Some(IndexedSet {
+            members: members_in(entries.values(), &directory),
+            assets: assets_in(assets.values(), &directory),
+            root,
+        })
     }
 
     pub async fn set_members(&self, set_directory: &Path) -> Vec<IndexEntry> {
-        let mut members: Vec<IndexEntry> = self
-            .entries
-            .read()
-            .await
-            .values()
-            .filter(|e| e.is_member())
-            .filter(|e| {
-                e.set_placement()
-                    .is_some_and(|p| p.context.set_directory == set_directory)
-            })
-            .cloned()
-            .collect();
-        members.sort_by(|a, b| {
-            a.set_placement()
-                .map(|p| &p.set_relative_path)
-                .cmp(&b.set_placement().map(|p| &p.set_relative_path))
-        });
-        members
+        members_in(self.entries.read().await.values(), set_directory)
     }
 
     pub async fn set_assets(&self, set_directory: &Path) -> Vec<AssetRecord> {
-        let mut assets: Vec<AssetRecord> = self
-            .assets
-            .read()
-            .await
-            .values()
-            .filter(|asset| {
-                asset.placement.context.set_directory == set_directory
-            })
-            .cloned()
-            .collect();
-        assets.sort_by(|a, b| {
-            a.placement
-                .set_relative_path
-                .cmp(&b.placement.set_relative_path)
-        });
-        assets
+        assets_in(self.assets.read().await.values(), set_directory)
     }
 
     /// Returns a cloned snapshot of `work_item_by_identity_key` for callers
@@ -6719,6 +6735,51 @@ mod set_enumeration_tests {
             vec!["screenshots/a.png"]
         );
         assert_eq!(indexer.documents_including_members().await.len(), 8);
+    }
+
+    #[tokio::test]
+    async fn a_set_is_read_whole_by_its_type_and_id() {
+        let (_tmp, _root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+            ("meta/research/design-inventories/i/inventory.md", ROOT),
+            ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+        ])
+        .await;
+        let relative_paths = |set: &IndexedSet| {
+            let members = set.members.iter().filter_map(|member| {
+                Some(member.set_placement()?.set_relative_path.clone())
+            });
+            let assets = set
+                .assets
+                .iter()
+                .map(|asset| asset.placement.set_relative_path.clone());
+            members.chain(assets).collect::<Vec<_>>()
+        };
+
+        let topic = indexer
+            .set(DocTypeKey::TOPIC_RESEARCH, "the-set")
+            .await
+            .unwrap();
+        let inventory = indexer
+            .set(DocTypeKey::DESIGN_INVENTORIES, "the-set")
+            .await
+            .unwrap();
+
+        assert_eq!(
+            topic.root.rel_path,
+            Path::new("meta/research/topics/s/manifest.md")
+        );
+        assert_eq!(relative_paths(&topic), ["brief.md"]);
+        assert_eq!(
+            inventory.root.rel_path,
+            Path::new("meta/research/design-inventories/i/inventory.md")
+        );
+        assert_eq!(relative_paths(&inventory), ["screenshots/a.png"]);
+        assert!(indexer
+            .set(DocTypeKey::TOPIC_RESEARCH, "no-such-set")
+            .await
+            .is_none());
     }
 
     #[tokio::test]
