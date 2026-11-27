@@ -151,16 +151,13 @@ fn refuse_overlapping_roots(dirs: &[DocTypeDir]) -> Result<(), ConfigError> {
 ///
 /// # Errors
 ///
-/// A doc type's key is resolved through [`doc_type_dirs_at`] at the same
-/// level, so it is refused whenever the doc roots overlap.
-///
-/// # Errors
-///
 /// [`ConfigError::Invalid`] when `path_key` has no catalogue entry — a path
 /// key is only ever one the catalogue recognises, whether or not a value
-/// happens to be set for it in config. As [`doc_type_dirs`] for a doc type's
-/// key. A [`ConfigError`] when `path_key` doesn't parse as a key segment or a
-/// config level cannot be read.
+/// happens to be set for it in config. A doc type's key is resolved through
+/// [`doc_type_dirs_at`] at the same level, so it is refused, as by
+/// [`doc_type_dirs`], whenever the doc roots overlap. A [`ConfigError`] when
+/// `path_key` doesn't parse as a key segment or a config level cannot be
+/// read.
 pub fn resolve_with_fallback(
     config: &dyn ConfigAccess,
     path_key: &str,

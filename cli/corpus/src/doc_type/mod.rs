@@ -35,10 +35,7 @@ mod tests {
     };
 
     #[test]
-    fn topic_research_mirrors_the_design_inventories_predicate_profile() {
-        // Both are Discover set types, whose layouts differ only in their
-        // owners' set declarations. Pin the full boolean profile so the
-        // shared shape is asserted rather than inferred.
+    fn topic_research_and_design_inventories_differ_only_in_their_sets() {
         let topic = DocTypeKey::TOPIC_RESEARCH;
         let inventory = DocTypeKey::DESIGN_INVENTORIES;
         assert_eq!(topic.in_lifecycle(), inventory.in_lifecycle());

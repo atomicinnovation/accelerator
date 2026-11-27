@@ -60,7 +60,7 @@ function ActivityRowContent({
 }
 
 export function ActivityFeed() {
-  const { data: initial, isSuccess } = useQuery({
+  const { data, isSuccess } = useQuery({
     queryKey: queryKeys.activity(LIMIT),
     queryFn: () => fetchActivity(LIMIT),
   });
@@ -95,7 +95,7 @@ export function ActivityFeed() {
     [subscribe, queryClient],
   );
 
-  const rows = initial ?? [];
+  const rows = data ?? [];
   const documentOf = useActivityRowDocuments(rows);
   const isLive = connectionState === "open";
   const isEmptyHistory = isSuccess && rows.length === 0;

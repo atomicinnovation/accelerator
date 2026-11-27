@@ -653,8 +653,6 @@ pub fn link_keys_of(entry: &IndexEntry) -> LinkKeys {
     }
 }
 
-/// The roots and ordinary documents among `entries`: every default view
-/// of the index reads through here, so no member reaches one.
 fn listed<'a>(
     entries: impl IntoIterator<Item = &'a IndexEntry>,
 ) -> impl Iterator<Item = &'a IndexEntry> {
@@ -864,12 +862,8 @@ impl Indexer {
         project_root: PathBuf,
         work_item_cfg: Arc<crate::config::WorkItemConfig>,
     ) -> Result<Self, FileDriverError> {
-        // Canonicalise once. Every downstream consumer — `rescan`,
-        // `refresh_one`, the secondary-index helpers, and
-        // `Indexer::reviews_by_target` — sees a canonical path. The
-        // failure (e.g., the project_root does not exist) is mapped
-        // into the existing `FileDriverError` channel so call sites
-        // do not learn a new error type.
+        // Every path the index holds is canonical, so the root is resolved
+        // once, here.
         let project_root = tokio::fs::canonicalize(&project_root)
             .await
             .map_err(|source| FileDriverError::Io {

@@ -506,7 +506,7 @@ async fn set_members_are_in_set_relative_path_order() {
 }
 
 #[tokio::test]
-async fn set_documents_and_assets_interleave_in_set_relative_path_order() {
+async fn set_members_come_in_set_relative_path_order() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = topic_cfg(tmp.path());
     write_files(

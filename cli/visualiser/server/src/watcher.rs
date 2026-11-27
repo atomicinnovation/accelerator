@@ -236,9 +236,6 @@ fn register(watcher: &mut impl DirectoryWatcher, dirs: &[PathBuf]) {
     }
 }
 
-// Forwards the same set of narrow shared-state handles `spawn` holds, plus
-// the changed path; a param struct would not aid clarity.
-#[allow(clippy::too_many_arguments)]
 pub async fn on_path_changed_debounced(
     path: PathBuf,
     indexer: Arc<Indexer>,
