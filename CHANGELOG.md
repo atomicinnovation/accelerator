@@ -770,6 +770,15 @@
   brief, outline, synthesis, finding or report is matched on its own title,
   file name and first paragraph, and its result opens the set. The type
   listing, counts and lifecycle still show one entry per set.
+- **The visualiser follows a set's members and screenshots live.** Adding,
+  editing or removing a topic research set's member document or a design
+  inventory's screenshot now sends a change event, where only a set's root
+  did before, and a set renamed into place or a screenshot renamed only in
+  case reads as one change. A set's changes share one activity row, for its
+  root, which keeps the root's last action, and the activity feed now shows
+  the rows the server recorded, the application's own edits included. A
+  set's latest change counts a removed member or screenshot from when it was
+  seen gone.
 - **A finding stem for a long question is cut at a word.** A question slug
   over 60 characters is now cut before the word that would pass 60, or at 60
   when that would leave 40 or fewer, as a report's name is. Findings already
