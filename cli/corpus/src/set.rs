@@ -1,7 +1,12 @@
 //! The set model: a doc type whose entries are directories, each holding a
 //! root document and the members its declared shape names.
 
+mod rename;
 mod shape;
+
+pub use crate::set::rename::pair_case_only_renames;
+pub use crate::set::rename::CaseOnlyRename;
+pub use crate::set::rename::MemberPath;
 
 pub use crate::set::shape::SetMatcher;
 pub use crate::set::shape::SetPlace;

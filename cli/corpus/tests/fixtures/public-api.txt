@@ -1115,6 +1115,30 @@ impl core::fmt::Display for corpus::set::SlotPatternError
 pub fn corpus::set::SlotPatternError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for corpus::set::SlotPatternError
 impl core::marker::StructuralPartialEq for corpus::set::SlotPatternError
+pub struct corpus::set::CaseOnlyRename<'a>
+pub corpus::set::CaseOnlyRename::from: corpus::set::MemberPath<'a>
+pub corpus::set::CaseOnlyRename::to: corpus::set::MemberPath<'a>
+impl<'a> core::clone::Clone for corpus::set::CaseOnlyRename<'a>
+pub fn corpus::set::CaseOnlyRename<'a>::clone(&self) -> corpus::set::CaseOnlyRename<'a>
+impl<'a> core::cmp::Eq for corpus::set::CaseOnlyRename<'a>
+impl<'a> core::cmp::PartialEq for corpus::set::CaseOnlyRename<'a>
+pub fn corpus::set::CaseOnlyRename<'a>::eq(&self, other: &corpus::set::CaseOnlyRename<'a>) -> bool
+impl<'a> core::fmt::Debug for corpus::set::CaseOnlyRename<'a>
+pub fn corpus::set::CaseOnlyRename<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for corpus::set::CaseOnlyRename<'a>
+impl<'a> core::marker::StructuralPartialEq for corpus::set::CaseOnlyRename<'a>
+pub struct corpus::set::MemberPath<'a>
+pub corpus::set::MemberPath::set_directory: &'a std::path::Path
+pub corpus::set::MemberPath::set_relative_path: &'a str
+impl<'a> core::clone::Clone for corpus::set::MemberPath<'a>
+pub fn corpus::set::MemberPath<'a>::clone(&self) -> corpus::set::MemberPath<'a>
+impl<'a> core::cmp::Eq for corpus::set::MemberPath<'a>
+impl<'a> core::cmp::PartialEq for corpus::set::MemberPath<'a>
+pub fn corpus::set::MemberPath<'a>::eq(&self, other: &corpus::set::MemberPath<'a>) -> bool
+impl<'a> core::fmt::Debug for corpus::set::MemberPath<'a>
+pub fn corpus::set::MemberPath<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for corpus::set::MemberPath<'a>
+impl<'a> core::marker::StructuralPartialEq for corpus::set::MemberPath<'a>
 pub struct corpus::set::MemberSlot
 pub corpus::set::MemberSlot::kind: corpus::set::MemberKind
 pub corpus::set::MemberSlot::pattern: &'static str
@@ -1148,6 +1172,7 @@ impl core::clone::Clone for corpus::set::SlotPattern
 pub fn corpus::set::SlotPattern::clone(&self) -> corpus::set::SlotPattern
 impl core::fmt::Debug for corpus::set::SlotPattern
 pub fn corpus::set::SlotPattern::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn corpus::set::pair_case_only_renames<'a>(removed: &[corpus::set::MemberPath<'a>], added: &[corpus::set::MemberPath<'a>]) -> alloc::vec::Vec<corpus::set::CaseOnlyRename<'a>>
 pub mod corpus::slug
 pub enum corpus::slug::SlugRule
 pub corpus::slug::SlugRule::DateAndOptionalId
