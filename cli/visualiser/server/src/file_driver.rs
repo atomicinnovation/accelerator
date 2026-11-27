@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use corpus_adapters::{patch_status, FileCorpusStore, PatchError};
 
 use corpus::doc_type::{FilenameFilter, Listing};
-use corpus::set::SetMatcher;
+use corpus::set::{MemberKind, SetMatcher, SetPlace};
 use corpus::{AtomicWrite, DocTypeCatalogue, DocTypeKey, StoreError};
 
 /// A frontmatter mutation applied through the file driver.
@@ -60,6 +60,21 @@ pub enum FileDriverError {
     CrossFilesystem { path: PathBuf },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetListing {
+    pub directory: PathBuf,
+    pub root: PathBuf,
+    pub documents: Vec<String>,
+    pub assets: Vec<AssetListing>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssetListing {
+    pub set_relative_path: String,
+    pub size: u64,
+    pub mtime_ms: i64,
+}
+
 pub trait FileDriver: Send + Sync {
     fn list(
         &self,
@@ -68,6 +83,18 @@ pub trait FileDriver: Send + Sync {
         Box<
             dyn std::future::Future<
                     Output = Result<Vec<PathBuf>, FileDriverError>,
+                > + Send
+                + '_,
+        >,
+    >;
+
+    fn list_sets(
+        &self,
+        kind: DocTypeKey,
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<Vec<SetListing>, FileDriverError>,
                 > + Send
                 + '_,
         >,
@@ -273,6 +300,134 @@ impl LocalFileDriver {
     }
 }
 
+impl LocalFileDriver {
+    async fn set_listing(
+        &self,
+        matcher: &SetMatcher,
+        directory: PathBuf,
+    ) -> Result<SetListing, FileDriverError> {
+        let mut listing = SetListing {
+            root: directory.join(matcher.root()),
+            directory,
+            documents: Vec::new(),
+            assets: Vec::new(),
+        };
+        let mut pending = vec![String::new()];
+        while let Some(set_relative_dir) = pending.pop() {
+            let dir = listing.directory.join(&set_relative_dir);
+            for (name, metadata) in undotted_entries_of(&dir).await? {
+                let set_relative = if set_relative_dir.is_empty() {
+                    name
+                } else {
+                    format!("{set_relative_dir}/{name}")
+                };
+                if metadata.is_dir() {
+                    if matcher.may_contain_members(&set_relative) {
+                        pending.push(set_relative);
+                    }
+                    continue;
+                }
+                let Some(SetPlace::Member(kind)) =
+                    matcher.classify(&set_relative)
+                else {
+                    continue;
+                };
+                let path = listing.directory.join(&set_relative);
+                let Ok(canonical) = tokio::fs::canonicalize(&path).await else {
+                    continue;
+                };
+                if !self.path_is_allowed(&canonical) {
+                    continue;
+                }
+                let metadata = if metadata.is_symlink() {
+                    match tokio::fs::metadata(&canonical).await {
+                        Ok(target) if target.is_file() => target,
+                        _ => continue,
+                    }
+                } else {
+                    metadata
+                };
+                match kind {
+                    MemberKind::Document => {
+                        listing.documents.push(set_relative);
+                    }
+                    MemberKind::Asset => listing.assets.push(AssetListing {
+                        set_relative_path: set_relative,
+                        size: metadata.len(),
+                        mtime_ms: mtime_ms_of(&metadata),
+                    }),
+                }
+            }
+        }
+        listing.documents.sort();
+        listing
+            .assets
+            .sort_by(|a, b| a.set_relative_path.cmp(&b.set_relative_path));
+        Ok(listing)
+    }
+}
+
+/// The non-dot directories directly in `root` that hold `set_root` as a
+/// file; none when `root` does not exist.
+async fn set_directories_in(
+    root: &Path,
+    set_root: &str,
+) -> Result<Vec<PathBuf>, FileDriverError> {
+    let mut directories = Vec::new();
+    for (name, metadata) in undotted_entries_of(root).await? {
+        if !metadata.is_dir() {
+            continue;
+        }
+        let directory = root.join(name);
+        match tokio::fs::metadata(directory.join(set_root)).await {
+            Ok(meta) if meta.is_file() => directories.push(directory),
+            _ => {}
+        }
+    }
+    Ok(directories)
+}
+
+/// The entries of `dir` whose names do not start with a dot, each with the
+/// metadata of the entry itself, so a symlink is never taken for a
+/// directory; none when `dir` does not exist.
+async fn undotted_entries_of(
+    dir: &Path,
+) -> Result<Vec<(String, std::fs::Metadata)>, FileDriverError> {
+    let io_error = |source| FileDriverError::Io {
+        path: dir.to_path_buf(),
+        source,
+    };
+    let mut stream = match tokio::fs::read_dir(dir).await {
+        Ok(read) => read,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(vec![]);
+        }
+        Err(source) => return Err(io_error(source)),
+    };
+    let mut entries = Vec::new();
+    while let Some(entry) = stream.next_entry().await.map_err(io_error)? {
+        let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+            continue;
+        };
+        if name.starts_with('.') {
+            continue;
+        }
+        let metadata = tokio::fs::symlink_metadata(entry.path())
+            .await
+            .map_err(io_error)?;
+        entries.push((name, metadata));
+    }
+    Ok(entries)
+}
+
+fn mtime_ms_of(metadata: &std::fs::Metadata) -> i64 {
+    metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |d| d.as_millis() as i64)
+}
+
 fn store_error_to_fd(error: StoreError, path: &Path) -> FileDriverError {
     match error {
         StoreError::CrossFilesystem { .. } => {
@@ -387,6 +542,34 @@ impl FileDriver for LocalFileDriver {
                 }
             }
             Ok(entries)
+        })
+    }
+
+    fn list_sets(
+        &self,
+        kind: DocTypeKey,
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<Vec<SetListing>, FileDriverError>,
+                > + Send
+                + '_,
+        >,
+    > {
+        let root = match self.root_for(kind) {
+            Ok(r) => r.to_path_buf(),
+            Err(e) => return Box::pin(std::future::ready(Err(e))),
+        };
+        let Some(matcher) = self.doc_types.set_matcher(kind) else {
+            return Box::pin(std::future::ready(Ok(Vec::new())));
+        };
+        Box::pin(async move {
+            let mut sets = Vec::new();
+            for directory in set_directories_in(&root, matcher.root()).await? {
+                sets.push(self.set_listing(matcher, directory).await?);
+            }
+            sets.sort_by(|a, b| a.directory.cmp(&b.directory));
+            Ok(sets)
         })
     }
 
@@ -815,6 +998,201 @@ mod tests {
             got.sort();
             assert_eq!(got, files, "{token}");
         }
+    }
+
+    fn set_driver(path_key: &str, root: &Path) -> LocalFileDriver {
+        let mut map = HashMap::new();
+        map.insert(path_key.to_owned(), root.to_path_buf());
+        LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        )
+    }
+
+    fn write_files(root: &Path, files: &[&str]) {
+        for file in files {
+            let path = root.join(file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, "# x\n").unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn list_sets_lists_each_set_with_the_members_its_shape_holds() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(tmp.path()).unwrap();
+        write_files(
+            &root,
+            &[
+                "s/manifest.md",
+                "s/brief.md",
+                "s/findings/01-a.md",
+                "s/findings/01-a.levels/2-1.md",
+                "s/reports/r.md",
+                "s/notes.txt",
+                "s/findings/sub/x.md",
+                "s/findings/.01-x-web.md.invalid",
+                "s/.conduct-run.json",
+                "s/.scratch/x.md",
+                ".draft.tmp/manifest.md",
+                "rootless/brief.md",
+                "stray.md",
+            ],
+        );
+        let driver = set_driver("research_topics", &root);
+
+        let sets = driver.list_sets(DocTypeKey::TOPIC_RESEARCH).await.unwrap();
+
+        assert_eq!(sets.len(), 1, "{sets:?}");
+        assert_eq!(sets[0].directory, root.join("s"));
+        assert_eq!(sets[0].root, root.join("s/manifest.md"));
+        assert_eq!(
+            sets[0].documents,
+            vec![
+                "brief.md",
+                "findings/01-a.levels/2-1.md",
+                "findings/01-a.md",
+                "reports/r.md",
+            ]
+        );
+        assert!(sets[0].assets.is_empty(), "{:?}", sets[0].assets);
+    }
+
+    #[tokio::test]
+    async fn list_sets_carries_each_asset_with_its_size_and_mtime() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(tmp.path()).unwrap();
+        write_files(
+            &root,
+            &[
+                "i/inventory.md",
+                "i/prototype-full/x.html",
+                "i/assets/y.svg",
+                "i/notes.txt",
+            ],
+        );
+        let screenshots = root.join("i/screenshots");
+        std::fs::create_dir_all(&screenshots).unwrap();
+        for (name, bytes, mtime_ms) in [
+            ("a.png", "abc", 1_700_000_000_000_u64),
+            ("Some File (v2).png", "abcdefg", 1_700_000_001_000),
+        ] {
+            let path = screenshots.join(name);
+            std::fs::write(&path, bytes).unwrap();
+            std::fs::File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_modified(
+                    std::time::UNIX_EPOCH
+                        + std::time::Duration::from_millis(mtime_ms),
+                )
+                .unwrap();
+        }
+        let driver = set_driver("research_design_inventories", &root);
+
+        let sets = driver
+            .list_sets(DocTypeKey::DESIGN_INVENTORIES)
+            .await
+            .unwrap();
+
+        assert_eq!(sets.len(), 1, "{sets:?}");
+        assert!(sets[0].documents.is_empty(), "{:?}", sets[0].documents);
+        assert_eq!(
+            sets[0].assets,
+            vec![
+                AssetListing {
+                    set_relative_path: "screenshots/Some File (v2).png".into(),
+                    size: 7,
+                    mtime_ms: 1_700_000_001_000,
+                },
+                AssetListing {
+                    set_relative_path: "screenshots/a.png".into(),
+                    size: 3,
+                    mtime_ms: 1_700_000_000_000,
+                },
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn list_sets_of_a_missing_doc_root_is_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let driver = set_driver("research_topics", &tmp.path().join("missing"));
+
+        let sets = driver.list_sets(DocTypeKey::TOPIC_RESEARCH).await.unwrap();
+
+        assert!(sets.is_empty(), "{sets:?}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_slotted_symlink_out_of_the_doc_roots_is_not_listed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let tmp = std::fs::canonicalize(tmp.path()).unwrap();
+        let root = tmp.join("inventories");
+        write_files(&root, &["i/inventory.md", "i/screenshots/kept.png"]);
+        std::fs::write(tmp.join("secret.png"), "s3cret").unwrap();
+        std::os::unix::fs::symlink(
+            tmp.join("secret.png"),
+            root.join("i/screenshots/escape.png"),
+        )
+        .unwrap();
+        let driver = set_driver("research_design_inventories", &root);
+
+        let sets = driver
+            .list_sets(DocTypeKey::DESIGN_INVENTORIES)
+            .await
+            .unwrap();
+
+        let assets: Vec<&str> = sets[0]
+            .assets
+            .iter()
+            .map(|asset| asset.set_relative_path.as_str())
+            .collect();
+        assert_eq!(assets, vec!["screenshots/kept.png"]);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_symlinked_slot_directory_is_not_walked() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(tmp.path()).unwrap();
+        write_files(&root, &["s/manifest.md", "elsewhere/findings/01-a.md"]);
+        std::os::unix::fs::symlink(
+            root.join("elsewhere/findings"),
+            root.join("s/findings"),
+        )
+        .unwrap();
+        let driver = set_driver("research_topics", &root);
+
+        let sets = driver.list_sets(DocTypeKey::TOPIC_RESEARCH).await.unwrap();
+
+        let set = sets
+            .iter()
+            .find(|set| set.directory == root.join("s"))
+            .unwrap();
+        assert!(set.documents.is_empty(), "{:?}", set.documents);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_symlinked_directory_named_like_a_member_is_not_listed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(tmp.path()).unwrap();
+        write_files(&root, &["s/manifest.md", "s/findings/01-a.md"]);
+        std::os::unix::fs::symlink(
+            root.join("s/findings"),
+            root.join("s/findings/02-b.md"),
+        )
+        .unwrap();
+        let driver = set_driver("research_topics", &root);
+
+        let sets = driver.list_sets(DocTypeKey::TOPIC_RESEARCH).await.unwrap();
+
+        assert_eq!(sets[0].documents, vec!["findings/01-a.md"]);
     }
 
     #[tokio::test]

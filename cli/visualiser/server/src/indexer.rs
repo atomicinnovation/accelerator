@@ -2781,6 +2781,23 @@ mod identity_join_tests {
             self.inner.list(kind)
         }
 
+        fn list_sets(
+            &self,
+            kind: DocTypeKey,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<
+                            Vec<crate::file_driver::SetListing>,
+                            FileDriverError,
+                        >,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.inner.list_sets(kind)
+        }
+
         fn read(
             &self,
             path: &Path,
