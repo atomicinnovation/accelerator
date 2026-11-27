@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-27T01:30:00+00:00"
+last_updated: "2026-11-27T01:45:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -66,7 +66,7 @@ The plan has two stages, as the work item prescribes:
    not overlap) and ADR-0080 (domain declarations crates) are accepted,
    the member API specification is written, and PP-994's Drafting Notes
    carry the decisions line dated 2026-11-26.
-2. **Stage two (Phases 2–12): implementation. Next: Phase 9.** Each phase
+2. **Stage two (Phases 2–12): implementation. Next: Phase 10.** Each phase
    is test-first and mergeable on its own with `mise run` green.
 
 ## Sizing consequence and the decision not to split
@@ -2636,8 +2636,10 @@ proves that the member's role, and not a missing field, keeps it out.
   - searching the set's slug ranks the root first. A member whose stem
     and title both equal the set's slug is outside the exact-key bucket
     and ranks below the root (criterion 16);
-  - a member whose first paragraph holds only the set's `id`, and whose
-    title and stem do not, is not matched by a search for that `id`.
+  - search never matches a member on its link keys: a member that
+    carries the set's `id` only as its `setId` and link `id`, and not in
+    its title, stem or first paragraph, is not matched by a search for
+    that `id`.
 - **Search projection.** Every row's `slug` and `setId` come from
   `link_keys_of`, pinned for a root, a member and a non-set document.
 - **Wire fields.** `setId` is the root's `id`, or the directory name when
@@ -2766,13 +2768,101 @@ member filter of their own.
 
 #### Automated Verification:
 
-- [ ] `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
-- [ ] `mise run frontend:check`, `mise run test:unit:frontend`
-- [ ] `mise run`
+- [x] `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
+- [x] `mise run frontend:check`, `mise run test:unit:frontend`
+- [x] `mise run`
 
 #### Manual Verification:
 
 - [ ] The library, lifecycle and search in this repo look unchanged.
+
+### Implementation notes
+
+- **Beyond the plan: lifecycle non-determinism (user request,
+  2026-11-26).** Two runs of one build against this repository's `meta/`
+  gave different `/api/lifecycle` order and different `linkedCount`s for
+  five documents whose slugs collide. Two causes, each fixed test-first
+  in its own commit:
+  - `corpus::cluster::compute` read hash-map and input order. Clusters
+    sharing a slug kept `buckets.into_values()` order; every
+    orphan-by-design document keeps its own slug as its cluster's, so
+    such ties are common. Members tied on rank and mtime kept arrival
+    order, which follows `indexer.all()`'s hash-map order. A slug two
+    documents' cluster keys claimed went to whichever came last. Each
+    tie now falls to the lowest path, as `hold_if_lower` already does
+    (`wlyozyql`). `clustering_does_not_depend_on_the_order_entries_arrive_in`
+    and `every_build_over_colliding_slugs_serves_the_same_lifecycle`
+    pin it.
+  - `related::resolve_related` gave an entry without a cluster key the
+    first cluster sharing its slug, not the cluster holding it. So
+    `ADR-0021-template-management-subcommands.md`, an orphan singleton,
+    saw the research, plan and review cluster of the same slug (0 or 3),
+    and those saw the ADR (1 or 2); the three
+    `current-app-vs-claude-design-prototype` design gaps saw each other
+    (0 or 1). An entry without a key now takes the cluster with its slug
+    that holds it (`LifecycleCluster::holds`, `pxvmoonm`), as the
+    composite-key plan intended: orphan types never merge with
+    slug-mates, and `/api/related` agrees with `/api/lifecycle`.
+    `an_entry_infers_only_the_cluster_it_is_in_when_slugs_collide` pins
+    it.
+  - Four runs of the old debug build differed on exactly those documents
+    and on `/api/lifecycle`; four runs of the fixed build gave identical
+    responses, with ADR-0021 at 0, the research document at 2 and the
+    design gaps at 0.
+- **Membership.** `IndexEntry.set: Option<SetDocument>` serialises as
+  `setId` and `setRelativePath`. `build_entry` gives a set root its
+  `SetContext`, with `set_id` its frontmatter `id` or else its
+  directory's name, and its root filename as its set-relative path.
+  `search_key()` and `link_keys_of` sit beside it. `test_support` builds
+  set records through `SetDocument::root` and `::member`, over a
+  test-only `dossiers` set type that carries every key the maps and
+  facets read; `set_member_for_test` copies its root's keys.
+- **Accessors.** A private `listed()` filter backs `all`, `all_by_type`,
+  `counts_by_type`, `library_aggregates`, `release` and the root-only
+  maps. `IndexMaps::build` builds every map for `rescan` and for the
+  test-only `Indexer::from_records`; `install` swaps them under the
+  ordered locks. `latest_change_by_set` is swapped with them, and
+  `refresh_one` recomputes the affected set's entry. Beyond the plan,
+  `publish_document_ids` counts only listed documents, so a member
+  sharing its root's `id` leaves the root its `id`; a member's own `id`
+  is its frontmatter `id`.
+- **Departures.**
+  - `IndexMaps::build` takes no removal ledger; Phase 12 adds it.
+  - `SearchResultsPanel`'s row key is unchanged. PP-996's key already
+    includes `relPath`, which is unique per member; the new test fails
+    against a slug-only key.
+  - Search's third test bullet is reworded (user's decision,
+    2026-11-27). As first written it contradicted criterion 15: search
+    matches the first paragraph, so a member whose first paragraph holds
+    the set's `id` is found by it. The test now pins that search never
+    matches a member on its link keys.
+- **Strict TDD.** The wire-field, refresh, `link_keys_of`,
+  `search_key()`, three search, fetch and non-determinism tests were
+  seen failing first. Two slips: the accessor and map tests in
+  `set_membership_tests`, and the first search tests, were written in
+  the same edit as their code. Guards that passed against existing
+  code, and both slips, were checked by mutation; each mutation failed
+  at least one test:
+  - reading every entry in `all`, `all_by_type`, `counts_by_type`,
+    either aggregates pass, the identity and address maps or
+    `reviews_by_target`;
+  - `work_item_refs_by_target` dropping members;
+  - a set root's latest ignoring its members;
+  - `set_members` in reverse order;
+  - `recompute_clusters` reading members;
+  - `publish_document_ids` counting members;
+  - search candidates leaving out members, keying a member on its slug,
+    letting a member take the exact-key bucket, or matching a member's
+    link `id`;
+  - a non-set entry or search row serialising a `setId`;
+  - a slug-only search row key.
+- **IDE diagnostics.** rust-analyzer in the IDE flagged E0107 at ten
+  `indexer.rs` lines. None of those lines carries a generic argument
+  list, `cargo` and clippy are clean, `rust-analyzer diagnostics` reports
+  no E0107, and the IDE's inspection of the current file reports no
+  errors, so it was stale analysis.
+- **`mise run`** exited 0 on the final code, with `test:unit:cli`
+  coverage at lines 94.46%, functions 93.80%, regions 93.20%.
 
 ---
 
