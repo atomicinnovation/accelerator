@@ -384,7 +384,7 @@ async fn set_whose_root_is_deleted_is_gone_with_its_members() {
 }
 
 #[tokio::test]
-async fn set_id_shared_by_two_roots_names_the_lexically_first_directory() {
+async fn set_id_shared_by_two_roots_gives_way_to_each_directory_name() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = topic_cfg(tmp.path());
     write_files(
@@ -394,15 +394,53 @@ async fn set_id_shared_by_two_roots_names_the_lexically_first_directory() {
                 "meta/research/topics/b-second/manifest.md",
                 &manifest("dup"),
             ),
+            ("meta/research/topics/b-second/brief.md", &titled("Brief")),
             ("meta/research/topics/a-first/manifest.md", &manifest("dup")),
             ("meta/research/topics/c-third/manifest.md", &manifest("dup")),
         ],
     );
     let state = state_for(cfg).await;
 
-    let set = fetch_set(&state, "/api/sets/topic-research/dup").await;
+    let second = fetch_set(&state, "/api/sets/topic-research/b-second").await;
+    let (shared, _) = get_json(&state, "/api/sets/topic-research/dup").await;
 
-    assert_eq!(set["set"]["directory"], "meta/research/topics/a-first");
+    assert_eq!(second["set"]["id"], "b-second");
+    assert_eq!(second["set"]["directory"], "meta/research/topics/b-second");
+    assert_eq!(member_paths(&second), vec!["brief.md"]);
+    assert_eq!(shared, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn set_member_search_rows_link_to_their_own_shared_id_set() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = topic_cfg(tmp.path());
+    write_files(
+        tmp.path(),
+        &[
+            ("meta/research/topics/a-first/manifest.md", &manifest("dup")),
+            (
+                "meta/research/topics/b-second/manifest.md",
+                &manifest("dup"),
+            ),
+            (
+                "meta/research/topics/b-second/brief.md",
+                &titled("Zanzibar"),
+            ),
+        ],
+    );
+    let state = state_for(cfg).await;
+
+    let (status, body) = get_json(&state, "/api/search?q=Zanzibar").await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let row = body["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["setRelativePath"] == "brief.md")
+        .unwrap_or_else(|| panic!("no member row in {body}"));
+    assert_eq!(row["setId"], "b-second");
+    assert_eq!(row["id"], "b-second");
 }
 
 #[tokio::test]

@@ -3,7 +3,7 @@ title: Set member API
 type: spec
 status: draft
 date: "2026-11-24"
-last_updated: "2026-11-25"
+last_updated: "2026-11-27"
 author: Toby Clemson
 slug: set-member-api
 ---
@@ -26,8 +26,9 @@ visualiser's contract.
 - `type` is a doc type's wire token.
 - `setId` is decoded once, by the router's path extractor, and matched
   against the `setId` of the type's roots. A set's `id` is its root's
-  frontmatter `id`, or else its directory's name. When two sets share an
-  `id`, the lexically first directory wins.
+  frontmatter `id`, or else its directory's name. When two sets of one
+  type share an `id`, each set's `id` is its directory's name, the same
+  `id` the library links it by. The shared `id` then matches no set.
 - `400` when `type` is not a known wire token.
 - `404` when the type is not a set type, or no set matches `setId`.
 

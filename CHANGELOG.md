@@ -753,8 +753,8 @@
   document carries its set-relative path, title, frontmatter and etag, but no
   body; each asset carries its set-relative path, size and modification
   time. `setId` is the root's frontmatter `id`, or else the set directory's
-  name; when two sets share an `id`, the lexically first directory is
-  served. An unknown doc type returns 400; a doc type that is not a set type,
+  name; when two sets share an `id`, each takes its directory's name, as the
+  library does. An unknown doc type returns 400; a doc type that is not a set type,
   or an unknown `setId`, returns 404.
 
 ### Changed

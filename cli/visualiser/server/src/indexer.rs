@@ -1068,6 +1068,7 @@ impl Indexer {
             }
             records.push(entry);
         }
+        give_shared_set_ids_way_to_set_directories(&mut records, &mut assets);
         Ok(BuiltIndex {
             records,
             assets,
@@ -1517,7 +1518,6 @@ impl Indexer {
         self.entries.read().await.values().cloned().collect()
     }
 
-    /// When two sets share an id, the lexically first directory holds it.
     pub async fn set_root(
         &self,
         kind: DocTypeKey,
@@ -2414,6 +2414,47 @@ fn publish_document_ids(entries: &mut HashMap<PathBuf, IndexEntry>) {
             .clone()
             .filter(|id| !shared.contains(&(entry.r#type, id.clone())));
         entry.id = unique_frontmatter_id.or_else(|| set_directory_of(entry));
+    }
+}
+
+fn give_shared_set_ids_way_to_set_directories(
+    records: &mut [IndexEntry],
+    assets: &mut [AssetRecord],
+) {
+    let mut holders: HashMap<(DocTypeKey, String), usize> = HashMap::new();
+    for root in records.iter().filter(|entry| entry.is_set_root()) {
+        if let Some(id) = &root.frontmatter_id {
+            *holders.entry((root.r#type, id.clone())).or_insert(0) += 1;
+        }
+    }
+    let renamed: HashMap<PathBuf, Arc<SetContext>> = records
+        .iter()
+        .filter(|entry| entry.is_set_root())
+        .filter(|root| {
+            root.frontmatter_id.as_ref().is_some_and(|id| {
+                holders.get(&(root.r#type, id.clone())) > Some(&1)
+            })
+        })
+        .filter_map(|root| {
+            let context = &root.set_placement()?.context;
+            let directory_name = set_directory_of(root)?;
+            Some((
+                context.set_directory.clone(),
+                Arc::new(SetContext {
+                    set_id: directory_name,
+                    ..SetContext::clone(context)
+                }),
+            ))
+        })
+        .collect();
+    let placements = records
+        .iter_mut()
+        .filter_map(|entry| entry.set.as_mut().map(|set| &mut set.placement))
+        .chain(assets.iter_mut().map(|asset| &mut asset.placement));
+    for placement in placements {
+        if let Some(context) = renamed.get(&placement.context.set_directory) {
+            placement.context = context.clone();
+        }
     }
 }
 
