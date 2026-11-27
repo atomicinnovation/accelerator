@@ -44,6 +44,10 @@ pub enum CatalogueError {
         pattern: &'static str,
         cause: SlotPatternError,
     },
+    TwoVirtualTypes {
+        first: DocTypeKey,
+        second: DocTypeKey,
+    },
 }
 
 impl fmt::Display for Identity {
@@ -85,6 +89,11 @@ impl fmt::Display for CatalogueError {
                 "the set type {kind:?} declares the slot {pattern:?}, \
                  which does not parse: {cause}"
             ),
+            Self::TwoVirtualTypes { first, second } => write!(
+                formatter,
+                "{first:?} and {second:?} are both declared virtual, and a \
+                 catalogue holds at most one virtual type"
+            ),
         }
     }
 }
@@ -97,7 +106,8 @@ impl DocTypeCatalogue {
     /// A [`CatalogueError`] when two declarations share a wire token, a
     /// linkage type name or a config path key, when a set type has no set
     /// declaration or two, when a set declaration is given for a type that
-    /// is not a set type in the catalogue, or when a slot does not parse.
+    /// is not a set type in the catalogue, when a slot does not parse, or
+    /// when two types are declared virtual.
     pub fn new(
         doc_types: &[DocTypeKey],
         set_declarations: &[DeclaredSet],
@@ -115,6 +125,7 @@ impl DocTypeCatalogue {
             Identity::ConfigPathKey,
             DocTypeKey::config_path_key,
         )?;
+        refuse_two_virtual_types(doc_types)?;
         Ok(Self {
             doc_types: doc_types.to_vec(),
             set_matchers: paired_sets(doc_types, set_declarations)?,
@@ -139,6 +150,11 @@ impl DocTypeCatalogue {
     #[must_use]
     pub fn from_config_path_key(&self, key: &str) -> Option<DocTypeKey> {
         self.find(|kind| kind.config_path_key() == Some(key))
+    }
+
+    #[must_use]
+    pub fn virtual_type(&self) -> Option<DocTypeKey> {
+        self.find(DocTypeKey::is_virtual)
     }
 
     /// The matcher for a set type's paired set declaration; `None` for a
@@ -184,6 +200,18 @@ fn paired_sets(
         return Err(CatalogueError::MissingSetDeclaration { kind });
     }
     Ok(paired)
+}
+
+fn refuse_two_virtual_types(
+    doc_types: &[DocTypeKey],
+) -> Result<(), CatalogueError> {
+    let mut virtual_types = doc_types.iter().filter(|kind| kind.is_virtual());
+    match (virtual_types.next(), virtual_types.next()) {
+        (Some(&first), Some(&second)) => {
+            Err(CatalogueError::TwoVirtualTypes { first, second })
+        }
+        _ => Ok(()),
+    }
 }
 
 fn refuse_shared(
@@ -235,6 +263,18 @@ mod tests {
 
     static UNLINKED_WIDGETS: DocType = DocType {
         wire_token: "widgets",
+        ..DocType::FLAT_DEFAULTS
+    };
+
+    static SKETCHES: DocType = DocType {
+        wire_token: "sketches",
+        is_virtual: true,
+        ..DocType::FLAT_DEFAULTS
+    };
+
+    static DRAFTS: DocType = DocType {
+        wire_token: "drafts",
+        is_virtual: true,
         ..DocType::FLAT_DEFAULTS
     };
 
@@ -304,6 +344,27 @@ mod tests {
             &[key(&GADGETS), key(&ALBUMS), key(&DOSSIERS)],
             set_declarations,
         )
+    }
+
+    #[test]
+    fn refuses_two_virtual_types() {
+        assert_eq!(
+            catalogue_of(&[&SKETCHES, &GADGETS, &DRAFTS]).err(),
+            Some(CatalogueError::TwoVirtualTypes {
+                first: key(&SKETCHES),
+                second: key(&DRAFTS),
+            })
+        );
+    }
+
+    #[test]
+    fn names_its_one_virtual_type() -> Result<(), CatalogueError> {
+        assert_eq!(
+            catalogue_of(&[&GADGETS, &SKETCHES])?.virtual_type(),
+            Some(key(&SKETCHES))
+        );
+        assert_eq!(catalogue_of(&[&GADGETS])?.virtual_type(), None);
+        Ok(())
     }
 
     #[test]

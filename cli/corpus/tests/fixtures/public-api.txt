@@ -277,6 +277,9 @@ pub corpus::doc_type::CatalogueError::SetDeclaredTwice::kind: corpus::DocTypeKey
 pub corpus::doc_type::CatalogueError::SharedIdentity
 pub corpus::doc_type::CatalogueError::SharedIdentity::identity: corpus::doc_type::Identity
 pub corpus::doc_type::CatalogueError::SharedIdentity::value: &'static str
+pub corpus::doc_type::CatalogueError::TwoVirtualTypes
+pub corpus::doc_type::CatalogueError::TwoVirtualTypes::first: corpus::DocTypeKey
+pub corpus::doc_type::CatalogueError::TwoVirtualTypes::second: corpus::DocTypeKey
 pub corpus::doc_type::CatalogueError::UnparseableSlot
 pub corpus::doc_type::CatalogueError::UnparseableSlot::cause: corpus::set::SlotPatternError
 pub corpus::doc_type::CatalogueError::UnparseableSlot::kind: corpus::DocTypeKey
@@ -395,6 +398,7 @@ pub fn corpus::DocTypeCatalogue::from_linkage_type_name(&self, name: &str) -> co
 pub fn corpus::DocTypeCatalogue::from_wire_token(&self, token: &str) -> core::option::Option<corpus::DocTypeKey>
 pub fn corpus::DocTypeCatalogue::new(doc_types: &[corpus::DocTypeKey], set_declarations: &[corpus::doc_type::DeclaredSet]) -> core::result::Result<Self, corpus::doc_type::CatalogueError>
 pub fn corpus::DocTypeCatalogue::set_matcher(&self, kind: corpus::DocTypeKey) -> core::option::Option<&corpus::set::SetMatcher>
+pub fn corpus::DocTypeCatalogue::virtual_type(&self) -> core::option::Option<corpus::DocTypeKey>
 impl core::clone::Clone for corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::clone(&self) -> corpus::DocTypeCatalogue
 impl core::fmt::Debug for corpus::DocTypeCatalogue
@@ -1534,6 +1538,7 @@ pub fn corpus::DocTypeCatalogue::from_linkage_type_name(&self, name: &str) -> co
 pub fn corpus::DocTypeCatalogue::from_wire_token(&self, token: &str) -> core::option::Option<corpus::DocTypeKey>
 pub fn corpus::DocTypeCatalogue::new(doc_types: &[corpus::DocTypeKey], set_declarations: &[corpus::doc_type::DeclaredSet]) -> core::result::Result<Self, corpus::doc_type::CatalogueError>
 pub fn corpus::DocTypeCatalogue::set_matcher(&self, kind: corpus::DocTypeKey) -> core::option::Option<&corpus::set::SetMatcher>
+pub fn corpus::DocTypeCatalogue::virtual_type(&self) -> core::option::Option<corpus::DocTypeKey>
 impl core::clone::Clone for corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::clone(&self) -> corpus::DocTypeCatalogue
 impl core::fmt::Debug for corpus::DocTypeCatalogue

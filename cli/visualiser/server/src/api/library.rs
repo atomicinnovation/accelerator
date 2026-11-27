@@ -152,10 +152,8 @@ fn build_structure(
     LibraryStructureResponse {
         phases,
         templates: catalogue
-            .doc_types()
-            .iter()
-            .find(|kind| kind.is_virtual())
-            .map(|templates| build_doc_type(cfg, agg, *templates)),
+            .virtual_type()
+            .map(|templates| build_doc_type(cfg, agg, templates)),
     }
 }
 
