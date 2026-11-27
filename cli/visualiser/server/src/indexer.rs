@@ -1205,9 +1205,7 @@ impl Indexer {
     async fn lies_in_a_set_doc_root(&self, path: &Path) -> bool {
         let canonical =
             crate::watcher::canonicalise_path_or_ancestor(path).await;
-        self.driver
-            .kind_for_canonical_path(&canonical)
-            .is_some_and(DocTypeKey::is_set)
+        self.driver.lies_in_a_set_doc_root(&canonical)
     }
 
     async fn refresh_entry(
@@ -7841,6 +7839,39 @@ mod change_tests {
                 (topic("s/manifest.md"), topic("S/manifest.md")),
             ]
         );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_set_doc_root_that_stops_being_a_symlink_still_refreshes_cleanly()
+    {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let topics = root.join(TOPICS);
+        std::fs::create_dir_all(root.join("elsewhere")).unwrap();
+        std::fs::create_dir_all(topics.parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink(root.join("elsewhere"), &topics).unwrap();
+        let indexer = index_of(&root).await;
+        std::fs::remove_file(&topics).unwrap();
+        write(
+            &root,
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+            ],
+        );
+
+        indexer
+            .refresh_one(&topics.join("s/brief.md"), &RecordingSink::default())
+            .await
+            .unwrap();
+
+        assert!(indexer
+            .all_by_type(DocTypeKey::TOPIC_RESEARCH)
+            .await
+            .is_empty());
+        assert!(indexer.set_members(&topics.join("s")).await.is_empty());
+        assert_eq!(indexer.documents_including_members().await.len(), 0);
     }
 
     #[tokio::test]
