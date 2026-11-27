@@ -922,3 +922,122 @@ async fn an_entry_infers_only_the_cluster_it_is_in_when_slugs_collide() {
         );
     }
 }
+
+fn set_with_a_member_naming_a_work_item(tmp: &std::path::Path) -> Config {
+    let meta = tmp.join("meta");
+    let files = [
+        ("work/0001-x.md", "---\nid: \"0001\"\ntitle: X\n---\n"),
+        (
+            "research/topics/caching/manifest.md",
+            "---\nid: \"the-set\"\ntitle: Caching\n---\n",
+        ),
+        (
+            "research/topics/caching/findings/01-a.md",
+            "---\ntitle: A\nparent: \"0001\"\n---\n",
+        ),
+        (
+            "research/topics/caching/findings/02-b.md",
+            "---\ntitle: B\n---\n",
+        ),
+        (
+            "plans/2026-01-01-01-a.md",
+            "---\ntitle: Plan\nparent: \"0001\"\n---\n",
+        ),
+    ];
+    for (file, content) in files {
+        let path = meta.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
+    }
+    let mut paths = HashMap::new();
+    paths.insert("work".into(), meta.join("work"));
+    paths.insert("research_topics".into(), meta.join("research/topics"));
+    paths.insert("plans".into(), meta.join("plans"));
+    cfg_with_only(tmp, paths)
+}
+
+async fn related_of(app: &axum::Router, rel_path: &str) -> serde_json::Value {
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/related/{rel_path}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK, "{rel_path}");
+    json_body(res).await
+}
+
+fn rel_paths_of(items: &serde_json::Value) -> Vec<String> {
+    items
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["relPath"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+const MEMBER: &str = "meta/research/topics/caching/findings/01-a.md";
+
+#[tokio::test]
+async fn a_members_parent_is_its_own_outbound_item() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_state, app) =
+        build_app(set_with_a_member_naming_a_work_item(tmp.path())).await;
+
+    assert_eq!(
+        rel_paths_of(&related_of(&app, MEMBER).await["declaredOutbound"]),
+        vec!["meta/work/0001-x.md"]
+    );
+    for other in [
+        "meta/research/topics/caching/manifest.md",
+        "meta/research/topics/caching/findings/02-b.md",
+    ] {
+        assert!(
+            rel_paths_of(&related_of(&app, other).await["declaredOutbound"])
+                .is_empty(),
+            "{other}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_work_item_has_the_member_naming_it_as_inbound() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_state, app) =
+        build_app(set_with_a_member_naming_a_work_item(tmp.path())).await;
+
+    let inbound =
+        &related_of(&app, "meta/work/0001-x.md").await["declaredInbound"];
+
+    assert_eq!(
+        rel_paths_of(inbound),
+        vec!["meta/plans/2026-01-01-01-a.md", MEMBER]
+    );
+    assert_eq!(inbound[1]["setId"], "the-set");
+    assert_eq!(inbound[1]["setRelativePath"], "findings/01-a.md");
+}
+
+#[tokio::test]
+async fn no_inferred_item_is_a_member() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_state, app) =
+        build_app(set_with_a_member_naming_a_work_item(tmp.path())).await;
+
+    for rel_path in [
+        MEMBER,
+        "meta/research/topics/caching/manifest.md",
+        "meta/plans/2026-01-01-01-a.md",
+        "meta/work/0001-x.md",
+    ] {
+        let inferred =
+            rel_paths_of(&related_of(&app, rel_path).await["inferredCluster"]);
+        assert!(
+            !inferred.iter().any(|path| path.contains("/findings/")),
+            "{rel_path}: {inferred:?}"
+        );
+    }
+}
