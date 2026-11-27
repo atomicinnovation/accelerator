@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-27T05:45:00+00:00"
+last_updated: "2026-11-27T11:11:18+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1442,10 +1442,13 @@ added to the existing `cli-test-support` crate
   `doc_type`. `nested_root_filename()` stays as an accessor that reads
   `Listing::Nested`. `facets_for` returns the declared facets' ids.
 - **The built-in catalogue.** `DocTypeCatalogue::built_in()` moved into
-  `built_in.rs` and uses a crate-private constructor, so nothing imports
-  from `built_in`. The server's library response takes its templates entry
-  from the virtual type, so `templates` is now an `Option`. It still
-  serialises as an object.
+  `built_in.rs` and uses a crate-private constructor. Phase 6 later
+  removed it: `built_in` became a `pub mod` whose `doc_types()` the
+  declarations assembly reads. The server's library response takes its
+  templates entry from the virtual type, so `templates` is now an
+  `Option`. It still serialises as an object. After validation, the
+  catalogue refuses a second virtual type and names its one virtual type
+  through `virtual_type()`.
 - **Declared facts in the server.** Work-item checks in the indexer now
   read `cluster_anchor()`: work-item id trust, `remember_work_item`, and
   slug and identity derivation. The PATCH guard in `api/docs.rs` reads
@@ -3981,6 +3984,48 @@ Replace the existing tests that assert client-built live rows.
   `lint:store-duplication:check` (the watcher's test renames) and in
   `RootLayout.test.tsx` (no query client); both are fixed in the commits
   that caused them.
+
+### Validation follow-up, 2026-11-27
+
+The validation report
+(`meta/validations/2026-11-24-PP-994-generic-set-model-indexing-and-api-validation.md`)
+found deviations the notes above did not record:
+
+- **Phase 2.** The migrate-adapters overlap tests are in
+  `cli/migrate-adapters/tests/context.rs`, not inline. The visualiser's
+  canonical overlap re-check lives in `file_driver.rs` and is called from
+  `server.rs`, not from `compose.rs`.
+- **Phase 9.** `related.rs` reaches members through `declared_outbound`
+  and the members-inclusive refs map, not through
+  `documents_including_members()`. `api/search.rs` calls `is_member()`
+  directly. `SetContext` gained `root_rel_path`, which Phase 12 uses.
+- **Phase 12.** The real-OS case-only rename step accepted any number of
+  `edited` events. It now waits for a warm-up write, renames once and
+  expects exactly one.
+
+It also found issues, each fixed test first:
+
+- When two sets of one type share an `id`, each takes its directory's
+  name as its set `id`, the `id` the library links it by. `/api/sets`
+  and member search rows reach every such set. The spec and CHANGELOG
+  say so.
+- An unreadable set root leaves its set out of the index, and an
+  unreadable set member leaves only itself out. Neither fails the rescan.
+- A file directly under a set doc root causes no rescan.
+- A set directory renamed only in case pairs every document and asset as
+  one rename. Set roots now pair as members do.
+- The indexer asks the file driver whether a path lies in a set doc
+  root, so the indexer and the document endpoint use one rule.
+- The spec says `set.directory` is absolute when the doc root lies
+  outside the project, as `relPath` is.
+- `Indexer::set` reads a set's root, members and assets from one
+  snapshot, and `/api/sets` uses it.
+- The server makes the doc root of every `in_kanban` doc type writable,
+  not the root under the `"work"` path key.
+- The catalogue refuses a second virtual type, and the library takes its
+  templates entry from `DocTypeCatalogue::virtual_type()`.
+- Stale and restating comments are removed, and a test that held no
+  assets is renamed `set_members_come_in_set_relative_path_order`.
 
 ---
 
