@@ -5,7 +5,7 @@ title: "Generic Set Model: Indexing and API Implementation Plan"
 date: "2026-11-24T08:39:16+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:PP-994"
 parent: "work-item:PP-994"
 derived_from: ["codebase-research:2026-11-24-PP-994-generic-set-model-indexing-and-api"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-27T03:57:07+00:00"
+last_updated: "2026-11-27T05:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -66,8 +66,9 @@ The plan has two stages, as the work item prescribes:
    not overlap) and ADR-0080 (domain declarations crates) are accepted,
    the member API specification is written, and PP-994's Drafting Notes
    carry the decisions line dated 2026-11-26.
-2. **Stage two (Phases 2–12): implementation. Next: Phase 12.** Each phase
-   is test-first and mergeable on its own with `mise run` green.
+2. **Stage two (Phases 2–12): implementation. Complete.** Each phase is
+   test-first and mergeable on its own with `mise run` green. One check
+   waits on CI: the Linux run of the real-OS watcher lane (Phase 12).
 
 ## Sizing consequence and the decision not to split
 
@@ -1611,6 +1612,58 @@ test can then declare a doc type of its own.
   why it has no `deserialize`. The names follow the plan's: `doc_types`,
   `catalogue_with`, `FLAT_DEFAULTS`.
 
+- **Manual checks, 2026-11-27.** `mise run dev:up` serves this checkout,
+  and the user's own server was running, so an equivalent stack ran on
+  other ports: a debug `dev-frontend` build of `accelerator-visualiser
+  serve` (`ACCELERATOR_PLUGIN_ROOT` set to this checkout) in a scratch jj
+  repository holding empty `meta/research/topics`,
+  `meta/research/design-inventories` and `meta/plans`, and the Vite dev
+  frontend (`VISUALISER_INFO_PATH=<server-info.json> npx vite --port
+  5288`) proxying to it. Playwright drove `/library` and read the sidebar's
+  activity rows. Everything was stopped and removed afterwards.
+  - **Brief.** With `cargo build --workspace --exclude
+    accelerator-visualiser`, the `.accelerator-dev-launcher` marker,
+    `ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER=1`, `ACCELERATOR_LAUNCHER_BIN`
+    and one `ACCELERATOR_<SUB>_BIN` per sub-binary pointing at
+    `cli/target/debug/`, and this checkout's `bin/` first on `PATH`,
+    `claude -p "/accelerator:research-topic brief The history of the
+    sourdough starter. Do not ask me any questions: …" --plugin-dir
+    <checkout> --permission-mode acceptEdits` exited 0, writing
+    `sourdough-starter-history/manifest.md` and `brief.md`. The feed held
+    one row, `Topic research · created · manifest.md`, and
+    `/api/activity` one `created` event for the manifest.
+  - **Finding.** With the page open, a new plan took the top row; writing
+    `findings/01-origins-web.md` put the set's row back on top reading
+    `created`; editing the plan, then appending to the finding, did the
+    same, and the set never took a second row.
+  - **Inventory.** Copying this repository's
+    `2026-09-10-184815-current-app` (`inventory.md` and six screenshots)
+    into place with `cpSync` added one row, `Design inventories · created
+    · inventory.md`, and one listing entry. Deleting its `inventory.md`
+    made that row read `deleted` and emptied the listing.
+  - **Testing Strategy steps.** Searching `Origins` in the sidebar
+    returned the finding, whose result opened
+    `/library/topic-research/sourdough-starter-history`, titled "The
+    History of the Sourdough Starter", with no console error.
+    `/api/sets/topic-research/sourdough-starter-history` returned the
+    root `manifest.md` and members `brief.md` and
+    `findings/01-origins-web.md`. With the inventory restored, its
+    `screenshots/collection.png` was 404 from `/api/docs` and its
+    `inventory.md` 200. In a second scratch repository,
+    `paths.research_codebase: meta/research` made `serve` exit 2 with
+    `paths.research_codebase (meta/research) overlaps
+    paths.research_issues (meta/research/issues); doc roots may not equal
+    or contain one another`.
+  - Running the brief with `--permission-mode bypassPermissions` was
+    refused by this session's permission classifier, so it ran with
+    `acceptEdits` and the skill's own allowed tools.
+- **Review, 2026-11-27.** The `nsoqttxs`..`lwkkkzkr` diff adds no line
+  past 80 columns apart from the generated `corpus` public-API snapshot
+  and four Biome-formatted test titles, which Biome does not wrap. Five
+  doc comments that restated their item's name (`rescan_changes`,
+  `sets_losing_members`, `BuiltIndex`, `RecordingSink` and
+  `doc_changes_within`) are trimmed, and `emit`'s doc now says it records
+  its activity event (`pptumsvz`). The CHANGELOG entry reads as written.
 ---
 
 ## Phase 6: Declarations crates and the assembled catalogue
@@ -3768,7 +3821,7 @@ Replace the existing tests that assert client-built live rows.
       `the_os_watcher_reports_a_write_under_a_registered_directory` with
       a directory-rename case, and pass
       `mise run test:integration:visualiser-os-watcher` on macOS and in
-      CI (Linux).
+      CI (Linux). Passed on macOS; the Linux run is pending CI.
 - [x] Real-OS case-only rename: the lane runs exactly one test by name
       (`tasks/test/integration.py:71-74`), so the case is folded into
       the same test function as a third step, not added as a second
@@ -3789,10 +3842,10 @@ Replace the existing tests that assert client-built live rows.
 
 #### Manual Verification:
 
-- [ ] With `mise run dev:up`, running `/research-topic brief` in a scratch
+- [x] With `mise run dev:up`, running `/research-topic brief` in a scratch
       repo shows one created activity row for the new set.
-- [ ] Editing a finding moves that row to the top, still reading created.
-- [ ] Copying an inventory directory into place shows one row.
+- [x] Editing a finding moves that row to the top, still reading created.
+- [x] Copying an inventory directory into place shows one row.
       Deleting its `inventory.md` makes the row read deleted, and the
       set leaves the listing.
 
