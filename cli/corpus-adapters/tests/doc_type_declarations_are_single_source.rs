@@ -17,6 +17,11 @@ const OWNERS_OF_ONE_DOC_TYPE: [&str; 2] =
 
 const FROZEN_MIGRATIONS: &str = "migrate/src/migrations/";
 
+const VISUALISER_SERVER: &str = "visualiser/server";
+
+const SEEDED_SET_TYPE_REFERENCE: &str =
+    "const SEEDED: DocTypeKey = DocTypeKey::TOPIC_RESEARCH;";
+
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -92,6 +97,35 @@ fn only_the_declarations_crates_and_their_assembly_may_name_one() {
         offences_under(root.path(), &sources),
         vec![format!("research/src/lib.rs:1: {}", naming.trim())]
     );
+}
+
+#[test]
+fn visualiser_server_names_no_set_doc_type() {
+    let root = workspace_root();
+    let server = root.join(VISUALISER_SERVER);
+    let search = std::fs::read_to_string(server.join("src/api/search.rs"))
+        .expect("the search handler's source");
+    let scratch = tempfile::tempdir().expect("a scratch workspace");
+    let seeded = scratch.path().join(VISUALISER_SERVER).join("src/api");
+    std::fs::create_dir_all(&seeded).expect("a seeded source directory");
+    std::fs::write(
+        seeded.join("search.rs"),
+        format!("{search}\n{SEEDED_SET_TYPE_REFERENCE}\n"),
+    )
+    .expect("a seeded source");
+
+    let seeded_offences =
+        offences_under(scratch.path(), &rust_sources_under(scratch.path()));
+    let server_sources = rust_sources_under(&server);
+
+    assert_eq!(seeded_offences.len(), 1, "{seeded_offences:?}");
+    assert!(seeded_offences[0].contains("TOPIC_RESEARCH"));
+    assert!(
+        !server_sources.is_empty(),
+        "no sources under {VISUALISER_SERVER}"
+    );
+    let offences = offences_under(&root, &server_sources);
+    assert!(offences.is_empty(), "{}", offences.join("\n"));
 }
 
 #[test]
