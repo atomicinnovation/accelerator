@@ -506,6 +506,25 @@ async fn set_members_are_in_set_relative_path_order() {
 }
 
 #[tokio::test]
+async fn set_directory_outside_the_project_is_served_as_absolute() {
+    let tmp = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let topics = outside.path().canonicalize().unwrap().join("topics");
+    let mut cfg = common::seeded_cfg(tmp.path());
+    cfg.doc_paths
+        .insert("research_topics".into(), topics.clone());
+    write_files(&topics, &[("s/manifest.md", &manifest("s"))]);
+    let state = state_for(cfg).await;
+
+    let set = fetch_set(&state, "/api/sets/topic-research/s").await;
+
+    assert_eq!(
+        set["set"]["directory"],
+        topics.join("s").to_string_lossy().as_ref()
+    );
+}
+
+#[tokio::test]
 async fn set_members_come_in_set_relative_path_order() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = topic_cfg(tmp.path());

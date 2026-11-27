@@ -81,7 +81,9 @@ visualiser's contract.
 - Each `setRelativePath` is a plain, `/`-separated string relative to the
   set directory, never percent-encoded. It carries the same name as the
   `setRelativePath` field on index entries and search rows.
-- `set.directory` is relative to the project root.
+- `set.directory` is relative to the project root, as an entry's `relPath`
+  is. When the type's doc root lies outside the project, it is absolute,
+  as `relPath` is.
 - Members are sorted by `setRelativePath`.
 - Every member is in one response, with no paging. The largest real
   inventory held 35 screenshots.
