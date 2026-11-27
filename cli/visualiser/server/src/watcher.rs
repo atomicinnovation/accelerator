@@ -1420,47 +1420,49 @@ mod set_watch_tests {
         ])
         .await;
         let screenshots = watch.root.join(inventory("screenshots"));
-        let names = ["a.png", "a.PNG"];
+        let warm_up = inventory("screenshots/warm-up.png");
         let screenshot = inventory("screenshots/a.png");
 
-        let first = tokio::time::timeout(Duration::from_secs(600), async {
-            for turn in 0.. {
-                let (from, to) = (names[turn % 2], names[(turn + 1) % 2]);
-                std::fs::rename(screenshots.join(from), screenshots.join(to))
-                    .unwrap();
-                if let Ok(event) = tokio::time::timeout(
-                    Duration::from_secs(5),
-                    watch.rx.recv(),
-                )
-                .await
+        tokio::time::timeout(Duration::from_secs(600), async {
+            for turn in 0_usize.. {
+                write_files(&watch.root, &[(&warm_up, &"x".repeat(turn + 1))]);
+                if tokio::time::timeout(Duration::from_secs(5), watch.rx.recv())
+                    .await
+                    .is_ok()
                 {
-                    return event.unwrap();
+                    return;
                 }
             }
-            unreachable!()
         })
         .await
-        .expect("the OS never reported the case-only rename");
-        let mut events = vec![first];
+        .expect("the OS never reported the warm-up write");
+        std::fs::rename(screenshots.join("a.png"), screenshots.join("a.PNG"))
+            .unwrap();
+        let mut events = Vec::new();
+        let mut wait = Duration::from_secs(600);
         while let Ok(Ok(event)) =
-            tokio::time::timeout(Duration::from_secs(2), watch.rx.recv()).await
+            tokio::time::timeout(wait, watch.rx.recv()).await
         {
-            events.push(event);
+            if matches!(
+                &event,
+                SsePayload::DocChanged { path, .. }
+                    if path.eq_ignore_ascii_case(&screenshot)
+            ) {
+                events.push(event);
+                wait = Duration::from_secs(5);
+            }
         }
 
-        for event in &events {
-            assert!(
-                matches!(
-                    event,
-                    SsePayload::DocChanged {
-                        action: ActionKind::Edited,
-                        path,
-                        ..
-                    } if path.eq_ignore_ascii_case(&screenshot)
-                ),
-                "{events:?}"
-            );
-        }
+        assert!(
+            matches!(
+                events.as_slice(),
+                [SsePayload::DocChanged {
+                    action: ActionKind::Edited,
+                    ..
+                }]
+            ),
+            "{events:?}"
+        );
     }
 
     #[tokio::test]
