@@ -759,6 +759,11 @@
 
 ### Changed
 
+- **The visualiser's refused frontmatter write names kanban items.** A
+  `PATCH /api/docs/{path}/frontmatter` to a document outside the kanban now
+  returns 400 with `{"error": "only kanban items are writable"}`, not
+  `"only work-items are writable"`. Any doc type the kanban shows takes
+  frontmatter writes; work items are still the only built-in one.
 - **The visualiser serves only a set's documents from inside its
   directory.** `/api/docs/{path}` now returns 404 for any file in a topic
   research set or design inventory other than the set's root and member

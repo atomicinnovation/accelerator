@@ -496,5 +496,5 @@ async fn a_set_member_cannot_be_written() {
     assert_eq!(res.status(), StatusCode::BAD_REQUEST);
     let bytes = res.into_body().collect().await.unwrap().to_bytes();
     let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(body["error"], "only work-items are writable");
+    assert_eq!(body["error"], "only kanban items are writable");
 }

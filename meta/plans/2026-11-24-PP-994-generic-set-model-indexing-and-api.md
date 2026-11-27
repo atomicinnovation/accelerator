@@ -4021,7 +4021,9 @@ It also found issues, each fixed test first:
 - `Indexer::set` reads a set's root, members and assets from one
   snapshot, and `/api/sets` uses it.
 - The server makes the doc root of every `in_kanban` doc type writable,
-  not the root under the `"work"` path key.
+  not the root under the `"work"` path key. The refusal is renamed
+  `OnlyKanbanItemsAreWritable`, and reads "only kanban items are
+  writable".
 - The catalogue refuses a second virtual type, and the library takes its
   templates entry from `DocTypeCatalogue::virtual_type()`.
 - Stale and restating comments are removed, and a test that held no

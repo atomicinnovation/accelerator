@@ -199,7 +199,7 @@ pub(crate) async fn doc_patch_frontmatter(
 
     // Step 5 — kanban type guard.
     if !entry.r#type.in_kanban() {
-        return Err(ApiError::OnlyWorkItemsAreWritable);
+        return Err(ApiError::OnlyKanbanItemsAreWritable);
     }
 
     // Step 6 — parse JSON body. Result<Json<T>, JsonRejection> intercepts axum's extractor
