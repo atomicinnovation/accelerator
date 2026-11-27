@@ -416,7 +416,7 @@ impl IndexDiff {
                 before.0,
                 after.0,
                 |entry| &entry.path,
-                |entry| entry.set_placement().filter(|_| entry.is_member()),
+                IndexEntry::set_placement,
                 |was, now| {
                     was.etag == now.etag
                         && was.frontmatter_state == now.frontmatter_state
@@ -453,8 +453,9 @@ impl IndexDiff {
 }
 
 /// Every record that `after` adds, changes or drops relative to `before`.
-/// A removed member and an added one that differ only in case are one
-/// rename, since a case-insensitive volume lists the file by its new name.
+/// A removed set document or asset and an added one that differ only in case
+/// are one rename, since a case-insensitive volume lists the file by its new
+/// name.
 fn changes_between<T: Clone>(
     before: &[T],
     after: &[T],
@@ -7814,6 +7815,31 @@ mod change_tests {
         assert_eq!(
             set.latest_change(DocTypeKey::DESIGN_INVENTORIES).await,
             5_000
+        );
+    }
+
+    #[tokio::test]
+    async fn a_set_directory_renamed_only_in_case_is_one_change_a_document() {
+        let set = layout(
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+            ],
+            1_000,
+        )
+        .await;
+        let topics = set.root.join(TOPICS);
+        std::fs::rename(topics.join("s"), topics.join("S")).unwrap();
+
+        let sink = set.rescan().await;
+
+        let topic = |file: &str| path(&format!("{TOPICS}/{file}"));
+        assert_eq!(
+            changed_paths(&sink),
+            [
+                (topic("s/brief.md"), topic("S/brief.md")),
+                (topic("s/manifest.md"), topic("S/manifest.md")),
+            ]
         );
     }
 

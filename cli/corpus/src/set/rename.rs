@@ -14,16 +14,21 @@ pub struct CaseOnlyRename<'a> {
 
 impl MemberPath<'_> {
     fn differs_only_in_case_from(&self, other: &MemberPath<'_>) -> bool {
-        self.set_directory == other.set_directory
+        self.set_directory
+            .to_string_lossy()
+            .eq_ignore_ascii_case(&other.set_directory.to_string_lossy())
             && self
                 .set_relative_path
                 .eq_ignore_ascii_case(other.set_relative_path)
     }
 }
 
-/// Pairs each removed member with an added member of the same set whose
-/// path differs from it only in ASCII case: on a case-insensitive volume
-/// that is one file renamed, not one removed and another added.
+/// Pairs each removed member with an added member that differs from it
+/// only in ASCII case.
+///
+/// The set directory and the set-relative path may each differ in case. On
+/// a case-insensitive volume that is one file renamed, not one removed and
+/// another added.
 #[must_use]
 pub fn pair_case_only_renames<'a>(
     removed: &[MemberPath<'a>],
@@ -80,6 +85,26 @@ mod tests {
         let added = [at("two", "screenshots/a.PNG")];
 
         assert!(pair_case_only_renames(&removed, &added).is_empty());
+    }
+
+    #[test]
+    fn a_set_directory_renamed_only_in_case_pairs_each_member() {
+        let removed = [at("dir/inv", "inventory.md"), at("dir/inv", "a.png")];
+        let added = [at("dir/INV", "a.png"), at("dir/INV", "inventory.md")];
+
+        assert_eq!(
+            pair_case_only_renames(&removed, &added),
+            [
+                CaseOnlyRename {
+                    from: removed[0],
+                    to: added[1],
+                },
+                CaseOnlyRename {
+                    from: removed[1],
+                    to: added[0],
+                },
+            ]
+        );
     }
 
     #[test]
