@@ -217,6 +217,26 @@ mod tests {
     }
 
     #[test]
+    fn a_member_is_not_found_by_its_link_keys() {
+        let root = crate::test_support::set_root_for_test(
+            crate::test_support::dossiers(),
+            "dossier-a",
+            "cover.md",
+            "set-id-x",
+        );
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.slug = None;
+        member.title = "Notes".into();
+        member.body_preview = "Observations.".into();
+
+        let rows = row_json(&ranked(vec![root, member], "set-id-x"));
+
+        assert!(rows
+            .iter()
+            .all(|row| row["setRelativePath"] != "notes/a.md"));
+    }
+
+    #[test]
     fn a_document_outside_a_set_has_null_set_fields_in_its_row() {
         let plan = entry_for_test(DocTypeKey::PLANS, "foo", 1, "Foo");
 
