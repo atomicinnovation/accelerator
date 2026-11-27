@@ -13,7 +13,7 @@ priority: "medium"
 parent: "work-item:PP-1006"
 blocked_by: ["work-item:PP-994"]
 tags: ["cli", "corpus", "doc-types"]
-last_updated: "2026-11-25T23:20:27+00:00"
+last_updated: "2026-11-27T16:32:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -55,6 +55,25 @@ phase, facets) all remain in `corpus`.
 - The `declarations` assembly registers each crate's doc types; the
   corpus's built-in declarations keep only the doc types the spike
   decides.
+- Production code names a moved doc type by none of its identities
+  written as a string: wire token, configuration path key or linkage
+  name. PP-994 left these places naming topic research or design
+  inventories as strings:
+
+  | Place | What names them |
+  |---|---|
+  | `config/src/catalogue.rs` | `DOC_TYPES` linkage-name to path-key table |
+  | `corpus/src/frontmatter_validation/schema.rs` | schema rows and `LINKAGE_SOURCE_TYPES` |
+  | `corpus/src/frontmatter_validation/template_shape.rs` | `SOURCE_TYPES` |
+  | `corpus/src/linkage.rs` | `TYPE_PAIRS` |
+  | `corpus/src/cluster.rs` | `STAGE_PUSH_ORDER` label |
+  | `launcher/src/config_command/core/init.rs` | scaffold directory keys |
+  | `launcher/src/config_command/core/paths.rs` | legacy path-key aliases |
+  | `research/src/conduct/template.rs` | `ConductTemplate::SET` |
+
+  `config` depends only on `kernel`, so it cannot read the catalogue
+  itself; a composition root must hand it the declared identities. The
+  tables above list every doc type, so each moves whole.
 
 ## Acceptance Criteria
 
@@ -62,7 +81,10 @@ phase, facets) all remain in `corpus`.
       token, configuration path key, linkage name, label, flags and rules
       are identical, pinned by a characterisation test written first.
 - [ ] Given a search of production code outside the declarations crates
-      and the assembly, no moved doc type is named.
+      and the assembly, no moved doc type is named, either as a
+      `DocTypeKey` constant or by an identity written as a string. The
+      boundary test's string scan, which PP-994 limited to the
+      visualiser server, covers the whole `cli/` workspace.
 - [ ] Given the `config` single-source test, it passes without change.
 - [ ] Given the crate-rule lint, the new crate and edges pass it.
 - [ ] `mise run` exits 0.
