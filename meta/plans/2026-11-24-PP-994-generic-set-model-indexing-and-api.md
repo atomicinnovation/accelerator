@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-27T02:11:41+00:00"
+last_updated: "2026-11-27T03:41:35+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -66,7 +66,7 @@ The plan has two stages, as the work item prescribes:
    not overlap) and ADR-0080 (domain declarations crates) are accepted,
    the member API specification is written, and PP-994's Drafting Notes
    carry the decisions line dated 2026-11-26.
-2. **Stage two (Phases 2–12): implementation. Next: Phase 11.** Each phase
+2. **Stage two (Phases 2–12): implementation. Next: Phase 12.** Each phase
    is test-first and mergeable on its own with `mise run` green.
 
 ## Sizing consequence and the decision not to split
@@ -3313,15 +3313,56 @@ Add an `### Added` entry under `[Unreleased]` for
 
 #### Automated Verification:
 
-- [ ] `mise run test:integration:visualiser --filter set_` (every
+- [x] `mise run test:integration:visualiser --filter set_` (every
       `api_sets.rs` test name starts with `set_`)
-- [ ] `mise run server:check`, `mise run frontend:check`
-- [ ] `mise run`
+- [x] `mise run server:check`, `mise run frontend:check`
+- [x] `mise run`
 
 #### Manual Verification:
 
 - [ ] `curl localhost:<port>/api/sets/design-inventories/2026-05-21-015231-claude-design-prototype`
       on this repo lists only `inventory.md` and its screenshots.
+
+### Implementation notes
+
+- **Handler.** `api/sets.rs` serves `/api/sets/:type/:set_id`. An unknown
+  token is a 400; a type the catalogue pairs with no set declaration, or a
+  `setId` no root holds, is a 404 naming the `setId`. The new
+  `Indexer::set_root(kind, set_id)` takes the root with the lexically
+  lowest set directory. Members are `set_members` and `set_assets` merged
+  and sorted by `setRelativePath`, serialised with a `kind` tag; the root
+  is a `document`. `set.directory` is the root's served path's parent.
+  `PresentationView` gained `From<Presentation>`, which the doc types view
+  now uses too.
+- **Not-found tests.** An unknown `/api/...` path already returns 404
+  through `api_not_found`, so each 404 test first fetches a set of the same
+  fixture with 200, and the lookup-miss test asserts the handler's `error`
+  body.
+- **Strict TDD.** The fourteen first `api_sets.rs` tests were written in
+  their own edit and all seen failing (404 from the missing route) before
+  any production code. Since one missing route failed them all, three
+  rules were checked by mutation after they went green; each mutation
+  failed its test:
+  - `set_root` taking the highest directory (`max_by`):
+    `set_id_shared_by_two_roots_names_the_lexically_first_directory`;
+  - decoding the `setId` a second time (`%41` to `A`):
+    `set_id_is_percent_decoded_exactly_once`;
+  - dropping the merged sort:
+    `set_documents_and_assets_are_ordered_together`.
+  One slip: no built-in set type holds both documents and assets, so the
+  first ordering tests could not tell a merged sort from documents then
+  assets. `set_documents_and_assets_are_ordered_together`, over a test-only
+  `albums` set type with `pages/*.md` documents and `pages/*.png` assets,
+  was added after the handler and passed at once; the dropped-sort mutation
+  above fails it. The rule that a non-set type is a 404 is behaviourally
+  redundant with `set_root` finding no root, and is kept because the
+  presentation comes from the set declaration.
+- **Frontend types.** `SetResponse`, `SetDocumentMember` and
+  `SetAssetMember` carry no behaviour and no test; `frontend:check`
+  type-checks them.
+- **`mise run`** exited 0 on the final code, with `test:unit:cli` coverage
+  at lines 94.46%, functions 93.80%, regions 93.20%, and the e2e suite at
+  360 passed, 1 skipped.
 
 ---
 
