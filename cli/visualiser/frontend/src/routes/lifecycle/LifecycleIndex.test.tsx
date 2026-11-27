@@ -216,6 +216,42 @@ describe("LifecycleIndex", () => {
     });
   });
 
+  it("renders each of two orphan clusters sharing a slug as its own row", async () => {
+    const orphan = (relPath: string, title: string): LifecycleCluster => ({
+      slug: "shared-slug",
+      title,
+      entries: [
+        makeIndexEntry({
+          type: "design-gaps",
+          relPath,
+          slug: "shared-slug",
+          title,
+        }),
+      ],
+      completeness: makeCompleteness({ present: ["design-gaps"] }),
+      lastChangedMs: 1_700_000_000_000,
+      clusterKey: null,
+    });
+    vi.spyOn(fetchModule, "fetchLifecycleClusters").mockResolvedValue([
+      orphan("meta/design-gaps/a-shared-slug.md", "First gap"),
+      orphan("meta/design-gaps/b-shared-slug.md", "Second gap"),
+    ]);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      render(<LifecycleIndex />, { wrapper: Wrapper });
+      await screen.findByText("First gap");
+
+      expect(
+        screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent),
+      ).toEqual(["First gap", "Second gap"]);
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("shows empty state when no clusters", async () => {
     vi.spyOn(fetchModule, "fetchLifecycleClusters").mockResolvedValue([]);
     render(<LifecycleIndex />, { wrapper: Wrapper });
