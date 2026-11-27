@@ -3099,10 +3099,10 @@ page specs still pass unchanged.
 
 #### Manual Verification:
 
-- [ ] Against this repo's six real inventories, `/api/docs?type=design-inventories`
+- [x] Against this repo's six real inventories, `/api/docs?type=design-inventories`
       holds six entries. Searching a finding title in a topic fixture
       returns the member and opens the set.
-- [ ] Indexing time with all real inventories is not noticeably slower:
+- [x] Indexing time with all real inventories is not noticeably slower:
       compare `rescan` timing in the debug log before and after.
 
 ### Implementation notes
@@ -3186,6 +3186,57 @@ page specs still pass unchanged.
 - **`mise run`** exited 0 on the final code, with `test:unit:cli`
   coverage at lines 94.46%, functions 93.80%, regions 93.20%, and the
   e2e suite at 360 passed, 1 skipped.
+- **Manual checks, 2026-11-27.** Debug `dev-frontend` builds of
+  `nulvrwuz` (Phase 9, from a temporary jj workspace with its own
+  `CARGO_TARGET_DIR`, removed afterwards) and `qtorlstl` (Phase 10) each
+  ran `accelerator-visualiser serve` with `ACCELERATOR_PLUGIN_ROOT` set to
+  this checkout, through a scratch Python harness that waited for
+  `server-info.json`, queried the API and stopped the server.
+  - **Inventories.** Against this repository,
+    `/api/docs?type=design-inventories` holds the same six entries in both
+    builds, each with its set id and `inventory.md` as its set-relative
+    path. The six inventories hold 96
+    files under `screenshots/`, now indexed as assets, beside 51 files under
+    `prototype-full/`, 12 under `assets/` and a standalone prototype, none
+    indexed.
+  - **Search.** A scratch project held a copy of this repository's `meta/`
+    and `.accelerator/config.md`, plus
+    `cli/corpus-cli/tests/fixtures/topic-research-multiprofile-set` as
+    `meta/research/topics/attention`. `/api/search?q=attention heads
+    specialise` returns nothing on Phase 9. On Phase 10 it returns the
+    finding `findings/01-how-do-attention-heads-specialise-web.md`, titled
+    as the finding, with `setId` `example-multiprofile-subject`, the set's
+    slug `attention` and its set-relative path, then the outline. Through
+    the Vite dev frontend proxying to the Phase 10 server, driven by
+    Playwright, the finding's search row links to
+    `/library/topic-research/example-multiprofile-subject`; clicking it
+    opens the set's page, with no console errors, and the library counts
+    one topic research entry.
+  - **Indexing time.** No log line times `rescan`, so the measure is the
+    server log's `bootstrapping server` to `server-started` interval, which
+    spans the initial rescan and cluster pass, over ten starts of each
+    build against this repository: Phase 9 1.053 to 1.208 s, median
+    1.069 s; Phase 10 1.063 to 1.099 s, median 1.077 s. The difference is
+    within run-to-run noise.
+  - **Live update.** In production the watcher runs a full rescan on every
+    markdown change in both builds; `refresh_one` is reached only from the
+    work-item PATCH, so its new set-root rescan has no production caller
+    yet. Rewriting an inventory's `inventory.md` in the scratch project
+    while the server ran gave a `doc-changed` `edited` event for that path
+    1.19 to 1.23 s after the write on Phase 9 and 1.22 to 1.23 s on
+    Phase 10 (one run 1.61 s), five writes each, including the 100 ms
+    debounce. Rewriting a finding emits no event on Phase 10, since the
+    watcher's change diff reads the root-only view; Phase 12 adds member
+    events.
+- **Review, 2026-11-27.** The `lqwwpzul`..`qtorlstl` diff adds no line
+  past 80 columns. Three doc comments that restated their function names
+  (`set_directories_in`, `undotted_entries_of` and the endpoint's set-root
+  check) are trimmed to what they explain. The CHANGELOG entry is reworded
+  so its list of refused paths reads unambiguously. Beyond the plan, a
+  second `### Changed` entry records that search now finds topic research
+  member documents (`xsxsxsss`).
+  `mise run` exited 0 again on that code, with unchanged coverage and
+  the e2e suite at 360 passed.
 
 ---
 
