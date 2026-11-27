@@ -16,7 +16,7 @@ use crate::server::AppState;
 #[derive(Serialize)]
 pub(crate) struct SetResponse {
     set: SetSummary,
-    root: SetMember,
+    root: SetDocument,
     members: Vec<SetMember>,
 }
 
@@ -30,14 +30,14 @@ struct SetSummary {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(untagged)]
 enum SetMember {
     Document(SetDocument),
     Asset(SetAsset),
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(tag = "kind", rename = "document", rename_all = "camelCase")]
 struct SetDocument {
     set_relative_path: String,
     title: String,
@@ -48,7 +48,7 @@ struct SetDocument {
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(tag = "kind", rename = "asset", rename_all = "camelCase")]
 struct SetAsset {
     set_relative_path: String,
     size: u64,
@@ -64,9 +64,9 @@ impl SetMember {
     }
 }
 
-impl From<IndexEntry> for SetMember {
+impl From<IndexEntry> for SetDocument {
     fn from(entry: IndexEntry) -> Self {
-        Self::Document(SetDocument {
+        Self {
             set_relative_path: entry
                 .set_placement()
                 .map(|p| p.set_relative_path.clone())
@@ -76,7 +76,7 @@ impl From<IndexEntry> for SetMember {
             frontmatter_state: entry.frontmatter_state,
             mtime_ms: entry.mtime_ms,
             etag: entry.etag,
-        })
+        }
     }
 }
 
@@ -112,7 +112,7 @@ pub(crate) async fn set_get(
         .set_members(&context.set_directory)
         .await
         .into_iter()
-        .map(SetMember::from)
+        .map(|document| SetMember::Document(document.into()))
         .chain(
             state
                 .indexer
