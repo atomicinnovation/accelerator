@@ -66,7 +66,7 @@ The plan has two stages, as the work item prescribes:
    not overlap) and ADR-0080 (domain declarations crates) are accepted,
    the member API specification is written, and PP-994's Drafting Notes
    carry the decisions line dated 2026-11-26.
-2. **Stage two (Phases 2–12): implementation. Next: Phase 10.** Each phase
+2. **Stage two (Phases 2–12): implementation. Next: Phase 11.** Each phase
    is test-first and mergeable on its own with `mise run` green.
 
 ## Sizing consequence and the decision not to split
@@ -3093,9 +3093,9 @@ page specs still pass unchanged.
 
 #### Automated Verification:
 
-- [ ] `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
-- [ ] `mise run test:e2e:visualiser`
-- [ ] `mise run`
+- [x] `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
+- [x] `mise run test:e2e:visualiser`
+- [x] `mise run`
 
 #### Manual Verification:
 
@@ -3104,6 +3104,88 @@ page specs still pass unchanged.
       returns the member and opens the set.
 - [ ] Indexing time with all real inventories is not noticeably slower:
       compare `rescan` timing in the debug log before and after.
+
+### Implementation notes
+
+- **Enumeration.** `FileDriver::list_sets(kind)` walks each non-dot
+  directory holding the set's root, skipping dot-prefixed names at every
+  depth, descending only directories `may_contain_members` admits, and
+  classifying each file through the catalogue's `SetMatcher`. Entries are
+  read with `symlink_metadata`, so a symlinked directory is never walked;
+  a slotted file is canonicalised and dropped outside the allowed roots.
+  Beyond the plan, a symlink is kept only when its target is a file, so a
+  symlinked directory named like a member (`findings/02-b.md`) is not
+  listed as a document whose read would fail the rescan. Documents and
+  assets are sorted by set-relative path, and sets by directory. `list`
+  refuses a set type with `FileDriverError::SetType`, and the per-type
+  listing table test now covers flat types only.
+- **Index model.** `rescan` reads a set type through `list_sets`: each
+  set's root is read first and builds the `SetContext`; its member
+  documents follow it in the same `buffered` stream and are built against
+  that context, so a member whose root is gone is skipped. `build_entry`
+  takes a `Placement` (`Flat`, `SetRoot(dir)`, `SetMember(context, path)`):
+  a root's slug comes from its set directory, a member has no slug and
+  takes its title fallback from its own stem. Assets become `AssetRecord`s
+  in an `assets` map swapped in `install` after `latest_change_by_set`,
+  read through `set_assets(dir)` in set-relative order, and counted in
+  the set's latest change.
+- **Refresh.** `refresh_one` on any path whose canonical form, or nearest
+  existing ancestor's, lies in a set type's doc root runs a full rescan
+  and returns the path's entry. `refresh_latest_change` became
+  unreachable, since only flat documents take the single-path route, and
+  is gone.
+- **Document endpoint.** The driver records each set type's doc root as
+  configured and as resolved, and `lies_in_a_set_doc_root(canonical)`
+  matches either. `doc_fetch` returns 404 for a path whose canonical form
+  lies there and that the index does not hold. `read` reports a directory
+  as not found, so a directory is 404 under every root. The write
+  refusal needed no new code: a member's PATCH is refused by the kanban
+  guard, and the driver's writable-root check would refuse it too.
+- **Fixtures.** The topic fixtures' prose that said a finding and a
+  report "must not be separately indexed" now says they are indexed as
+  member documents. No e2e count changed: neither member's text matches an
+  e2e search.
+- **Strict TDD.** Each test below was seen failing before its code, by a
+  compile error and then, after a minimal stub (`list_sets` returning no
+  sets, `set_assets` returning none), by its assertion:
+  - every `file_driver` `list_sets` test, the symlinked-directory test
+    (seen failing against the first implementation), and
+    `list_refuses_a_set_type`;
+  - the two rewritten pinned tests and every `set_enumeration_tests` test
+    but three guards;
+  - the `api_docs` asset, unslotted, working-file, rootless, directory
+    (set and flat), symlinked-ancestor, case-variant (run, not skipped, on
+    this volume) and created-after-startup tests.
+  Guards that passed against existing code were checked by mutation; each
+  mutation failed at least one test:
+  - `list_sets_of_a_missing_doc_root_is_empty`: erroring on a missing
+    directory;
+  - the escape and symlinked-slot tests: dropping the allowed-roots check,
+    or reading entries with `metadata`;
+  - `a_dot_prefixed_document_of_a_flat_type_is_indexed`: skipping dot
+    names in flat listings;
+  - `an_inventory_lists_as_its_inventory_document`: indexing a root as a
+    member;
+  - `a_directory_without_its_root_indexes_nothing` is a second guard:
+    listing rootless directories fails the driver's listing test, while
+    the indexer still skips their members because no root is read;
+  - `a_member_document_is_served`, `an_inventory_root_is_served_unchanged`:
+    refusing every path in a set doc root;
+  - `a_set_member_cannot_be_written`: survives bypassing the kanban guard
+    alone, since the writable-root check also refuses; fails with both
+    bypassed.
+  One slip: the `api_related` and `api_search` tests were written after
+  enumeration landed, so they never ran red against the old code. Hiding
+  every member from the listing fails all three related tests; listing
+  every file as a member document fails both search tests. Members of
+  the built-in set types can never be inferred items, since topic
+  research is unclustered and outside the lifecycle, so
+  `no_inferred_item_is_a_member` survives `recompute_clusters` reading
+  members; Phase 9's `no_member_is_ever_an_inferred_item`, over a
+  clustered test-only type, is the test that fails on it.
+- **`mise run`** exited 0 on the final code, with `test:unit:cli`
+  coverage at lines 94.46%, functions 93.80%, regions 93.20%, and the
+  e2e suite at 360 passed, 1 skipped.
 
 ---
 
