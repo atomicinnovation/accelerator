@@ -7,12 +7,12 @@ title: "Generic Set Model: Indexing and API"
 date: "2026-11-23T16:12:42+00:00"
 author: "Toby Clemson"
 producer: "refine-work-item"
-status: "ready"
+status: "in-progress"
 kind: "story"
 priority: "high"
 parent: "work-item:PP-868"
 tags: ["research", "visualiser"]
-last_updated: "2026-11-26T00:20:47+00:00"
+last_updated: "2026-11-27T16:34:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 blocks: ["work-item:PP-134", "work-item:PP-998", "work-item:PP-1001", "work-item:PP-1000", "work-item:PP-1002"]
@@ -21,7 +21,7 @@ relates_to: ["work-item:PP-862", "work-item:PP-995", "work-item:PP-996", "work-i
 # PP-994: Generic Set Model: Indexing and API
 
 **Kind**: Story
-**Status**: Ready
+**Status**: In Progress
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -205,78 +205,78 @@ PP-998.
 
 ## Acceptance Criteria
 
-- [ ] Given a topic-research set with a manifest and ten member documents,
+- [x] Given a topic-research set with a manifest and ten member documents,
       then the member API returns the root and ten members, and the
       topic-research type listing response holds one entry.
-- [ ] Given a topic-research set with members at `brief.md`,
+- [x] Given a topic-research set with members at `brief.md`,
       `findings/01-a.md`, `findings/01-a.levels/2-1.md`, and
       `reports/r.md`, then all four are returned by the member API with
       those set-relative paths, and a change to
       `findings/01-a.levels/2-1.md` emits exactly one change event,
       carrying that member's path.
-- [ ] Given a topic-research set and a design inventory, each laid out as
+- [x] Given a topic-research set and a design inventory, each laid out as
       the Model's shapes table gives, then each is indexed with exactly the
       members its row lists, and no other file.
-- [ ] Given a set whose root has unclosed frontmatter, then the root is
+- [x] Given a set whose root has unclosed frontmatter, then the root is
       marked malformed and the member API still returns its members.
-- [ ] Given a set directory with no root file, then nothing in it is
+- [x] Given a set directory with no root file, then nothing in it is
       indexed.
-- [ ] Given a member document, when its path is requested from
+- [x] Given a member document, when its path is requested from
       `/api/docs/{path}`, then its body is returned.
-- [ ] Given the doc types response, then topic research and design
+- [x] Given the doc types response, then topic research and design
       inventories are each marked as sets with their presentation, and no
       other type is.
-- [ ] Given a design inventory holding `screenshots/a.png`,
+- [x] Given a design inventory holding `screenshots/a.png`,
       `prototype-full/x.html`, `assets/y.svg`, and `notes.txt`, then only
       the screenshot is an asset member; the other three are absent from
       the member API and from search, emit no change event when written,
       and are not-found through `/api/docs/{path}`. A search for
       `a.png` returns no result.
-- [ ] Given a library holding only one topic-research set, whose member
+- [x] Given a library holding only one topic-research set, whose member
       documents carry status and slug frontmatter values the root does not,
       then the library structure's count for topic research is one and its
       status and slug facets hold only the root's values.
-- [ ] Given a library holding only one topic-research set, then no lifecycle
+- [x] Given a library holding only one topic-research set, then no lifecycle
       cluster holds a member, and the root is in the same cluster, with the
       same cluster members, as when the set's members are absent from disk.
-- [ ] Given a set whose root last changed yesterday, when a member document
+- [x] Given a set whose root last changed yesterday, when a member document
       changes now, then the library structure's latest time for that set,
       and for its doc type, is that member's modification time; the same
       holds when a design inventory's screenshot changes.
-- [ ] Given a set holding `findings/.01-x-web.md.invalid`,
+- [x] Given a set holding `findings/.01-x-web.md.invalid`,
       `.conduct-run.json`, and a `.scratch/` directory of documents, and a
       `.draft.tmp/` directory beside the set in the doc root, then none is
       indexed; and given a write to each of them followed by a write to a
       member document, then when the member's change event arrives, no
       change event or activity row for any of them has been emitted.
-- [ ] Given a member document with unclosed frontmatter, then it is indexed
+- [x] Given a member document with unclosed frontmatter, then it is indexed
       with its frontmatter marked malformed; given one with no frontmatter,
       then it is indexed with its frontmatter marked absent; in both cases
       the rest of the set is indexed as normal.
-- [ ] Given an asset member, then its index record carries its path relative
+- [x] Given an asset member, then its index record carries its path relative
       to the set directory, byte size, and modification time.
-- [ ] Given a phrase that appears only in the first paragraph of one member
+- [x] Given a phrase that appears only in the first paragraph of one member
       document, when it is searched for, then the result is that member,
       titled as the member, carrying the member's path relative to its set
       and its set's `id` as the key it links by.
-- [ ] Given a topic-research set with ten member documents, when the set's
+- [x] Given a topic-research set with ten member documents, when the set's
       slug is searched for, then the set's root is the first result, and no
       member is ranked as an exact key match.
-- [ ] Given member changes to set A, then a change to set B, then further
+- [x] Given member changes to set A, then a change to set B, then further
       changes to set A's root and a member document, then the
       activity feed shows exactly one row for A, above B's, carrying the
       time of A's latest change, and no row naming a member.
-- [ ] Given a member document whose `parent` names work item X, when related
+- [x] Given a member document whose `parent` names work item X, when related
       items are requested for that member's path, then X is returned as an
       outbound item; requested for the set's root or another member, it is
       not; requested for X, the member is returned as an inbound item.
-- [ ] Given a member document is added, changed, or removed on disk, then
+- [x] Given a member document is added, changed, or removed on disk, then
       after one write followed by quiet longer than the watcher's debounce
       interval exactly one change event is emitted for that
       member's path, with the action created, edited, or deleted, and none
       for the root or any other member; the same holds for an asset
       member.
-- [ ] Given a doc type declared as a set only in test code, through the
+- [x] Given a doc type declared as a set only in test code, through the
       mechanism topic research uses, with root `index.md`, a document slot
       `docs/*.md`, and an asset slot `img/*.png`, holding two member
       documents, one asset, and `other/z.md`, which fits no slot: the
@@ -289,7 +289,7 @@ PP-998.
       lifecycle cluster holds a member; a dot-prefixed file in the set and
       `other/z.md` are absent from all of these; the rows carry the set's
       `id`; and the doc types response marks the type as a set.
-- [ ] A search of the `cli/` workspace's production sources for the topic
+- [x] A search of the `cli/` workspace's production sources for the topic
       research and design inventory doc types finds them named only in
       their declarations, in the corpus and the declarations crates; in
       the declarations assembly, which pairs each set type with its
@@ -298,10 +298,10 @@ PP-998.
       migrations. Test modules are not searched. The visualiser server's
       sources name neither outside test modules, since a doc type's
       library phase is a declared rule.
-- [ ] Topic research declares the set-page presentation and design
+- [x] Topic research declares the set-page presentation and design
       inventories the entry-point presentation, each readable from its doc
       type's declaration.
-- [ ] Given a set of the test-only doc type above with a root, ten member
+- [x] Given a set of the test-only doc type above with a root, ten member
       documents (one with unclosed frontmatter, one with none), and six
       assets, when its members are requested through the API, then one
       response holds the root and all sixteen members: each document with
@@ -309,81 +309,81 @@ PP-998.
       with its byte size and modification time, and every member with its
       path relative to the set directory. No document body is in the
       response.
-- [ ] Given a design inventory with a `screenshots/` directory of six images,
+- [x] Given a design inventory with a `screenshots/` directory of six images,
       then the six are indexed as asset members, and requesting one image's
       path through the document endpoint returns not-found.
-- [ ] Given a design inventory screenshot named `Some File (v2).png`, then
+- [x] Given a design inventory screenshot named `Some File (v2).png`, then
       the member API returns its path as `screenshots/Some File (v2).png`,
       with its byte size and modification time.
-- [ ] Given the same design inventory, then the design-inventory type
+- [x] Given the same design inventory, then the design-inventory type
       listing response holds one entry for it, carrying the title, status,
       and date of `inventory.md`'s frontmatter, and the document response
       for `inventory.md` carries that file's body unchanged.
-- [ ] Given a set whose root's `id` is `x`, then the type listing entry for
+- [x] Given a set whose root's `id` is `x`, then the type listing entry for
       it, a search result for a member, a related item naming a member, and
       the member API response each carry `x` as the set's `id`; the same
       holds for a design inventory.
-- [ ] Given a set whose root was last edited, when one member document is
+- [x] Given a set whose root was last edited, when one member document is
       added and another removed, then the set's activity row reads edited
       and carries the time of the later change; given a newly created set
       whose row reads created, when a member changes after a further quiet
       period, then the row still reads created, with the new time.
-- [ ] Given a directory `.x.tmp/` holding a topic-research root, `brief.md`,
+- [x] Given a directory `.x.tmp/` holding a topic-research root, `brief.md`,
       `outline.md`, and `notes.txt`, when it is renamed to `x/`, then three
       change events are emitted, each reading created and carrying its own
       path, and none for `notes.txt`; the activity feed shows one row for
       the set, reading created; and the member API returns the root and two
       members.
-- [ ] Given a set whose root is deleted while two member documents remain
+- [x] Given a set whose root is deleted while two member documents remain
       on disk, then three change events are emitted, each reading deleted;
       the set's activity row reads deleted; the type listing holds no entry
       for the set; and the member API and `/api/docs/{path}` return
       not-found for both members.
-- [ ] Given a set whose members were last modified yesterday, when a member
+- [x] Given a set whose members were last modified yesterday, when a member
       is removed now, then the library structure's latest time for that set
       is the time the removal was observed.
-- [ ] Given a dot-prefixed markdown file in the doc root of a doc type that
+- [x] Given a dot-prefixed markdown file in the doc root of a doc type that
       is not a set, then it is indexed, listed, and emits change events as
       it does without this story.
-- [ ] Given a configuration in which one doc root equals another, or
+- [x] Given a configuration in which one doc root equals another, or
       contains another, then it is refused with an error naming both path
       keys; given the default paths, then nothing is refused.
-- [ ] The end-to-end server and the API smoke test run with no path
+- [x] The end-to-end server and the API smoke test run with no path
       override, and the shared fixtures' research documents sit under
       `meta/research/codebase/`.
-- [ ] Given a member document and a plan outside its set that carry the
+- [x] Given a member document and a plan outside its set that carry the
       same slug in their filenames, when related items are requested for
       either, then the other is not among the inferred items, and no
       inferred item of any response is a member.
-- [ ] Given a set directory without its root file, when `corpus resolve`
+- [x] Given a set directory without its root file, when `corpus resolve`
       is given its slug or its path, then it does not resolve.
-- [ ] Given a dot-prefixed directory under a set type's doc root, when
+- [x] Given a dot-prefixed directory under a set type's doc root, when
       `corpus resolve` is given its exact name or its path, then it does
       not resolve.
-- [ ] Given a path to a file in a set directory that fits no member slot,
+- [x] Given a path to a file in a set directory that fits no member slot,
       when it is given to `corpus resolve`, then it does not resolve to the
       set; given a path to the set directory, its root, a member, or a
       slot directory, then it resolves to the set.
-- [ ] Given a stray file directly in a set type's doc root, when its path
+- [x] Given a stray file directly in a set type's doc root, when its path
       is given to `corpus resolve`, then it does not resolve as a set.
-- [ ] Each set type's shape is declared in its owning domain's
+- [x] Each set type's shape is declared in its owning domain's
       declarations crate, topic research in `research-declarations` and
       design inventories in `design-declarations`; every composition root
       that builds a doc type catalogue gets it from the declarations
       assembly; and given a catalogue that lacks a set type's shape, then
       building it fails.
-- [ ] Accepted ADRs record the set model (ADR-0077), doc types as declared
+- [x] Accepted ADRs record the set model (ADR-0077), doc types as declared
       data with the catalogue assembled from owners' set shapes
       (ADR-0078), the refusal of overlapping doc roots (ADR-0079), and
       domain declarations crates with their assembly (ADR-0080), and the
       author has accepted each through `/review-adr`, so each status is
       `accepted`.
-- [ ] An accepted ADR, or a document it names, records the member API's
+- [x] An accepted ADR, or a document it names, records the member API's
       endpoint and response shape, covering asset enumeration without
       paging (the largest real inventory held 35 screenshots), plain
       set-relative paths, where a document's structured sources attach,
       and where the derived set response sits beside the member listing.
-- [ ] This work item's Drafting Notes carry one dated decisions line
+- [x] This work item's Drafting Notes carry one dated decisions line
       recording two things: the ADRs' numbers and their accepted status;
       and the document that holds the member API shape.
 
@@ -618,6 +618,14 @@ rewritten.
   (doc types as declared data), ADR-0079 (doc roots may not overlap)
   and ADR-0080 (domain declarations crates) are accepted; the member
   API shape is in `meta/specs/2026-11-24-set-member-api.md`.
+- Implemented, 2026-11-27: every acceptance criterion is shown by a test
+  or, for the decision records, by the documents themselves. For the
+  criterion on naming set types in production code, the boundary test
+  scans the whole `cli/` workspace for `DocTypeKey` constants, and the
+  visualiser server alone for an identity written as a string. Eight
+  other crates still name topic research or design inventories as
+  strings in tables that list every doc type; PP-1007 moves those (author
+  decision, 2026-11-27).
 
 ## References
 

@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-27T11:11:18+00:00"
+last_updated: "2026-11-27T16:35:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -4029,6 +4029,18 @@ It also found issues, each fixed test first:
   templates entry from `DocTypeCatalogue::virtual_type()`.
 - Stale and restating comments are removed, and a test that held no
   assets is renamed `set_members_come_in_set_relative_path_order`.
+
+Checking each of PP-994's acceptance criteria against its tests found
+eight only partly tested. Tests now cover each in full: the inventory's
+unplaced files through `/api/docs` and search, a dot-prefixed flat
+document in its type listing, a member and a plan sharing a slug, one set
+id on every surface, a declared set type's unplaced files, member facets,
+titles, root and frontmatter, and the default research path in the smoke
+test and the e2e server. A new scanner function finds string literals,
+and the boundary test flags a set type's identity written as a string in
+the visualiser server. Eight other crates still name the set types as
+strings in tables that list every doc type; PP-1007 takes them (author
+decision, 2026-11-27).
 
 ---
 

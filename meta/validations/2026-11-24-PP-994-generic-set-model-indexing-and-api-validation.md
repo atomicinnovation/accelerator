@@ -9,7 +9,7 @@ status: "complete"
 result: "pass"
 target: "plan:2026-11-24-PP-994-generic-set-model-indexing-and-api"
 tags: ["visualiser", "server", "corpus", "set-model"]
-last_updated: "2026-11-27T13:31:31+00:00"
+last_updated: "2026-11-27T16:35:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -183,5 +183,7 @@ Linux run still waits for CI.
 ### Recommendations:
 
 - Raise the pull request, and tick the Linux criterion when CI passes.
-- PP-994 is still `ready`, and its acceptance criteria are unticked.
-  Update it once each criterion is checked against its tests.
+- ~~PP-994 is still `ready`, and its acceptance criteria are unticked.~~
+  Done: each criterion was checked against its tests, eight partly
+  covered criteria gained tests, and PP-994 is `in-progress` with all 43
+  ticked.
