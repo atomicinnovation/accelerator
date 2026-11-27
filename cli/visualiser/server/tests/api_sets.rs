@@ -365,7 +365,15 @@ async fn set_whose_root_is_deleted_is_gone_with_its_members() {
 
     std::fs::remove_file(tmp.path().join(TOPICS).join("s/manifest.md"))
         .unwrap();
-    state.indexer.rescan().await.unwrap();
+    state
+        .indexer
+        .rescan_with_diff(
+            &accelerator_visualiser::change_broadcast::ChangeBroadcast::of(
+                &state,
+            ),
+        )
+        .await
+        .unwrap();
 
     let (set, _) = get_json(&state, "/api/sets/topic-research/s").await;
     let (member, _) =

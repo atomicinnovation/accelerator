@@ -279,7 +279,13 @@ pub(crate) async fn doc_patch_frontmatter(
     let committed = committed_canonical.lock().unwrap().take();
     if let Some(canonical) = committed {
         // Refresh index first so subscribers that refetch on the broadcast see fresh data.
-        let _ = state.indexer.refresh_one(&canonical).await;
+        let _ = state
+            .indexer
+            .refresh_one(
+                &canonical,
+                &crate::change_broadcast::ChangeBroadcast::of(&state),
+            )
+            .await;
 
         // Re-cluster + back-fill per-entry Completeness and linked_count so
         // /api/lifecycle, /api/docs/work-items, and /api/related agree on

@@ -4,17 +4,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::activity_feed::{ActivityEvent, ActivityRingBuffer};
-use crate::clusters::{recompute_clusters, LifecycleCluster};
 use crate::config::TemplateTiers;
 use crate::file_driver::FileDriver;
-use crate::indexer::{IndexEntry, Indexer, FRONTMATTER_MALFORMED};
-use crate::sse_hub::{ActionKind, SseHub, SsePayload};
+use crate::indexer::{ChangeSink, Indexer};
+use crate::sse_hub::{SseHub, SsePayload};
 use crate::templates::TemplateResolver;
 use crate::write_coordinator::WriteCoordinator;
 
@@ -80,9 +78,7 @@ pub fn spawn<W: DirectoryWatcher>(
     open: impl FnOnce(EventSink) -> notify::Result<W> + Send + 'static,
     dirs: Vec<PathBuf>,
     indexer: Arc<Indexer>,
-    clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
-    hub: Arc<SseHub>,
-    activity_feed: Arc<ActivityRingBuffer>,
+    sink: Arc<dyn ChangeSink>,
     write_coordinator: Arc<WriteCoordinator>,
     template_change_handler: Option<Arc<TemplateChangeHandler>>,
     settings: Settings,
@@ -127,9 +123,7 @@ pub fn spawn<W: DirectoryWatcher>(
                         let h = tokio::spawn(on_path_changed_debounced(
                             path.clone(),
                             indexer.clone(),
-                            clusters.clone(),
-                            hub.clone(),
-                            activity_feed.clone(),
+                            sink.clone(),
                             write_coordinator.clone(),
                             template_change_handler.clone(),
                             settings.debounce,
@@ -164,9 +158,7 @@ fn register(watcher: &mut impl DirectoryWatcher, dirs: &[PathBuf]) {
 pub async fn on_path_changed_debounced(
     path: PathBuf,
     indexer: Arc<Indexer>,
-    clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
-    hub: Arc<SseHub>,
-    activity_feed: Arc<ActivityRingBuffer>,
+    sink: Arc<dyn ChangeSink>,
     write_coordinator: Arc<WriteCoordinator>,
     template_change_handler: Option<Arc<TemplateChangeHandler>>,
     debounce: Duration,
@@ -179,9 +171,7 @@ pub async fn on_path_changed_debounced(
     let _ = tokio::spawn(on_path_changed(
         path,
         indexer,
-        clusters,
-        hub,
-        activity_feed,
+        sink,
         write_coordinator,
         template_change_handler,
     ))
@@ -191,9 +181,7 @@ pub async fn on_path_changed_debounced(
 async fn on_path_changed(
     path: PathBuf,
     indexer: Arc<Indexer>,
-    clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
-    hub: Arc<SseHub>,
-    activity_feed: Arc<ActivityRingBuffer>,
+    sink: Arc<dyn ChangeSink>,
     write_coordinator: Arc<WriteCoordinator>,
     template_change_handler: Option<Arc<TemplateChangeHandler>>,
 ) {
@@ -219,124 +207,12 @@ async fn on_path_changed(
         return;
     }
 
-    let before = indexer.all().await;
-    if let Err(e) = indexer.rescan().await {
+    // The rescan reindexes every file, not just `path`, so the sink hears
+    // of every change it applied: a change another file's rescan absorbs is
+    // otherwise indistinguishable from a no-op by the time its own event
+    // arrives.
+    if let Err(e) = indexer.rescan_with_diff(sink.as_ref()).await {
         tracing::warn!(path = %path.display(), error = %e, "rescan failed after watch event");
-        return;
-    }
-
-    let snapshot = indexer.all().await;
-    recompute_clusters(&indexer, &clusters).await;
-
-    // The rescan reindexes every file, not just `path`, so it broadcasts every
-    // change it applied: a change another file's rescan absorbs is otherwise
-    // indistinguishable from a no-op by the time its own event arrives.
-    for payload in rescan_changes(&before, &snapshot, Utc::now())
-        .into_iter()
-        .filter(|change| !write_coordinator.should_suppress(&change.path))
-        .map(|change| change.payload)
-    {
-        emit(payload, hub.as_ref(), activity_feed.as_ref());
-    }
-}
-
-struct RescanChange {
-    path: PathBuf,
-    payload: SsePayload,
-}
-
-/// The broadcasts a rescan owes its subscribers, from the index before and
-/// after it.
-///
-/// An entry whose etag and frontmatter state are unchanged is not a change:
-/// macOS `FSEvents` replays coalesced historical events and multi-event bursts
-/// per write, and broadcasting those would only churn SSE clients.
-fn rescan_changes(
-    before: &[IndexEntry],
-    after: &[IndexEntry],
-    now: DateTime<Utc>,
-) -> Vec<RescanChange> {
-    let before_by_path: HashMap<&Path, &IndexEntry> = before
-        .iter()
-        .map(|entry| (entry.path.as_path(), entry))
-        .collect();
-    let after_paths: std::collections::HashSet<&Path> =
-        after.iter().map(|entry| entry.path.as_path()).collect();
-
-    let edited_or_created = after.iter().filter_map(|entry| {
-        let pre = before_by_path.get(entry.path.as_path()).copied();
-        let unchanged = pre.is_some_and(|p| {
-            p.etag == entry.etag
-                && p.frontmatter_state == entry.frontmatter_state
-        });
-        (!unchanged).then(|| RescanChange {
-            path: entry.path.clone(),
-            payload: payload_for_entry(
-                entry,
-                entry.served_rel_path(),
-                pre,
-                now,
-            ),
-        })
-    });
-    let deleted = before
-        .iter()
-        .filter(|entry| !after_paths.contains(entry.path.as_path()))
-        .map(|entry| RescanChange {
-            path: entry.path.clone(),
-            payload: SsePayload::DocChanged {
-                action: ActionKind::Deleted,
-                doc_type: entry.r#type,
-                path: entry.served_rel_path(),
-                etag: None,
-                timestamp: now,
-            },
-        });
-    edited_or_created.chain(deleted).collect()
-}
-
-/// Single fan-out point for SSE events: pushes a derived `ActivityEvent`
-/// into the ring buffer (if applicable — `DocInvalid` does not surface),
-/// then broadcasts the payload. Ring-buffer push is **synchronous and
-/// before** the broadcast, so a buffered event is always available via
-/// `/api/activity` once a subscriber sees it on the live stream.
-fn emit(payload: SsePayload, hub: &SseHub, activity_feed: &ActivityRingBuffer) {
-    if let Some(activity_event) = ActivityEvent::from_payload(&payload) {
-        activity_feed.push(activity_event);
-    }
-    hub.broadcast(payload);
-}
-
-/// Map an `IndexEntry` (post-rescan) plus optional `pre` (pre-rescan) plus a
-/// captured `now` into the SSE wire-format envelope to broadcast.
-///
-/// - Malformed entries produce `DocInvalid` (no action; not surfaced in the
-///   Activity feed).
-/// - `pre.is_some()` -> `Edited`; `pre.is_none()` -> `Created`.
-fn payload_for_entry(
-    entry: &IndexEntry,
-    rel: String,
-    pre: Option<&IndexEntry>,
-    now: DateTime<Utc>,
-) -> SsePayload {
-    if entry.frontmatter_state == FRONTMATTER_MALFORMED {
-        SsePayload::DocInvalid {
-            doc_type: entry.r#type,
-            path: rel,
-        }
-    } else {
-        let action = if pre.is_some() {
-            ActionKind::Edited
-        } else {
-            ActionKind::Created
-        };
-        SsePayload::DocChanged {
-            action,
-            doc_type: entry.r#type,
-            path: rel,
-            etag: Some(entry.etag.clone()),
-            timestamp: now,
-        }
     }
 }
 
@@ -538,6 +414,7 @@ const EVENT_BUDGET: Duration = Duration::from_secs(5);
 
 #[cfg(test)]
 mod tests {
+    use crate::test_support::RecordingSink;
 
     #[test]
     fn a_markdown_file_is_watched_whatever_its_extensions_case() {
@@ -547,9 +424,11 @@ mod tests {
         assert!(!super::is_markdown(std::path::Path::new("a.mdx")));
     }
     use super::*;
+    use crate::activity_feed::ActivityRingBuffer;
     use crate::file_driver::LocalFileDriver;
     use crate::indexer::Indexer;
-    use crate::sse_hub::{SseHub, SsePayload};
+    use crate::sse_hub::{ActionKind, SseHub, SsePayload};
+    use chrono::DateTime;
     use std::collections::HashMap;
     use std::sync::Arc;
     use std::time::Duration;
@@ -613,6 +492,21 @@ mod tests {
         (doc_paths, indexer, hub, activity_feed, clusters)
     }
 
+    fn broadcast(
+        indexer: Arc<Indexer>,
+        clusters: Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
+        hub: Arc<SseHub>,
+        activity_feed: Arc<ActivityRingBuffer>,
+    ) -> Arc<dyn ChangeSink> {
+        Arc::new(crate::change_broadcast::ChangeBroadcast::new(
+            indexer,
+            clusters,
+            hub,
+            activity_feed,
+            Arc::new(WriteCoordinator::new()),
+        ))
+    }
+
     const REGISTRATION_HOLD: Duration = Duration::from_secs(2);
 
     struct HeldRegistration {
@@ -637,10 +531,8 @@ mod tests {
         let mut watching = spawn(
             move |_sink| Ok(HeldRegistration { release: held }),
             doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed,
+            indexer.clone(),
+            broadcast(indexer, clusters, hub, activity_feed),
             Arc::new(WriteCoordinator::new()),
             None,
             Settings::DEFAULT,
@@ -677,10 +569,8 @@ mod tests {
                 Err(notify::Error::generic("backend unavailable"))
             },
             doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed,
+            indexer.clone(),
+            broadcast(indexer, clusters, hub, activity_feed),
             Arc::new(WriteCoordinator::new()),
             None,
             Settings::DEFAULT,
@@ -745,10 +635,8 @@ mod tests {
                 Ok(ScriptedWatcher)
             },
             Vec::new(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed,
+            indexer.clone(),
+            broadcast(indexer, clusters, hub, activity_feed),
             Arc::new(WriteCoordinator::new()),
             None,
             Settings { debounce },
@@ -1013,7 +901,10 @@ mod tests {
         let foo = root.join("meta/plans/2026-01-01-foo.md");
         let bar = root.join("meta/plans/2026-01-02-bar.md");
         std::fs::write(&bar, "---\ntitle: Bar\n---\n# Body\n").unwrap();
-        indexer.rescan().await.unwrap();
+        indexer
+            .rescan_with_diff(&RecordingSink::default())
+            .await
+            .unwrap();
         let mut rx = hub.subscribe();
         let mut events =
             spawn_scripted(indexer, hub, activity_feed, clusters).await;

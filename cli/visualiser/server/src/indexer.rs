@@ -11,6 +11,7 @@ use crate::file_driver::{
     AssetListing, FileContent, FileDriver, FileDriverError, SetListing,
 };
 use crate::frontmatter::{self, FrontmatterState};
+use corpus::set::{pair_case_only_renames, MemberPath};
 use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 use corpus::LinkageAddress;
@@ -388,6 +389,188 @@ impl AssetRecord {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Change<T> {
+    pub before: Option<T>,
+    pub after: Option<T>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct IndexDiff {
+    pub documents: Vec<Change<IndexEntry>>,
+    pub assets: Vec<Change<AssetRecord>>,
+}
+
+impl IndexDiff {
+    pub fn is_empty(&self) -> bool {
+        self.documents.is_empty() && self.assets.is_empty()
+    }
+
+    fn between(
+        before: (&[IndexEntry], &[AssetRecord]),
+        after: (&[IndexEntry], &[AssetRecord]),
+    ) -> Self {
+        Self {
+            documents: changes_between(
+                before.0,
+                after.0,
+                |entry| &entry.path,
+                |entry| entry.set_placement().filter(|_| entry.is_member()),
+                |was, now| {
+                    was.etag == now.etag
+                        && was.frontmatter_state == now.frontmatter_state
+                },
+            ),
+            assets: changes_between(
+                before.1,
+                after.1,
+                |asset| &asset.path,
+                |asset| Some(&asset.placement),
+                |was, now| was.size == now.size && was.mtime_ms == now.mtime_ms,
+            ),
+        }
+    }
+
+    /// The sets a change removed a member or asset from.
+    fn sets_losing_members(&self) -> impl Iterator<Item = &Path> {
+        let removed_members = self
+            .documents
+            .iter()
+            .filter(|change| change.after.is_none())
+            .filter_map(|change| change.before.as_ref())
+            .filter(|entry| entry.is_member())
+            .filter_map(IndexEntry::set_placement);
+        let removed_assets = self
+            .assets
+            .iter()
+            .filter(|change| change.after.is_none())
+            .filter_map(|change| change.before.as_ref())
+            .map(|asset| &asset.placement);
+        removed_members
+            .chain(removed_assets)
+            .map(|placement| placement.context.set_directory.as_path())
+    }
+}
+
+/// Every record that `after` adds, changes or drops relative to `before`.
+/// A removed member and an added one that differ only in case are one
+/// rename, since a case-insensitive volume lists the file by its new name.
+fn changes_between<T: Clone>(
+    before: &[T],
+    after: &[T],
+    path_of: impl Fn(&T) -> &PathBuf,
+    member_place_of: impl Fn(&T) -> Option<&SetPlacement>,
+    unchanged: impl Fn(&T, &T) -> bool,
+) -> Vec<Change<T>> {
+    let before_by_path: HashMap<&PathBuf, &T> = before
+        .iter()
+        .map(|record| (path_of(record), record))
+        .collect();
+    let after_paths: HashSet<&PathBuf> = after.iter().map(&path_of).collect();
+    let mut changes: Vec<Change<T>> = Vec::new();
+    let mut added: Vec<&T> = Vec::new();
+    for record in after {
+        match before_by_path.get(path_of(record)) {
+            Some(was) if unchanged(was, record) => {}
+            Some(was) => changes.push(Change {
+                before: Some((*was).clone()),
+                after: Some(record.clone()),
+            }),
+            None => added.push(record),
+        }
+    }
+    let mut removed: Vec<&T> = before
+        .iter()
+        .filter(|record| !after_paths.contains(path_of(record)))
+        .collect();
+    let removed_members = member_paths_of(&removed, &member_place_of);
+    let added_members = member_paths_of(&added, &member_place_of);
+    let renames = pair_case_only_renames(
+        &removed_members.iter().map(|(_, p)| *p).collect::<Vec<_>>(),
+        &added_members.iter().map(|(_, p)| *p).collect::<Vec<_>>(),
+    );
+    let index_of = |members: &[(usize, MemberPath<'_>)],
+                    path: MemberPath<'_>| {
+        members
+            .iter()
+            .find(|(_, member)| *member == path)
+            .map(|(at, _)| *at)
+    };
+    let mut renamed: Vec<(usize, usize)> = renames
+        .iter()
+        .filter_map(|rename| {
+            Some((
+                index_of(&removed_members, rename.from)?,
+                index_of(&added_members, rename.to)?,
+            ))
+        })
+        .collect();
+    let renamed_from: HashSet<usize> =
+        renamed.iter().map(|(from, _)| *from).collect();
+    let renamed_to: HashSet<usize> =
+        renamed.iter().map(|(_, to)| *to).collect();
+    changes.extend(renamed.drain(..).map(|(from, to)| Change {
+        before: Some(removed[from].clone()),
+        after: Some(added[to].clone()),
+    }));
+    changes.extend(
+        added
+            .iter()
+            .enumerate()
+            .filter(|(at, _)| !renamed_to.contains(at))
+            .map(|(_, record)| Change {
+                before: None,
+                after: Some((*record).clone()),
+            }),
+    );
+    removed = removed
+        .into_iter()
+        .enumerate()
+        .filter(|(at, _)| !renamed_from.contains(at))
+        .map(|(_, record)| record)
+        .collect();
+    changes.extend(removed.into_iter().map(|record| Change {
+        before: Some(record.clone()),
+        after: None,
+    }));
+    changes.sort_by_cached_key(|change| {
+        change
+            .after
+            .as_ref()
+            .or(change.before.as_ref())
+            .map(|record| path_of(record).clone())
+    });
+    changes
+}
+
+fn member_paths_of<'r, T>(
+    records: &[&'r T],
+    member_place_of: &impl Fn(&T) -> Option<&SetPlacement>,
+) -> Vec<(usize, MemberPath<'r>)> {
+    records
+        .iter()
+        .enumerate()
+        .filter_map(|(at, record)| {
+            let placement = member_place_of(record)?;
+            Some((
+                at,
+                MemberPath {
+                    set_directory: &placement.context.set_directory,
+                    set_relative_path: &placement.set_relative_path,
+                },
+            ))
+        })
+        .collect()
+}
+
+/// Hears what each rescan changed, in the order the rescans saw it.
+pub trait ChangeSink: Send + Sync {
+    fn changed<'a>(
+        &'a self,
+        diff: &'a IndexDiff,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>>;
+}
+
 struct ReadTarget {
     kind: DocTypeKey,
     path: PathBuf,
@@ -495,6 +678,7 @@ impl IndexMaps {
     fn build(
         records: &[IndexEntry],
         assets: &[AssetRecord],
+        removals: &RemovalLedger,
         reading: &crate::config::WorkItemConfig,
         project_root: &Path,
     ) -> Self {
@@ -530,13 +714,15 @@ impl IndexMaps {
                 records
                     .iter()
                     .filter_map(|entry| {
-                        Some((entry.set_placement()?, entry.mtime_ms))
+                        Some((
+                            &entry.set_placement()?.context.set_directory,
+                            entry.mtime_ms,
+                        ))
                     })
-                    .chain(
-                        assets
-                            .iter()
-                            .map(|asset| (&asset.placement, asset.mtime_ms)),
-                    ),
+                    .chain(assets.iter().map(|asset| {
+                        (&asset.placement.context.set_directory, asset.mtime_ms)
+                    }))
+                    .chain(removals.observed()),
             ),
         }
     }
@@ -559,16 +745,59 @@ fn work_item_refs_by_target_of(
 }
 
 fn latest_change_by_set_of<'a>(
-    changes: impl IntoIterator<Item = (&'a SetPlacement, i64)>,
+    changes: impl IntoIterator<Item = (&'a PathBuf, i64)>,
 ) -> HashMap<PathBuf, i64> {
     let mut latest: HashMap<PathBuf, i64> = HashMap::new();
-    for (placement, mtime_ms) in changes {
+    for (set_directory, mtime_ms) in changes {
         latest
-            .entry(placement.context.set_directory.clone())
+            .entry(set_directory.clone())
             .and_modify(|newest| *newest = (*newest).max(mtime_ms))
             .or_insert(mtime_ms);
     }
     latest
+}
+
+/// When each set was last seen to lose a member or asset, which its latest
+/// change counts since a removed file leaves no mtime behind.
+#[derive(Debug, Clone, Default)]
+struct RemovalLedger {
+    last_removal_observed_ms: HashMap<PathBuf, i64>,
+}
+
+impl RemovalLedger {
+    fn observe(
+        &mut self,
+        diff: &IndexDiff,
+        records: &[IndexEntry],
+        now_ms: i64,
+    ) {
+        for set_directory in diff.sets_losing_members() {
+            self.last_removal_observed_ms
+                .insert(set_directory.to_path_buf(), now_ms);
+        }
+        let standing: HashSet<&PathBuf> = records
+            .iter()
+            .filter(|entry| entry.is_set_root())
+            .filter_map(IndexEntry::set_placement)
+            .map(|placement| &placement.context.set_directory)
+            .collect();
+        self.last_removal_observed_ms
+            .retain(|set_directory, _| standing.contains(set_directory));
+    }
+
+    fn observed(&self) -> impl Iterator<Item = (&PathBuf, i64)> {
+        self.last_removal_observed_ms
+            .iter()
+            .map(|(set_directory, at)| (set_directory, *at))
+    }
+}
+
+/// A freshly read index, not yet installed.
+struct BuiltIndex {
+    records: Vec<IndexEntry>,
+    assets: Vec<AssetRecord>,
+    reading: Arc<crate::config::WorkItemConfig>,
+    trust: Trust,
 }
 
 pub struct Indexer {
@@ -614,7 +843,9 @@ pub struct Indexer {
     latest_change_by_set: Arc<RwLock<HashMap<PathBuf, i64>>>,
     /// Lock-ordering invariant: acquire after `latest_change_by_set`.
     assets: Arc<RwLock<HashMap<PathBuf, AssetRecord>>>,
-    // Serialises rescan() against refresh_one() so they cannot interleave.
+    /// Held under `rescan_lock`.
+    removals: std::sync::Mutex<RemovalLedger>,
+    // Serialises rescans against refresh_one() so they cannot interleave.
     rescan_lock: Arc<Semaphore>,
     #[cfg(test)]
     test_post_secondary_update:
@@ -641,7 +872,8 @@ impl Indexer {
                 source,
             })?;
         let me = Self::empty(driver, doc_types, project_root, work_item_cfg);
-        me.rescan().await?;
+        let first = me.build_records().await?;
+        me.install(first, &RemovalLedger::default()).await;
         Ok(me)
     }
 
@@ -666,6 +898,7 @@ impl Indexer {
             work_item_refs_by_target: Arc::new(RwLock::new(HashMap::new())),
             latest_change_by_set: Arc::new(RwLock::new(HashMap::new())),
             assets: Arc::new(RwLock::new(HashMap::new())),
+            removals: std::sync::Mutex::new(RemovalLedger::default()),
             rescan_lock: Arc::new(Semaphore::new(1)),
             #[cfg(test)]
             test_post_secondary_update: tokio::sync::Mutex::new(None),
@@ -676,12 +909,44 @@ impl Indexer {
         self.rescan_lock.clone()
     }
 
-    pub async fn rescan(&self) -> Result<(), FileDriverError> {
-        // Phase 2 reads files concurrently; this bounds the in-flight reads.
-        const READ_CONCURRENCY: usize = 64;
+    /// Rescans every doc root, installs the result and hands what changed
+    /// to `sink`, all under one `rescan_lock` permit, so each change is
+    /// handed on once and in the order the rescans saw it.
+    pub async fn rescan_with_diff(
+        &self,
+        sink: &dyn ChangeSink,
+    ) -> Result<(), FileDriverError> {
         // acquire() errors only if the semaphore is closed, which never happens.
         #[allow(clippy::unwrap_used)]
         let _permit = self.rescan_lock.acquire().await.unwrap();
+        let before_documents = self.documents_including_members().await;
+        let before_assets: Vec<AssetRecord> =
+            self.assets.read().await.values().cloned().collect();
+        let built = self.build_records().await?;
+        let diff = IndexDiff::between(
+            (&before_documents, &before_assets),
+            (&built.records, &built.assets),
+        );
+        let removals = {
+            let mut removals = self
+                .removals
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            removals.observe(
+                &diff,
+                &built.records,
+                chrono::Utc::now().timestamp_millis(),
+            );
+            removals.clone()
+        };
+        self.install(built, &removals).await;
+        sink.changed(&diff).await;
+        Ok(())
+    }
+
+    async fn build_records(&self) -> Result<BuiltIndex, FileDriverError> {
+        // Phase 2 reads files concurrently; this bounds the in-flight reads.
+        const READ_CONCURRENCY: usize = 64;
 
         // Phase 1: enumerate every document up front, preserving doc-type
         // and per-type listing order so the dedup folds below stay
@@ -804,21 +1069,30 @@ impl Indexer {
             }
             records.push(entry);
         }
-        self.install(records, assets, &reading, trust).await;
-        Ok(())
+        Ok(BuiltIndex {
+            records,
+            assets,
+            reading,
+            trust,
+        })
     }
 
     /// Replaces the index with `records`, swapping every map under the
     /// same ordered write locks so readers never see a partial index.
-    async fn install(
-        &self,
-        records: Vec<IndexEntry>,
-        assets: Vec<AssetRecord>,
-        reading: &crate::config::WorkItemConfig,
-        trust: Trust,
-    ) {
-        let maps =
-            IndexMaps::build(&records, &assets, reading, &self.project_root);
+    async fn install(&self, built: BuiltIndex, removals: &RemovalLedger) {
+        let BuiltIndex {
+            records,
+            assets,
+            reading,
+            trust,
+        } = built;
+        let maps = IndexMaps::build(
+            &records,
+            &assets,
+            removals,
+            &reading,
+            &self.project_root,
+        );
         let mut entries: HashMap<PathBuf, IndexEntry> = records
             .into_iter()
             .map(|entry| (entry.path.clone(), entry))
@@ -863,14 +1137,22 @@ impl Indexer {
             Arc::new(crate::config::WorkItemConfig::default_numeric()),
         );
         let reading = me.work_item_cfg();
-        me.install(records, Vec::new(), &reading, Trust::Trusted)
-            .await;
+        me.install(
+            BuiltIndex {
+                records,
+                assets: Vec::new(),
+                reading,
+                trust: Trust::Trusted,
+            },
+            &RemovalLedger::default(),
+        )
+        .await;
         me
     }
 
     /// Refreshes a single index entry for the given path without a full rescan.
     ///
-    /// Acquires the same `rescan_lock` that `rescan()` uses, so the two cannot
+    /// Acquires the same `rescan_lock` that a rescan uses, so the two cannot
     /// interleave. If the file no longer exists, its entry is removed and
     /// `Ok(None)` is returned.
     ///
@@ -881,9 +1163,10 @@ impl Indexer {
     pub async fn refresh_one(
         &self,
         path: &Path,
+        sink: &dyn ChangeSink,
     ) -> Result<Option<IndexEntry>, FileDriverError> {
         if self.lies_in_a_set_doc_root(path).await {
-            self.rescan().await?;
+            self.rescan_with_diff(sink).await?;
             return Ok(self.get(path).await);
         }
         let refreshed = self.refresh_entry(path).await?;
@@ -901,7 +1184,7 @@ impl Indexer {
         if !trust_flipped {
             return Ok(refreshed);
         }
-        self.rescan().await?;
+        self.rescan_with_diff(sink).await?;
         Ok(match refreshed {
             Some(entry) => self.get(&entry.path).await,
             None => None,
@@ -2258,6 +2541,7 @@ mod document_id_tests {
     use super::*;
     use crate::config::WorkItemConfig;
     use crate::file_driver::LocalFileDriver;
+    use crate::test_support::RecordingSink;
     use std::sync::Arc;
 
     const DIRS: [(&str, &str); 4] = [
@@ -2487,13 +2771,19 @@ mod document_id_tests {
         async fn rewrite(&self, path: &str, content: &str) {
             let file = self.root.join(path);
             std::fs::write(&file, content).unwrap();
-            self.indexer.refresh_one(&file).await.unwrap();
+            self.indexer
+                .refresh_one(&file, &RecordingSink::default())
+                .await
+                .unwrap();
         }
 
         async fn delete(&self, path: &str) {
             let file = self.root.join(path);
             std::fs::remove_file(&file).unwrap();
-            self.indexer.refresh_one(&file).await.unwrap();
+            self.indexer
+                .refresh_one(&file, &RecordingSink::default())
+                .await
+                .unwrap();
         }
     }
 
@@ -2638,6 +2928,7 @@ mod identity_join_tests {
     use crate::clusters::{compute_clusters_with_backfill, ClusterContext};
     use crate::config::{scheme_for_test, WorkItemConfig};
     use crate::file_driver::LocalFileDriver;
+    use crate::test_support::RecordingSink;
     use std::sync::Arc;
 
     const DIRS: [(&str, &str); 3] = [
@@ -2701,7 +2992,9 @@ mod identity_join_tests {
         assert_eq!(snapshot.get("PP-0500"), Some(&root.join(lower)));
 
         std::fs::remove_file(root.join(lower)).unwrap();
-        idx.refresh_one(&root.join(lower)).await.unwrap();
+        idx.refresh_one(&root.join(lower), &RecordingSink::default())
+            .await
+            .unwrap();
 
         let snapshot = idx.work_item_by_identity_key_snapshot().await;
         assert_eq!(snapshot.get("PP-0500"), Some(&root.join(higher)));
@@ -2729,7 +3022,9 @@ mod identity_join_tests {
         .await;
 
         std::fs::remove_file(root.join(lower)).unwrap();
-        idx.refresh_one(&root.join(lower)).await.unwrap();
+        idx.refresh_one(&root.join(lower), &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(idx.reviews_by_target(&root.join(lower)).await.len(), 0);
         assert_eq!(idx.reviews_by_target(&root.join(higher)).await.len(), 1);
@@ -2756,7 +3051,9 @@ mod identity_join_tests {
         .await;
 
         std::fs::write(root.join(lower), "---\nid: PP-0500\n---\n").unwrap();
-        idx.refresh_one(&root.join(lower)).await.unwrap();
+        idx.refresh_one(&root.join(lower), &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(idx.reviews_by_target(&root.join(higher)).await.len(), 0);
         assert_eq!(idx.reviews_by_target(&root.join(lower)).await.len(), 1);
@@ -2905,7 +3202,9 @@ mod identity_join_tests {
 
         std::fs::write(root.join(off_pattern.0), "---\nid: \"0042\"\n---\n")
             .unwrap();
-        idx.refresh_one(&root.join(off_pattern.0)).await.unwrap();
+        idx.refresh_one(&root.join(off_pattern.0), &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(idx.untrusted_corpus_problem(), None);
         assert_eq!(
@@ -2933,7 +3232,9 @@ mod identity_join_tests {
         let slugless = root.join("meta/work/0400.md");
 
         std::fs::write(&slugless, "---\nid: \"0400\"\n---\n").unwrap();
-        idx.refresh_one(&slugless).await.unwrap();
+        idx.refresh_one(&slugless, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert!(
             idx.untrusted_corpus_problem().is_some_and(|problem| problem
@@ -3076,8 +3377,13 @@ mod identity_join_tests {
         std::fs::write(&slugless, "---\nid: \"0400\"\n---\n").unwrap();
 
         driver.fail_next_read_of(root.join(plan.0));
-        assert!(idx.refresh_one(&slugless).await.is_err());
-        idx.refresh_one(&slugless).await.unwrap();
+        assert!(idx
+            .refresh_one(&slugless, &RecordingSink::default())
+            .await
+            .is_err());
+        idx.refresh_one(&slugless, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert!(idx.untrusted_corpus_problem().is_some());
         assert_eq!(entry_at(&idx, &root, item.0).await.work_item_id, None);
@@ -3096,7 +3402,9 @@ mod identity_join_tests {
             b"---\nid: \"0400\"\ntitle: Caf\xe9\n---\n",
         )
         .unwrap();
-        idx.refresh_one(&undecodable).await.unwrap();
+        idx.refresh_one(&undecodable, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(
             idx.untrusted_corpus_problem().as_deref(),
@@ -3337,7 +3645,9 @@ mod identity_join_tests {
 
         std::fs::write(&path, "---\nid: pp-0500\nparent: PP-500\n---\n")
             .unwrap();
-        idx.refresh_one(&path).await.unwrap();
+        idx.refresh_one(&path, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert!(idx
             .work_item_by_identity_key_snapshot()
@@ -3346,7 +3656,9 @@ mod identity_join_tests {
         assert!(idx.work_item_refs_by_id("PP-0500").await.is_empty());
 
         std::fs::remove_file(&path).unwrap();
-        idx.refresh_one(&path).await.unwrap();
+        idx.refresh_one(&path, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert!(!idx
             .work_item_by_identity_key_snapshot()
@@ -3360,6 +3672,7 @@ mod tests {
     use super::*;
     use crate::config::WorkItemConfig;
     use crate::file_driver::LocalFileDriver;
+    use crate::test_support::RecordingSink;
     use std::sync::Arc;
 
     fn adr_0001() -> LinkageAddress {
@@ -3543,7 +3856,9 @@ mod tests {
             "---\ntitle: New\n---\n",
         )
         .unwrap();
-        idx.rescan().await.unwrap();
+        idx.rescan_with_diff(&RecordingSink::default())
+            .await
+            .unwrap();
         let after = idx.all_by_type(DocTypeKey::PLANS).await.len();
         assert_eq!(after, before + 1);
     }
@@ -4088,6 +4403,7 @@ mod refresh_tests {
     use super::*;
     use crate::config::WorkItemConfig;
     use crate::file_driver::{etag_of, LocalFileDriver};
+    use crate::test_support::RecordingSink;
     use std::sync::Arc;
 
     fn adr_0001() -> LinkageAddress {
@@ -4155,7 +4471,10 @@ mod refresh_tests {
         )
         .unwrap();
 
-        let entry = idx.refresh_one(&new_path).await.unwrap();
+        let entry = idx
+            .refresh_one(&new_path, &RecordingSink::default())
+            .await
+            .unwrap();
         assert!(
             entry.is_some(),
             "new file should be indexed after refresh_one"
@@ -4188,7 +4507,9 @@ mod refresh_tests {
         )
         .unwrap();
 
-        idx.refresh_one(&path).await.unwrap();
+        idx.refresh_one(&path, &RecordingSink::default())
+            .await
+            .unwrap();
         let new_entry = idx.get(&path).await.unwrap();
 
         assert_ne!(
@@ -4211,7 +4532,10 @@ mod refresh_tests {
         );
 
         std::fs::remove_file(&path).unwrap();
-        let result = idx.refresh_one(&path).await.unwrap();
+        let result = idx
+            .refresh_one(&path, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert!(
             result.is_none(),
@@ -4239,7 +4563,9 @@ mod refresh_tests {
         let before2 = idx.get(&path2).await.unwrap();
         let before3 = idx.get(&path3).await.unwrap();
 
-        idx.refresh_one(&path1).await.unwrap();
+        idx.refresh_one(&path1, &RecordingSink::default())
+            .await
+            .unwrap();
 
         let after2 = idx.get(&path2).await.unwrap();
         let after3 = idx.get(&path3).await.unwrap();
@@ -4266,7 +4592,9 @@ mod refresh_tests {
 
         // Refresh work item #1 — work_item_by_identity_key must still work
         let path1 = work.join("0001-foo.md");
-        idx.refresh_one(&path1).await.unwrap();
+        idx.refresh_one(&path1, &RecordingSink::default())
+            .await
+            .unwrap();
         assert!(
             idx.work_item_by_identity_key("0001").await.is_some(),
             "work_item_by_identity_key(\"0001\") must still resolve after refresh_one"
@@ -4274,7 +4602,9 @@ mod refresh_tests {
 
         // Refresh ADR-0001 — its address must still resolve
         let adr_path = tmp.path().join("meta/decisions/ADR-0001-foo.md");
-        idx.refresh_one(&adr_path).await.unwrap();
+        idx.refresh_one(&adr_path, &RecordingSink::default())
+            .await
+            .unwrap();
         assert!(
             idx.document_at(&adr_0001()).await.is_some(),
             "ADR-0001 must still resolve after refresh_one"
@@ -4302,14 +4632,18 @@ mod refresh_tests {
         let b2 = barrier.clone();
         let rescan_handle = tokio::spawn(async move {
             b2.wait().await;
-            idx2.rescan().await.unwrap();
+            idx2.rescan_with_diff(&RecordingSink::default())
+                .await
+                .unwrap();
         });
 
         let b3 = barrier.clone();
         let idx3 = idx.clone();
         let refresh_handle = tokio::spawn(async move {
             b3.wait().await;
-            idx3.refresh_one(&path2).await.unwrap();
+            idx3.refresh_one(&path2, &RecordingSink::default())
+                .await
+                .unwrap();
         });
 
         rescan_handle.await.unwrap();
@@ -4334,6 +4668,7 @@ mod reverse_index_tests {
     use super::*;
     use crate::config::WorkItemConfig;
     use crate::file_driver::LocalFileDriver;
+    use crate::test_support::RecordingSink;
     use std::sync::Arc;
 
     fn plan_at(id: &str) -> LinkageAddress {
@@ -4669,8 +5004,12 @@ mod reverse_index_tests {
         let (idx, plan_path, review_path) =
             build_with_plan_and_review(tmp.path()).await;
         // Refresh the review twice without touching its content.
-        idx.refresh_one(&review_path).await.unwrap();
-        idx.refresh_one(&review_path).await.unwrap();
+        idx.refresh_one(&review_path, &RecordingSink::default())
+            .await
+            .unwrap();
+        idx.refresh_one(&review_path, &RecordingSink::default())
+            .await
+            .unwrap();
         let inbound = idx.reviews_by_target(&plan_path).await;
         assert_eq!(inbound.len(), 1, "BTreeSet dedup-by-construction holds");
     }
@@ -4685,8 +5024,12 @@ mod reverse_index_tests {
         let review_b = review_a.with_file_name("2026-04-18-foo-review-2.md");
         std::fs::rename(&review_a, &review_b).unwrap();
         // Watcher's typical sequence: refresh_one on new path then on old.
-        idx.refresh_one(&review_b).await.unwrap();
-        idx.refresh_one(&review_a).await.unwrap();
+        idx.refresh_one(&review_b, &RecordingSink::default())
+            .await
+            .unwrap();
+        idx.refresh_one(&review_a, &RecordingSink::default())
+            .await
+            .unwrap();
 
         let inbound = idx.reviews_by_target(&plan_path).await;
         let paths: Vec<&Path> =
@@ -4737,7 +5080,9 @@ mod reverse_index_tests {
             "---\ntarget: \"meta/plans/2026-04-18-foo.md\"\n---\n",
         )
         .unwrap();
-        idx.refresh_one(&new_review).await.unwrap();
+        idx.refresh_one(&new_review, &RecordingSink::default())
+            .await
+            .unwrap();
 
         let plan_canon =
             std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
@@ -4782,7 +5127,9 @@ mod reverse_index_tests {
         // Migrate target from A to B.
         std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n")
             .unwrap();
-        idx.refresh_one(&review).await.unwrap();
+        idx.refresh_one(&review, &RecordingSink::default())
+            .await
+            .unwrap();
 
         let inbound_a = idx.reviews_by_target(&plan_a).await;
         let inbound_b = idx.reviews_by_target(&plan_b).await;
@@ -4840,7 +5187,10 @@ mod reverse_index_tests {
         let writer_idx = idx.clone();
         let writer_review = review.clone();
         let writer = tokio::spawn(async move {
-            writer_idx.refresh_one(&writer_review).await.unwrap();
+            writer_idx
+                .refresh_one(&writer_review, &RecordingSink::default())
+                .await
+                .unwrap();
         });
 
         // Wait for the writer to reach the post-secondary-update barrier.
@@ -4883,7 +5233,9 @@ mod reverse_index_tests {
         let (idx, plan_path, review_path) =
             build_with_plan_and_review(tmp.path()).await;
         std::fs::remove_file(&review_path).unwrap();
-        idx.refresh_one(&review_path).await.unwrap();
+        idx.refresh_one(&review_path, &RecordingSink::default())
+            .await
+            .unwrap();
         let inbound = idx.reviews_by_target(&plan_path).await;
         assert!(
             inbound.is_empty(),
@@ -4930,7 +5282,9 @@ mod reverse_index_tests {
         let plan_a = plans.join("a.md");
         let plan_a_canon = std::fs::canonicalize(&plan_a).unwrap();
         std::fs::remove_file(&plan_a).unwrap();
-        idx.refresh_one(&plan_a).await.unwrap();
+        idx.refresh_one(&plan_a, &RecordingSink::default())
+            .await
+            .unwrap();
 
         // Reviews must still be addressable via the (now-non-existent)
         // canonical plan path — deferred materialisation contract.
@@ -4951,7 +5305,9 @@ mod reverse_index_tests {
         let tmp = tempfile::tempdir().unwrap();
         let (idx, plan_path, _review_path) =
             build_with_plan_and_review(tmp.path()).await;
-        idx.rescan().await.unwrap();
+        idx.rescan_with_diff(&RecordingSink::default())
+            .await
+            .unwrap();
         let inbound = idx.reviews_by_target(&plan_path).await;
         assert_eq!(inbound.len(), 1, "rescan re-populates the reverse index");
     }
@@ -5048,7 +5404,9 @@ mod reverse_index_tests {
         let rev_path =
             std::fs::canonicalize(wi_reviews.join("0042-foo-review-1.md"))
                 .unwrap();
-        idx.refresh_one(&rev_path).await.unwrap();
+        idx.refresh_one(&rev_path, &RecordingSink::default())
+            .await
+            .unwrap();
         assert_eq!(
             idx.reviews_by_target(&wi_path).await.len(),
             1,
@@ -5136,7 +5494,9 @@ mod reverse_index_tests {
             BTreeSet::from([PathBuf::from("/nonexistent/review.md")]),
         );
 
-        idx.rescan().await.unwrap();
+        idx.rescan_with_diff(&RecordingSink::default())
+            .await
+            .unwrap();
 
         let address_map = idx.documents_by_address.read().await;
         let work_item_map = idx.work_item_by_identity_key.read().await;
@@ -5202,7 +5562,10 @@ mod reverse_index_tests {
         let writer_idx = idx.clone();
         let writer_review = review.clone();
         let writer = tokio::spawn(async move {
-            writer_idx.refresh_one(&writer_review).await.unwrap();
+            writer_idx
+                .refresh_one(&writer_review, &RecordingSink::default())
+                .await
+                .unwrap();
         });
 
         reached_rx.await.expect("writer reached barrier");
@@ -5217,8 +5580,12 @@ mod reverse_index_tests {
 
         // Schedule a rescan; it must wait for the writer to release.
         let rescan_idx = idx.clone();
-        let rescan =
-            tokio::spawn(async move { rescan_idx.rescan().await.unwrap() });
+        let rescan = tokio::spawn(async move {
+            rescan_idx
+                .rescan_with_diff(&RecordingSink::default())
+                .await
+                .unwrap();
+        });
 
         // Release the writer.
         proceed_tx.send(()).expect("writer awaiting proceed");
@@ -5904,7 +6271,9 @@ mod reverse_index_tests {
             "---\nid: \"2026-04-18-foo-renamed\"\ntitle: Foo\n---\nbody\n",
         )
         .unwrap();
-        idx.refresh_one(&plan).await.unwrap();
+        idx.refresh_one(&plan, &RecordingSink::default())
+            .await
+            .unwrap();
         {
             let m = idx.documents_by_address.read().await;
             assert!(
@@ -5920,7 +6289,9 @@ mod reverse_index_tests {
         // Delete the plan and confirm documents_by_address no longer
         // contains it.
         std::fs::remove_file(&plan).unwrap();
-        idx.refresh_one(&plan).await.unwrap();
+        idx.refresh_one(&plan, &RecordingSink::default())
+            .await
+            .unwrap();
         {
             let m = idx.documents_by_address.read().await;
             assert!(
@@ -6154,6 +6525,7 @@ mod set_enumeration_tests {
     use super::*;
     use crate::config::WorkItemConfig;
     use crate::file_driver::LocalFileDriver;
+    use crate::test_support::RecordingSink;
 
     const TOPICS: &str = "meta/research/topics";
     const INVENTORIES: &str = "meta/research/design-inventories";
@@ -6161,7 +6533,7 @@ mod set_enumeration_tests {
     const ROOT: &str = "---\nid: \"the-set\"\ntitle: The set\n---\n";
     const DOC: &str = "---\ntitle: A member\n---\nbody\n";
 
-    fn write(root: &Path, files: &[(&str, &str)]) {
+    pub(super) fn write(root: &Path, files: &[(&str, &str)]) {
         for (file, content) in files {
             let path = root.join(file);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -6169,7 +6541,7 @@ mod set_enumeration_tests {
         }
     }
 
-    fn set_mtime_ms(path: &Path, ms: u64) {
+    pub(super) fn set_mtime_ms(path: &Path, ms: u64) {
         std::fs::File::options()
             .write(true)
             .open(path)
@@ -6180,7 +6552,7 @@ mod set_enumeration_tests {
             .unwrap();
     }
 
-    async fn index_of(root: &Path) -> Indexer {
+    pub(super) async fn index_of(root: &Path) -> Indexer {
         let catalogue = crate::test_support::assembled_catalogue();
         let paths = HashMap::from([
             ("research_topics".to_string(), root.join(TOPICS)),
@@ -6595,7 +6967,10 @@ mod set_enumeration_tests {
         write(&root, &[("meta/research/topics/s/findings/01-a.md", DOC)]);
         let counts = indexer.counts_by_type().await;
 
-        indexer.refresh_one(&finding).await.unwrap();
+        indexer
+            .refresh_one(&finding, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(
             serialised(indexer.get(&finding).await),
@@ -6625,7 +7000,10 @@ mod set_enumeration_tests {
 
         for file in ["notes.md", ".scratch.md"] {
             let path = root.join(TOPICS).join("s").join(file);
-            indexer.refresh_one(&path).await.unwrap();
+            indexer
+                .refresh_one(&path, &RecordingSink::default())
+                .await
+                .unwrap();
             assert!(indexer.get(&path).await.is_none(), "{file}");
         }
         assert_eq!(
@@ -6648,7 +7026,10 @@ mod set_enumeration_tests {
         let finding = root.join(TOPICS).join("s/findings/01-a.md");
         std::fs::remove_file(&finding).unwrap();
 
-        indexer.refresh_one(&finding).await.unwrap();
+        indexer
+            .refresh_one(&finding, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(
             indexed_paths(&indexer, &root).await,
@@ -6671,7 +7052,10 @@ mod set_enumeration_tests {
         let manifest = directory.join("manifest.md");
         std::fs::write(&manifest, "---\nid: \"renamed\"\n---\n").unwrap();
 
-        indexer.refresh_one(&manifest).await.unwrap();
+        indexer
+            .refresh_one(&manifest, &RecordingSink::default())
+            .await
+            .unwrap();
 
         let set_ids: Vec<String> = indexer
             .set_members(&directory)
@@ -6693,7 +7077,10 @@ mod set_enumeration_tests {
         std::fs::write(&brief, "---\ntitle: Brief\nstatus: done\n---\n")
             .unwrap();
 
-        indexer.refresh_one(&brief).await.unwrap();
+        indexer
+            .refresh_one(&brief, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(
             indexer.all_by_type(DocTypeKey::TOPIC_RESEARCH).await.len(),
@@ -6709,6 +7096,7 @@ mod set_enumeration_tests {
 #[cfg(test)]
 mod set_membership_tests {
     use super::*;
+    use crate::test_support::RecordingSink;
     use crate::test_support::{
         dossier, dossiers, entry_for_test, set_member_for_test,
         set_root_for_test,
@@ -6858,7 +7246,10 @@ mod set_membership_tests {
         .unwrap();
 
         set_mtime_ms(&manifest, 9_000);
-        indexer.refresh_one(&manifest).await.unwrap();
+        indexer
+            .refresh_one(&manifest, &RecordingSink::default())
+            .await
+            .unwrap();
 
         let aggregates = indexer.library_aggregates(&Selection::new()).await;
         let latest = aggregates.per_type[&DocTypeKey::TOPIC_RESEARCH]
@@ -6993,5 +7384,361 @@ mod set_membership_tests {
 
         assert_eq!(member.search_key(), Some("01-cost"));
         assert_eq!(root.search_key(), Some("dossier-a"));
+    }
+}
+
+#[cfg(test)]
+mod change_tests {
+    use super::set_enumeration_tests::{index_of, set_mtime_ms, write};
+    use super::*;
+    use crate::test_support::RecordingSink;
+
+    const TOPICS: &str = "meta/research/topics";
+    const INVENTORIES: &str = "meta/research/design-inventories";
+    const ROOT: &str = "---\nid: \"the-set\"\ntitle: The set\n---\n";
+    const DOC: &str = "---\ntitle: A member\n---\nbody\n";
+
+    struct Layout {
+        _tmp: tempfile::TempDir,
+        root: PathBuf,
+        indexer: Indexer,
+    }
+
+    async fn layout(files: &[(&str, &str)], mtime_ms: u64) -> Layout {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        write(&root, files);
+        for (file, _) in files {
+            set_mtime_ms(&root.join(file), mtime_ms);
+        }
+        let indexer = index_of(&root).await;
+        Layout {
+            _tmp: tmp,
+            root,
+            indexer,
+        }
+    }
+
+    impl Layout {
+        async fn latest_change(&self, kind: DocTypeKey) -> i64 {
+            self.indexer
+                .library_aggregates(&Selection::new())
+                .await
+                .per_type[&kind]
+                .latest
+                .clone()
+                .expect("a listed entry")
+                .modified_at
+        }
+
+        async fn rescan(&self) -> RecordingSink {
+            let sink = RecordingSink::default();
+            self.indexer.rescan_with_diff(&sink).await.unwrap();
+            sink
+        }
+
+        async fn rescan_observed(&self) -> (i64, i64) {
+            let before = chrono::Utc::now().timestamp_millis();
+            self.rescan().await;
+            (before, chrono::Utc::now().timestamp_millis())
+        }
+    }
+
+    fn changed_paths(
+        sink: &RecordingSink,
+    ) -> Vec<(Option<String>, Option<String>)> {
+        let name = |path: &Path| path.to_string_lossy().into_owned();
+        sink.diffs()
+            .iter()
+            .flat_map(|diff| {
+                diff.documents
+                    .iter()
+                    .map(|change| {
+                        (
+                            change.before.as_ref().map(|e| name(&e.rel_path)),
+                            change.after.as_ref().map(|e| name(&e.rel_path)),
+                        )
+                    })
+                    .chain(diff.assets.iter().map(|change| {
+                        (
+                            change.before.as_ref().map(|a| name(&a.rel_path)),
+                            change.after.as_ref().map(|a| name(&a.rel_path)),
+                        )
+                    }))
+            })
+            .collect()
+    }
+
+    fn path(rel_path: &str) -> Option<String> {
+        rel_path.to_owned().into()
+    }
+
+    #[tokio::test]
+    async fn a_rescan_hands_the_sink_each_change_it_applied() {
+        let set = layout(
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+                ("meta/research/topics/s/outline.md", DOC),
+            ],
+            1_000,
+        )
+        .await;
+        write(
+            &set.root,
+            &[
+                ("meta/research/topics/s/brief.md", "---\ntitle: New\n---\n"),
+                ("meta/research/topics/s/findings/01-a.md", DOC),
+            ],
+        );
+        std::fs::remove_file(set.root.join(TOPICS).join("s/outline.md"))
+            .unwrap();
+
+        let sink = set.rescan().await;
+
+        let mut changes = changed_paths(&sink);
+        changes.sort();
+        assert_eq!(
+            changes,
+            [
+                (None, path("meta/research/topics/s/findings/01-a.md")),
+                (
+                    path("meta/research/topics/s/brief.md"),
+                    path("meta/research/topics/s/brief.md")
+                ),
+                (path("meta/research/topics/s/outline.md"), None),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_rescan_hands_the_sink_each_asset_change() {
+        let set = layout(
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+                ("meta/research/design-inventories/i/screenshots/b.png", "b"),
+            ],
+            1_000,
+        )
+        .await;
+        write(
+            &set.root,
+            &[
+                ("meta/research/design-inventories/i/screenshots/a.png", "a2"),
+                ("meta/research/design-inventories/i/screenshots/c.png", "c"),
+            ],
+        );
+        std::fs::remove_file(
+            set.root.join(INVENTORIES).join("i/screenshots/b.png"),
+        )
+        .unwrap();
+
+        let sink = set.rescan().await;
+
+        let shot =
+            |name: &str| path(&format!("{INVENTORIES}/i/screenshots/{name}"));
+        let mut changes = changed_paths(&sink);
+        changes.sort();
+        assert_eq!(
+            changes,
+            [
+                (None, shot("c.png")),
+                (shot("a.png"), shot("a.png")),
+                (shot("b.png"), None),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_rescan_that_changes_nothing_hands_the_sink_an_empty_diff() {
+        let set = layout(
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+            ],
+            1_000,
+        )
+        .await;
+
+        let sink = set.rescan().await;
+
+        assert_eq!(sink.diffs().len(), 1);
+        assert!(sink.diffs()[0].is_empty());
+    }
+
+    #[tokio::test]
+    async fn rescans_released_together_hand_on_each_change_once() {
+        let set = layout(
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+            ],
+            1_000,
+        )
+        .await;
+        write(
+            &set.root,
+            &[("meta/research/topics/s/brief.md", "---\ntitle: New\n---\n")],
+        );
+        let sink = RecordingSink::default();
+
+        let (first, second) = tokio::join!(
+            set.indexer.rescan_with_diff(&sink),
+            set.indexer.rescan_with_diff(&sink),
+        );
+        first.unwrap();
+        second.unwrap();
+
+        assert_eq!(changed_paths(&sink).len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_removed_member_dates_its_set_to_when_it_was_seen_gone() {
+        let set = layout(
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+                ("meta/research/topics/s/outline.md", DOC),
+            ],
+            1_000,
+        )
+        .await;
+        std::fs::remove_file(set.root.join(TOPICS).join("s/outline.md"))
+            .unwrap();
+
+        let (before, after) = set.rescan_observed().await;
+
+        let latest = set.latest_change(DocTypeKey::TOPIC_RESEARCH).await;
+        assert!(
+            (before..=after).contains(&latest),
+            "{latest} not within [{before}, {after}]"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_removed_asset_dates_its_set_to_when_it_was_seen_gone() {
+        let set = layout(
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+                ("meta/research/design-inventories/i/screenshots/b.png", "b"),
+            ],
+            1_000,
+        )
+        .await;
+        std::fs::remove_file(
+            set.root.join(INVENTORIES).join("i/screenshots/b.png"),
+        )
+        .unwrap();
+
+        let (before, after) = set.rescan_observed().await;
+
+        let latest = set.latest_change(DocTypeKey::DESIGN_INVENTORIES).await;
+        assert!(
+            (before..=after).contains(&latest),
+            "{latest} not within [{before}, {after}]"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_changed_screenshot_moves_its_sets_latest_change() {
+        let set = layout(
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+            ],
+            1_000,
+        )
+        .await;
+        let shot = set.root.join(INVENTORIES).join("i/screenshots/a.png");
+        std::fs::write(&shot, "a2").unwrap();
+        set_mtime_ms(&shot, 9_000);
+
+        set.rescan().await;
+
+        assert_eq!(
+            set.latest_change(DocTypeKey::DESIGN_INVENTORIES).await,
+            9_000
+        );
+    }
+
+    #[tokio::test]
+    async fn a_recreated_set_forgets_a_removal_from_before_it_was_deleted() {
+        let files = [
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+            ("meta/research/topics/s/outline.md", DOC),
+        ];
+        let set = layout(&files, 1_000).await;
+        let directory = set.root.join(TOPICS).join("s");
+        std::fs::remove_file(directory.join("outline.md")).unwrap();
+        set.rescan().await;
+        std::fs::remove_dir_all(&directory).unwrap();
+        set.rescan().await;
+        write(&set.root, &files[..2]);
+        for (file, _) in &files[..2] {
+            set_mtime_ms(&set.root.join(file), 1_000);
+        }
+
+        set.rescan().await;
+
+        assert_eq!(set.latest_change(DocTypeKey::TOPIC_RESEARCH).await, 1_000);
+    }
+
+    #[tokio::test]
+    async fn a_case_only_rename_is_one_change_and_no_removal() {
+        let set = layout(
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+            ],
+            1_000,
+        )
+        .await;
+        let screenshots = set.root.join(INVENTORIES).join("i/screenshots");
+        set_mtime_ms(&screenshots.join("a.png"), 5_000);
+        set.rescan().await;
+        std::fs::rename(screenshots.join("a.png"), screenshots.join("a.PNG"))
+            .unwrap();
+
+        let sink = set.rescan().await;
+
+        assert_eq!(
+            changed_paths(&sink),
+            [(
+                path(&format!("{INVENTORIES}/i/screenshots/a.png")),
+                path(&format!("{INVENTORIES}/i/screenshots/a.PNG")),
+            )]
+        );
+        assert_eq!(
+            set.latest_change(DocTypeKey::DESIGN_INVENTORIES).await,
+            5_000
+        );
+    }
+
+    #[tokio::test]
+    async fn refreshing_a_set_path_hands_the_sink_its_change() {
+        let set = layout(
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+            ],
+            1_000,
+        )
+        .await;
+        let brief = set.root.join(TOPICS).join("s/brief.md");
+        std::fs::write(&brief, "---\ntitle: New\n---\n").unwrap();
+        let sink = RecordingSink::default();
+
+        set.indexer.refresh_one(&brief, &sink).await.unwrap();
+
+        assert_eq!(
+            changed_paths(&sink),
+            [(
+                path("meta/research/topics/s/brief.md"),
+                path("meta/research/topics/s/brief.md")
+            )]
+        );
     }
 }

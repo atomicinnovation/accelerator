@@ -62,6 +62,7 @@ pub(crate) async fn get_work_item_config(
 
 #[cfg(test)]
 mod tests {
+    use crate::test_support::RecordingSink;
     use std::collections::HashMap;
     use std::sync::Arc;
 
@@ -321,14 +322,14 @@ mod tests {
             .unwrap();
         state
             .indexer
-            .refresh_one(&work.join("PP-42-a.md"))
+            .refresh_one(&work.join("PP-42-a.md"), &RecordingSink::default())
             .await
             .unwrap();
         let off_pattern = config(app.clone()).await;
         std::fs::remove_file(work.join("PP-42-a.md")).unwrap();
         state
             .indexer
-            .refresh_one(&work.join("PP-42-a.md"))
+            .refresh_one(&work.join("PP-42-a.md"), &RecordingSink::default())
             .await
             .unwrap();
         std::fs::write(
@@ -338,7 +339,7 @@ mod tests {
         .unwrap();
         state
             .indexer
-            .refresh_one(&work.join("PP-0042-a.md"))
+            .refresh_one(&work.join("PP-0042-a.md"), &RecordingSink::default())
             .await
             .unwrap();
         let converged = config(app).await;

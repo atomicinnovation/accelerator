@@ -19,6 +19,7 @@ pub mod activity;
 pub mod activity_feed;
 pub mod api;
 pub mod assets;
+pub mod change_broadcast;
 pub mod clusters;
 pub mod compose;
 pub mod config;

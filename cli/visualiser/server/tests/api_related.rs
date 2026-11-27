@@ -393,7 +393,15 @@ async fn related_endpoint_recovers_after_target_creation() {
     // Create the target plan and rescan.
     std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n")
         .unwrap();
-    state.indexer.rescan().await.unwrap();
+    state
+        .indexer
+        .rescan_with_diff(
+            &accelerator_visualiser::change_broadcast::ChangeBroadcast::of(
+                &state,
+            ),
+        )
+        .await
+        .unwrap();
     {
         let snapshot = state.indexer.all().await;
         let wbi = state.indexer.work_item_by_identity_key_snapshot().await;
@@ -485,7 +493,16 @@ async fn related_endpoint_returns_empty_outbound_after_target_deletion() {
     // Delete the target plan.
     let plan_path = tmp.path().join("meta/plans/2026-04-18-foo.md");
     std::fs::remove_file(&plan_path).unwrap();
-    state.indexer.refresh_one(&plan_path).await.unwrap();
+    state
+        .indexer
+        .refresh_one(
+            &plan_path,
+            &accelerator_visualiser::change_broadcast::ChangeBroadcast::of(
+                &state,
+            ),
+        )
+        .await
+        .unwrap();
 
     let res = app
         .oneshot(

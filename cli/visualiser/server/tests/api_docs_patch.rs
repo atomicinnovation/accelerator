@@ -8,7 +8,6 @@ use accelerator_visualiser::watcher;
 use axum::body::Body;
 use axum::http::{header, Method, Request, StatusCode};
 use http_body_util::BodyExt;
-use tokio::sync::RwLock;
 use tower::ServiceExt;
 
 mod common;
@@ -214,7 +213,15 @@ async fn patch_with_stale_if_match_returns_412_when_indexer_refreshed() {
     )
     .await
     .unwrap();
-    let _ = state.indexer.refresh_one(&abs).await;
+    let _ = state
+        .indexer
+        .refresh_one(
+            &abs,
+            &accelerator_visualiser::change_broadcast::ChangeBroadcast::of(
+                &state,
+            ),
+        )
+        .await;
 
     let app = build_router(state);
     let res = app
@@ -743,21 +750,6 @@ async fn patch_emits_exactly_one_doc_changed_event() {
     let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
 
     let mut rx = state.sse_hub.subscribe();
-    let clusters = Arc::new(RwLock::new({
-        let snapshot = state.indexer.all().await;
-        let wbi = state.indexer.work_item_by_identity_key_snapshot().await;
-        let pbi = state.indexer.documents_by_address_snapshot().await;
-        let work_item_cfg = state.indexer.work_item_cfg();
-        let ctx =
-            accelerator_visualiser::clusters::ClusterContext::from_entries(
-                &snapshot,
-                &wbi,
-                &pbi,
-                state.indexer.project_root(),
-                &work_item_cfg,
-            );
-        accelerator_visualiser::clusters::compute_clusters(&snapshot, &ctx)
-    }));
 
     let app = build_router(state.clone());
     let res = app
@@ -787,9 +779,11 @@ async fn patch_emits_exactly_one_doc_changed_event() {
     watcher::on_path_changed_debounced(
         canonical,
         state.indexer.clone(),
-        clusters,
-        state.sse_hub.clone(),
-        state.activity_feed.clone(),
+        std::sync::Arc::new(
+            accelerator_visualiser::change_broadcast::ChangeBroadcast::of(
+                &state,
+            ),
+        ),
         state.write_coordinator.clone(),
         None,
         Duration::ZERO,
@@ -832,21 +826,6 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
     let work_item_via_link = "meta/work_link/0001-todo-fixture.md";
     let etag = fetch_etag(state.clone(), work_item_via_link).await;
     let mut rx = state.sse_hub.subscribe();
-    let clusters = Arc::new(RwLock::new({
-        let snapshot = state.indexer.all().await;
-        let wbi = state.indexer.work_item_by_identity_key_snapshot().await;
-        let pbi = state.indexer.documents_by_address_snapshot().await;
-        let work_item_cfg = state.indexer.work_item_cfg();
-        let ctx =
-            accelerator_visualiser::clusters::ClusterContext::from_entries(
-                &snapshot,
-                &wbi,
-                &pbi,
-                state.indexer.project_root(),
-                &work_item_cfg,
-            );
-        accelerator_visualiser::clusters::compute_clusters(&snapshot, &ctx)
-    }));
 
     let app = build_router(state.clone());
     let res = app
@@ -870,9 +849,11 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
     watcher::on_path_changed_debounced(
         symlink_path,
         state.indexer.clone(),
-        clusters,
-        state.sse_hub.clone(),
-        state.activity_feed.clone(),
+        std::sync::Arc::new(
+            accelerator_visualiser::change_broadcast::ChangeBroadcast::of(
+                &state,
+            ),
+        ),
         state.write_coordinator.clone(),
         None,
         Duration::ZERO,
