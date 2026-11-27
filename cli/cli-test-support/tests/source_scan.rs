@@ -1,5 +1,5 @@
 use cli_test_support::source_scan::{
-    built_in_doc_type_references, production_code,
+    built_in_doc_type_references, production_code, string_literals_naming,
 };
 
 #[test]
@@ -95,4 +95,38 @@ fn a_constant_inside_a_comment_or_literal_is_not_a_reference() {
                   const NAME: &str = \"DocTypeKey::PLANS\";\n\
                   const RAW: &str = r#\"doc_type::built_in\"#;\n";
     assert!(built_in_doc_type_references(source).is_empty());
+}
+
+#[test]
+fn a_string_literal_naming_an_identity_is_found() {
+    let source = "fn topics() -> &'static str {\n    \
+                  \"topic-research\"\n}\n\
+                  const KEY: &str = r#\"research_topics\"#;\n";
+    assert_eq!(
+        string_literals_naming(source, &["topic-research", "research_topics"]),
+        [
+            "2: \"topic-research\"",
+            "4: const KEY: &str = r#\"research_topics\"#;"
+        ]
+    );
+}
+
+#[test]
+fn a_literal_holding_an_identity_as_part_of_a_longer_string_is_not_one() {
+    let source = "const PATH: &str = \"meta/research/topics\";\n\
+                  const TOKEN: &str = \"topic-research-x\";\n";
+    assert!(
+        string_literals_naming(source, &["topic-research", "topics"])
+            .is_empty()
+    );
+}
+
+#[test]
+fn an_identity_in_a_comment_or_a_test_gated_item_is_ignored() {
+    let source = "// \"topic-research\"\n\
+                  #[cfg(test)]\n\
+                  mod tests {\n    \
+                  const T: &str = \"topic-research\";\n\
+                  }\n";
+    assert!(string_literals_naming(source, &["topic-research"]).is_empty());
 }

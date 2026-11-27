@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use cli_test_support::source_scan::{
-    built_in_doc_type_references, rust_sources_under,
+    built_in_doc_type_references, rust_sources_under, string_literals_naming,
 };
 
 const BUILT_IN_DECLARATIONS: &str = "corpus/src/doc_type/built_in.rs";
@@ -18,6 +18,14 @@ const OWNERS_OF_ONE_DOC_TYPE: [&str; 2] =
 const FROZEN_MIGRATIONS: &str = "migrate/src/migrations/";
 
 const VISUALISER_SERVER: &str = "visualiser/server";
+
+const SET_TYPE_IDENTITIES: [&str; 5] = [
+    "topic-research",
+    "research_topics",
+    "design-inventories",
+    "design-inventory",
+    "research_design_inventories",
+];
 
 const SEEDED_SET_TYPE_REFERENCE: &str =
     "const SEEDED: DocTypeKey = DocTypeKey::TOPIC_RESEARCH;";
@@ -79,6 +87,28 @@ fn no_production_code_names_a_built_in_doc_type() {
         root.display()
     );
     let offences = offences_under(&root, &sources);
+    assert!(offences.is_empty(), "{}", offences.join("\n"));
+}
+
+#[test]
+fn visualiser_server_names_no_set_type_in_a_string() {
+    let root = workspace_root();
+    let server_sources = rust_sources_under(&root.join(VISUALISER_SERVER));
+    assert!(
+        !server_sources.is_empty(),
+        "no sources under {VISUALISER_SERVER}"
+    );
+    let offences: Vec<String> = server_sources
+        .iter()
+        .flat_map(|path| {
+            let source = std::fs::read_to_string(path).expect("a source");
+            let relative_path = relative(&root, path);
+            string_literals_naming(&source, &SET_TYPE_IDENTITIES)
+                .into_iter()
+                .map(move |offence| format!("{relative_path}:{offence}"))
+        })
+        .collect();
+
     assert!(offences.is_empty(), "{}", offences.join("\n"));
 }
 

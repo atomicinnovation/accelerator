@@ -2,6 +2,7 @@
 //! a file compiles to outside tests, and the places it names a built-in doc
 //! type.
 
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 
 const TEST_GATES: [&str; 2] = ["#[cfg(test)]", "#[cfg(all(test"];
@@ -10,9 +11,33 @@ const TEST_GATES: [&str; 2] = ["#[cfg(test)]", "#[cfg(all(test"];
 /// keeping its line breaks so line numbers still point into the file.
 #[must_use]
 pub fn production_code(source: &str) -> String {
-    let code = code_only(source);
+    let code = kept(source, |segment| segment == Segment::Code);
+    without_test_gated_items(&code, &code)
+}
+
+/// The lines of `source`'s production code holding a string literal whose
+/// whole text is one of `names`, each as `<line number>: <line>`.
+#[must_use]
+pub fn string_literals_naming(source: &str, names: &[&str]) -> Vec<String> {
+    let code = kept(source, |segment| segment == Segment::Code);
+    let code_and_literals = kept(source, |segment| segment != Segment::Comment);
+    let production = without_test_gated_items(&code, &code_and_literals);
+    production
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| {
+            names.iter().any(|name| {
+                line.contains(&format!("\"{name}\""))
+                    || line.contains(&format!("r#\"{name}\"#"))
+            })
+        })
+        .map(|(index, line)| format!("{}: {}", index + 1, line.trim()))
+        .collect()
+}
+
+fn without_test_gated_items(code: &str, text: &str) -> String {
     let bytes = code.as_bytes();
-    let mut production = String::with_capacity(code.len());
+    let mut production = String::with_capacity(text.len());
     let mut cursor = 0;
     while let Some(offset) = TEST_GATES
         .iter()
@@ -21,25 +46,27 @@ pub fn production_code(source: &str) -> String {
     {
         let gate = cursor + offset;
         let end = end_of_gated_item(bytes, gate);
-        production.push_str(&code[cursor..gate]);
-        production.extend(code[gate..end].chars().filter(|&c| c == '\n'));
+        production.push_str(&text[cursor..gate]);
+        production.extend(text[gate..end].chars().filter(|&c| c == '\n'));
         cursor = end;
     }
-    production.push_str(&code[cursor..]);
+    production.push_str(&text[cursor..]);
     production
 }
 
-fn code_only(source: &str) -> String {
+fn kept(source: &str, keep: impl Fn(Segment) -> bool) -> String {
     let bytes = source.as_bytes();
-    let mut code: Vec<u8> = bytes
+    let mut text: Vec<u8> = bytes
         .iter()
         .map(|&byte| if byte == b'\n' { b'\n' } else { b' ' })
         .collect();
     let mut scanner = Scanner::new(bytes);
-    while let Some(position) = scanner.next_code_position() {
-        code[position] = bytes[position];
+    while let Some((segment, range)) = scanner.next_segment() {
+        if keep(segment) {
+            text[range.clone()].copy_from_slice(&bytes[range]);
+        }
     }
-    String::from_utf8_lossy(&code).into_owned()
+    String::from_utf8_lossy(&text).into_owned()
 }
 
 /// The lines of `source`'s production code that name a built-in doc type,
@@ -182,8 +209,15 @@ fn next_is_attribute(code: &[u8], from: usize) -> bool {
         .is_some_and(|byte| *byte == b'#')
 }
 
-/// Walks source bytes, yielding the positions of code outside comments and
-/// string or character literals.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Segment {
+    Code,
+    Literal,
+    Comment,
+}
+
+/// Walks source bytes, telling code from comments and from string or
+/// character literals.
 struct Scanner<'a> {
     bytes: &'a [u8],
     position: usize,
@@ -194,26 +228,38 @@ impl<'a> Scanner<'a> {
         Self { bytes, position: 0 }
     }
 
-    fn next_code_position(&mut self) -> Option<usize> {
-        while self.position < self.bytes.len() {
-            let start = self.position;
-            match (self.bytes[start], self.bytes.get(start + 1)) {
-                (b'/', Some(b'/')) => self.skip_past(b"\n"),
-                (b'/', Some(b'*')) => self.skip_past(b"*/"),
-                (b'"', _) => self.skip_string(start + 1),
-                (b'r', Some(b'"' | b'#')) if self.starts_raw_string(start) => {
-                    self.skip_raw_string(start + 1);
-                }
-                (b'\'', _) if self.starts_char_literal(start) => {
-                    self.skip_char_literal(start + 1);
-                }
-                _ => {
-                    self.position += 1;
-                    return Some(start);
-                }
-            }
+    fn next_segment(&mut self) -> Option<(Segment, Range<usize>)> {
+        let start = self.position;
+        if start >= self.bytes.len() {
+            return None;
         }
-        None
+        let segment = match (self.bytes[start], self.bytes.get(start + 1)) {
+            (b'/', Some(b'/')) => {
+                self.skip_past(b"\n");
+                Segment::Comment
+            }
+            (b'/', Some(b'*')) => {
+                self.skip_past(b"*/");
+                Segment::Comment
+            }
+            (b'"', _) => {
+                self.skip_string(start + 1);
+                Segment::Literal
+            }
+            (b'r', Some(b'"' | b'#')) if self.starts_raw_string(start) => {
+                self.skip_raw_string(start + 1);
+                Segment::Literal
+            }
+            (b'\'', _) if self.starts_char_literal(start) => {
+                self.skip_char_literal(start + 1);
+                Segment::Literal
+            }
+            _ => {
+                self.position += 1;
+                Segment::Code
+            }
+        };
+        Some((segment, start..self.position))
     }
 
     fn skip_past(&mut self, terminator: &[u8]) {
