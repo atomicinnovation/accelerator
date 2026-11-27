@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-27T01:45:20+00:00"
+last_updated: "2026-11-27T02:11:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2774,7 +2774,7 @@ member filter of their own.
 
 #### Manual Verification:
 
-- [ ] The library, lifecycle and search in this repo look unchanged.
+- [x] The library, lifecycle and search in this repo look unchanged.
 
 ### Implementation notes
 
@@ -2863,6 +2863,52 @@ member filter of their own.
   errors, so it was stale analysis.
 - **`mise run`** exited 0 on the final code, with `test:unit:cli`
   coverage at lines 94.46%, functions 93.80%, regions 93.20%.
+- **Manual check, 2026-11-27.** Debug `dev-frontend` builds of
+  `rkpnpmwu` (Phase 8, from a temporary jj workspace with its own
+  `CARGO_TARGET_DIR`) and `nttuyyxl` (Phase 9) each ran `serve` against
+  this repository's `meta/`. Two Phase 8 runs and four Phase 9 runs
+  fetched `/api/types`, `/api/library/structure`, `/api/lifecycle`,
+  `/api/templates`, `/api/docs` for every type, and `/api/search` for
+  `current-app`, `135214-current-app` (an inventory's slug),
+  `template`, `visualiser`, `inventory`, `crawler` and `react 19 spa`
+  (from an inventory's first paragraph).
+  - Every Phase 9 run's responses were byte-identical. The two Phase 8
+    runs differed on `/api/lifecycle` and on `design-gaps`
+    `linkedCount`s.
+  - `/api/types`, `/api/library/structure` and `/api/templates` are
+    identical across builds.
+  - `/api/docs` differs only in the new `setId` and `setRelativePath`
+    fields (an inventory root's set id and `inventory.md`, null
+    elsewhere) and in the `linkedCount`s the fix settles: the
+    template-management research document 1 to 2, and the three
+    `current-app-vs-claude-design-prototype` design gaps 0 or 1 to 0.
+    ADR-0021 read 0 in both Phase 8 runs here, and 3 in earlier ones.
+  - `/api/lifecycle` holds the same clusters with the same entries;
+    only the order of clusters sharing a slug, and of entries tied on
+    rank and mtime, differs, and is now fixed.
+  - Search returns the same rows in the same order, with the two new
+    fields. No member appears, since nothing enumerates members until
+    Phase 10, and this repository holds no topic research sets.
+  - Through the Vite dev frontend (`npm run dev`, proxying to the
+    Phase 9 server) driven by Playwright, the
+    library, a design inventory listing, the lifecycle index, ADR-0021's
+    page (no related items; a one-artifact cluster) and a search for
+    `current-app` (9 rows) render. The lifecycle index logs React
+    duplicate-key warnings for `current-app-vs-claude-design-prototype`
+    and `template-management-subcommands`, the same against the Phase 8
+    server: `LifecycleIndex.tsx` keys its rows by cluster slug, which
+    orphan clusters share. This predates Phase 9 and is left as a
+    finding.
+- **Review, 2026-11-27.** The `wlyozyql`..`nttuyyxl` diff adds no source
+  line past 80 columns apart from three Biome-formatted test titles,
+  which Biome does not wrap. Two comments that restated their field
+  names (the frontend `setId`/`setRelativePath` pair and
+  `latest_change_by_set`) are trimmed (`nvsyzrzq`); `mise run` exited 0
+  again after the trim, with unchanged coverage.
+- **Build trap.** Two jj workspaces sharing one `CARGO_TARGET_DIR` reuse
+  each other's workspace-crate artifacts: a build in one can link a
+  crate compiled from the other's sources. Give a comparison build its
+  own target directory.
 
 ---
 
