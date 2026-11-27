@@ -187,6 +187,36 @@ export interface DocsListResponse {
   docs: IndexEntry[];
 }
 
+export interface SetResponse {
+  set: {
+    type: DocTypeKey;
+    id: string;
+    directory: string;
+    presentation: DocTypeSet["presentation"];
+  };
+  root: SetDocumentMember;
+  members: Array<SetDocumentMember | SetAssetMember>;
+}
+
+/** `setRelativePath` is never percent-encoded; a consumer building a
+ *  `/api/docs` URL from it encodes each segment. */
+export interface SetDocumentMember {
+  kind: "document";
+  setRelativePath: string;
+  title: string;
+  frontmatter: Record<string, unknown>;
+  frontmatterState: IndexEntry["frontmatterState"];
+  mtimeMs: number;
+  etag: string;
+}
+
+export interface SetAssetMember {
+  kind: "asset";
+  setRelativePath: string;
+  size: number;
+  mtimeMs: number;
+}
+
 export type TemplateTierSource =
   | "config-override"
   | "user-override"
