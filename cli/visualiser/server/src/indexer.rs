@@ -588,6 +588,12 @@ enum ReadPlace {
     },
 }
 
+impl ReadPlace {
+    const fn is_in_a_set(&self) -> bool {
+        !matches!(self, Self::Flat)
+    }
+}
+
 impl ReadTarget {
     const fn flat(kind: DocTypeKey, path: PathBuf) -> Self {
         Self {
@@ -1020,6 +1026,14 @@ impl Indexer {
             let content = match content {
                 Ok(c) => Some(c),
                 Err(FileDriverError::NotFound { .. }) => None,
+                Err(e) if target.place.is_in_a_set() => {
+                    tracing::warn!(
+                        path = %target.path.display(),
+                        error = %e,
+                        "left a set document out of the index",
+                    );
+                    None
+                }
                 Err(e) => return Err(e),
             };
             let placement = match target.place {
@@ -6737,6 +6751,57 @@ mod set_enumeration_tests {
                 .await
                 .len(),
             10
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_set_whose_root_escapes_the_doc_roots_is_left_out_alone() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        write(
+            &root,
+            &[
+                ("outside/manifest.md", ROOT),
+                ("meta/research/topics/escaping/brief.md", DOC),
+                ("meta/research/topics/kept/manifest.md", ROOT),
+                ("meta/research/topics/kept/brief.md", DOC),
+            ],
+        );
+        std::os::unix::fs::symlink(
+            root.join("outside/manifest.md"),
+            root.join(TOPICS).join("escaping/manifest.md"),
+        )
+        .unwrap();
+
+        let indexer = index_of(&root).await;
+
+        assert_eq!(
+            indexed_paths(&indexer, &root).await,
+            vec![
+                "meta/research/topics/kept/brief.md",
+                "meta/research/topics/kept/manifest.md",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_member_too_large_to_read_is_left_out_of_its_set_alone() {
+        let (_tmp, root, _) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+        ])
+        .await;
+        let oversized =
+            std::fs::File::create(root.join(TOPICS).join("s/outline.md"))
+                .unwrap();
+        oversized.set_len(10 * 1024 * 1024 + 1).unwrap();
+
+        let indexer = index_of(&root).await;
+
+        assert_eq!(
+            member_paths(&indexer, &root.join(TOPICS).join("s")).await,
+            vec!["brief.md"]
         );
     }
 
