@@ -976,7 +976,8 @@ mod tests {
     }
 
     /// The one test of the OS adapter itself; every other test feeds the
-    /// watcher scripted events.
+    /// watcher scripted events. It runs as one test so its lane can name
+    /// it exactly.
     #[tokio::test]
     #[cfg_attr(
         target_os = "macos",
@@ -985,39 +986,86 @@ mod tests {
                   `mise run test:integration:visualiser-os-watcher`"
     )]
     async fn the_os_watcher_reports_a_write_under_a_registered_directory() {
-        let tmp = tempfile::tempdir().unwrap();
-        let dir = tmp.path().canonicalize().unwrap();
-        let probe = dir.join("probe.md");
-        std::fs::write(&probe, "a").unwrap();
+        the_os_reports_a_write().await;
+        the_os_reports_a_directory_renamed_into_place().await;
+        super::set_watch_tests::a_case_only_rename_through_the_os_is_one_edit()
+            .await;
+    }
+
+    /// The OS's notifications for `dir` until one names a path `matches`
+    /// accepts, while `provoke` makes a change each second: a loaded
+    /// fseventsd can coalesce or drop the first.
+    async fn the_os_reports(
+        dir: &Path,
+        matches: impl Fn(&Path) -> bool,
+        mut provoke: impl FnMut(),
+        what: &str,
+    ) {
         let (tx, mut rx) = tokio::sync::mpsc::channel(1024);
         let mut watcher = os_watcher(EventSink(tx)).unwrap();
-        register(&mut watcher, std::slice::from_ref(&dir));
+        register(&mut watcher, &[dir.to_path_buf()]);
 
-        let reports_the_probe = async {
+        let reported = async {
             loop {
                 let event = rx.recv().await.unwrap().unwrap();
-                if event.paths.iter().any(|path| path.ends_with("probe.md")) {
+                if event.paths.iter().any(|path| matches(path)) {
                     return;
                 }
             }
         };
-        let rewrites = async {
+        let provoking = async {
             loop {
-                std::fs::write(&probe, "b").unwrap();
+                provoke();
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
         };
-
-        // A loaded fseventsd can coalesce or drop the first write, so the
-        // probe is rewritten until a report arrives.
         tokio::time::timeout(Duration::from_secs(600), async {
             tokio::select! {
-                () = reports_the_probe => {}
-                () = rewrites => {}
+                () = reported => {}
+                () = provoking => {}
             }
         })
         .await
-        .expect("the OS never reported a write under the watched directory");
+        .unwrap_or_else(|_| panic!("the OS never reported {what}"));
+    }
+
+    async fn the_os_reports_a_write() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().canonicalize().unwrap();
+        let probe = dir.join("probe.md");
+        std::fs::write(&probe, "a").unwrap();
+
+        the_os_reports(
+            &dir,
+            |path| path.ends_with("probe.md"),
+            || std::fs::write(&probe, "b").unwrap(),
+            "a write under the watched directory",
+        )
+        .await;
+    }
+
+    async fn the_os_reports_a_directory_renamed_into_place() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().canonicalize().unwrap();
+        let staging = dir.join(".x.tmp");
+        let placed = dir.join("x");
+        std::fs::create_dir(&staging).unwrap();
+        std::fs::write(staging.join("manifest.md"), "a").unwrap();
+
+        the_os_reports(
+            &dir,
+            |path| path.starts_with(&placed),
+            || {
+                let (from, to) = if staging.exists() {
+                    (&staging, &placed)
+                } else {
+                    (&placed, &staging)
+                };
+                std::fs::rename(from, to).unwrap();
+            },
+            "a directory renamed into place",
+        )
+        .await;
     }
 
     #[tokio::test]
@@ -1129,7 +1177,7 @@ mod set_watch_tests {
         indexer: Arc<Indexer>,
         clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
         sink: Arc<TestSink>,
-        events: ScriptedEvents,
+        events: Option<ScriptedEvents>,
         rx: tokio::sync::broadcast::Receiver<SsePayload>,
         activity_feed: Arc<ActivityRingBuffer>,
     }
@@ -1156,6 +1204,39 @@ mod set_watch_tests {
             files: &[(&str, &str)],
             debounce: Duration,
             work_items: WorkItemConfig,
+        ) -> Self {
+            let (sink_tx, sink_rx) = std::sync::mpsc::channel();
+            let mut watch = Self::start_watching(
+                files,
+                debounce,
+                work_items,
+                move |events| {
+                    sink_tx.send(events).unwrap();
+                    Ok(ScriptedWatcher)
+                },
+            )
+            .await;
+            watch.events = Some(ScriptedEvents {
+                sink: sink_rx.recv().unwrap(),
+            });
+            watch
+        }
+
+        async fn start_on_the_os(files: &[(&str, &str)]) -> Self {
+            Self::start_watching(
+                files,
+                Settings::DEFAULT.debounce,
+                WorkItemConfig::default_numeric(),
+                os_watcher,
+            )
+            .await
+        }
+
+        async fn start_watching<W: DirectoryWatcher>(
+            files: &[(&str, &str)],
+            debounce: Duration,
+            work_items: WorkItemConfig,
+            open: impl FnOnce(EventSink) -> notify::Result<W> + Send + 'static,
         ) -> Self {
             let tmp = tempfile::tempdir().unwrap();
             let root = tmp.path().canonicalize().unwrap();
@@ -1201,13 +1282,9 @@ mod set_watch_tests {
                 hold: std::sync::Mutex::new(None),
             });
             let rx = hub.subscribe();
-            let (sink_tx, sink_rx) = std::sync::mpsc::channel();
             spawn(
-                move |events| {
-                    sink_tx.send(events).unwrap();
-                    Ok(ScriptedWatcher)
-                },
-                Vec::new(),
+                open,
+                doc_paths.values().cloned().collect(),
                 indexer.clone(),
                 sink.clone(),
                 write_coordinator,
@@ -1223,9 +1300,7 @@ mod set_watch_tests {
                 indexer,
                 clusters,
                 sink,
-                events: ScriptedEvents {
-                    sink: sink_rx.recv().unwrap(),
-                },
+                events: None,
                 rx,
                 activity_feed,
             }
@@ -1248,7 +1323,11 @@ mod set_watch_tests {
                 .fold(Event::new(notify::EventKind::Any), |event, file| {
                     event.add_path(self.root.join(file))
                 });
-            self.events.sink.handle_event(Ok(event));
+            self.events
+                .as_mut()
+                .expect("a scripted watcher")
+                .sink
+                .handle_event(Ok(event));
         }
 
         async fn next(&mut self) -> (ActionKind, String) {
@@ -1326,6 +1405,64 @@ mod set_watch_tests {
             fast(),
         )
         .await
+    }
+
+    pub(super) async fn a_case_only_rename_through_the_os_is_one_edit() {
+        let probe = tempfile::tempdir().unwrap();
+        std::fs::write(probe.path().join("probe"), "").unwrap();
+        if !probe.path().join("PROBE").exists() {
+            eprintln!(
+                "skipping the case-only rename: this volume is case-sensitive"
+            );
+            return;
+        }
+        let mut watch = SetWatch::start_on_the_os(&[
+            (&inventory("inventory.md"), MANIFEST),
+            (&inventory("screenshots/a.png"), "a"),
+        ])
+        .await;
+        let screenshots = watch.root.join(inventory("screenshots"));
+        let names = ["a.png", "a.PNG"];
+        let screenshot = inventory("screenshots/a.png");
+
+        let first = tokio::time::timeout(Duration::from_secs(600), async {
+            for turn in 0.. {
+                let (from, to) = (names[turn % 2], names[(turn + 1) % 2]);
+                std::fs::rename(screenshots.join(from), screenshots.join(to))
+                    .unwrap();
+                if let Ok(event) = tokio::time::timeout(
+                    Duration::from_secs(5),
+                    watch.rx.recv(),
+                )
+                .await
+                {
+                    return event.unwrap();
+                }
+            }
+            unreachable!()
+        })
+        .await
+        .expect("the OS never reported the case-only rename");
+        let mut events = vec![first];
+        while let Ok(Ok(event)) =
+            tokio::time::timeout(Duration::from_secs(2), watch.rx.recv()).await
+        {
+            events.push(event);
+        }
+
+        for event in &events {
+            assert!(
+                matches!(
+                    event,
+                    SsePayload::DocChanged {
+                        action: ActionKind::Edited,
+                        path,
+                        ..
+                    } if path.eq_ignore_ascii_case(&screenshot)
+                ),
+                "{events:?}"
+            );
+        }
     }
 
     #[tokio::test]
