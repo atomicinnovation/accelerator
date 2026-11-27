@@ -95,6 +95,26 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .unwrap();
     assert_eq!(d["docs"].as_array().unwrap().len(), 3);
 
+    assert!(!project.join(".accelerator/config.md").exists());
+    let research: serde_json::Value = client
+        .get(format!("{base}/api/docs?type=codebase-research"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let research = research["docs"].as_array().unwrap();
+    assert!(!research.is_empty());
+    for doc in research {
+        let rel_path = doc["relPath"].as_str().unwrap();
+        assert!(
+            std::path::Path::new(rel_path)
+                .starts_with(fixtures.join("research/codebase")),
+            "{rel_path}"
+        );
+    }
+
     // /api/docs?type=plan-reviews -> 2 entries with expected slugs.
     let pr: serde_json::Value = client
         .get(format!("{base}/api/docs?type=plan-reviews"))
