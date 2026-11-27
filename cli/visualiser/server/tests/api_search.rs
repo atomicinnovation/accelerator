@@ -504,6 +504,24 @@ async fn an_asset_is_not_searchable() {
 }
 
 #[tokio::test]
+async fn no_file_the_shape_does_not_hold_is_searchable() {
+    for (file, q) in [
+        ("assets/y.svg", "y.svg"),
+        ("notes.txt", "notes.txt"),
+        ("assets/y.svg", "quokkasvg"),
+        ("notes.txt", "quokkanotes"),
+    ] {
+        let results = search_an_inventory_holding(
+            &[(file, "quokkasvg quokkanotes y.svg notes.txt\n")],
+            q,
+        )
+        .await;
+
+        assert!(results.is_empty(), "{file} for {q}: {results:?}");
+    }
+}
+
+#[tokio::test]
 async fn a_file_the_shape_does_not_hold_is_not_searchable() {
     let results = search_an_inventory_holding(
         &[("prototype-full/x.html", "zebracorn prototype\n")],

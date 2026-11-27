@@ -1058,3 +1058,87 @@ async fn no_inferred_item_is_a_member() {
         );
     }
 }
+
+#[tokio::test]
+async fn a_member_and_a_plan_sharing_a_slug_do_not_infer_each_other() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_state, app) =
+        build_app(set_with_a_member_naming_a_work_item(tmp.path())).await;
+    let plan = "meta/plans/2026-01-01-01-a.md";
+
+    let members_inferred =
+        rel_paths_of(&related_of(&app, MEMBER).await["inferredCluster"]);
+    let plans_inferred =
+        rel_paths_of(&related_of(&app, plan).await["inferredCluster"]);
+
+    assert!(
+        !members_inferred.contains(&plan.to_owned()),
+        "{members_inferred:?}"
+    );
+    assert!(
+        !plans_inferred.contains(&MEMBER.to_owned()),
+        "{plans_inferred:?}"
+    );
+}
+
+async fn get_json(app: &axum::Router, uri: &str) -> serde_json::Value {
+    let res = app
+        .clone()
+        .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK, "{uri}");
+    json_body(res).await
+}
+
+#[tokio::test]
+async fn a_sets_id_is_the_same_on_every_surface() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut cfg = set_with_a_member_naming_a_work_item(tmp.path());
+    let inventories = tmp.path().join("meta/research/design-inventories");
+    for (file, content) in [
+        (
+            "inv/inventory.md",
+            "---\nid: \"the-inv\"\ntitle: Inv\n---\n",
+        ),
+        ("inv/screenshots/a.png", "png"),
+    ] {
+        let path = inventories.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
+    }
+    cfg.doc_paths
+        .insert("research_design_inventories".into(), inventories);
+    let (_state, app) = build_app(cfg).await;
+
+    for (wire_token, set_id) in [
+        ("topic-research", "the-set"),
+        ("design-inventories", "the-inv"),
+    ] {
+        let listing =
+            get_json(&app, &format!("/api/docs?type={wire_token}")).await;
+        assert_eq!(listing["docs"][0]["id"], set_id, "{listing}");
+        assert_eq!(listing["docs"][0]["setId"], set_id, "{listing}");
+        let set =
+            get_json(&app, &format!("/api/sets/{wire_token}/{set_id}")).await;
+        assert_eq!(set["set"]["id"], set_id);
+    }
+    let search = get_json(&app, "/api/search?q=02-b").await;
+    let member_row = search["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["setRelativePath"] == "findings/02-b.md")
+        .unwrap_or_else(|| panic!("no member row in {search}"));
+    assert_eq!(member_row["setId"], "the-set");
+    assert_eq!(member_row["id"], "the-set");
+    let inbound =
+        &related_of(&app, "meta/work/0001-x.md").await["declaredInbound"];
+    let member_item = inbound
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["relPath"] == MEMBER)
+        .unwrap_or_else(|| panic!("no member item in {inbound}"));
+    assert_eq!(member_item["setId"], "the-set");
+}

@@ -323,6 +323,12 @@ fn set_cfg(tmp: &std::path::Path) -> accelerator_visualiser::config::Config {
                 "meta/research/design-inventories/i/screenshots/a.png",
                 "png",
             ),
+            (
+                "meta/research/design-inventories/i/prototype-full/x.html",
+                "<html></html>",
+            ),
+            ("meta/research/design-inventories/i/assets/y.svg", "<svg/>"),
+            ("meta/research/design-inventories/i/notes.txt", "notes"),
         ],
     );
     cfg
@@ -386,6 +392,9 @@ async fn an_inventory_root_is_served_unchanged() {
 async fn what_a_set_directory_holds_beyond_its_documents_is_not_found() {
     for rel in [
         "meta/research/design-inventories/i/screenshots/a.png",
+        "meta/research/design-inventories/i/prototype-full/x.html",
+        "meta/research/design-inventories/i/assets/y.svg",
+        "meta/research/design-inventories/i/notes.txt",
         "meta/research/topics/s/notes.txt",
         "meta/research/topics/s/.conduct-run.json",
         "meta/research/topics/rootless/findings/01-a.md",
@@ -497,4 +506,38 @@ async fn a_set_member_cannot_be_written() {
     let bytes = res.into_body().collect().await.unwrap().to_bytes();
     let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(body["error"], "only kanban items are writable");
+}
+
+#[tokio::test]
+async fn a_dot_prefixed_document_of_a_flat_type_is_listed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    std::fs::write(
+        tmp.path().join("meta/plans/.hidden.md"),
+        "---\ntitle: Hidden\n---\n",
+    )
+    .unwrap();
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=plans")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let paths: Vec<&str> = v["docs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|doc| doc["relPath"].as_str())
+        .collect();
+    assert!(paths.contains(&"meta/plans/.hidden.md"), "{paths:?}");
 }

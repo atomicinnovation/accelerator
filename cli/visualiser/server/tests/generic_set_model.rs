@@ -109,17 +109,21 @@ async fn lab() -> Notebook {
         ("index.md", ROOT),
         (
             "docs/first.md",
-            "---\ntitle: First\n---\nA phrase only quokkas would write.\n",
+            "---\ntitle: First\nstatus: final\n---\n\
+             A phrase only quokkas would write.\n",
         ),
-        ("docs/second.md", "---\ntitle: Second\n---\nThe second.\n"),
+        (
+            "docs/second.md",
+            "---\ntitle: Second\nstatus: final\n---\nThe second.\n",
+        ),
         ("img/a.png", "png"),
         (
             "other/z.md",
-            "---\ntitle: Z\n---\nUnslotted wombat prose.\n",
+            "---\ntitle: Z\nstatus: final\n---\nUnslotted wombat prose.\n",
         ),
         (
             ".hidden.md",
-            "---\ntitle: Hidden\n---\nHidden wombat prose.\n",
+            "---\ntitle: Hidden\nstatus: final\n---\nHidden wombat prose.\n",
         ),
     ])
     .await
@@ -158,6 +162,7 @@ async fn a_declared_set_types_member_is_found_by_its_first_paragraph() {
     assert_eq!(rows.len(), 1, "{found}");
     assert_eq!(rows[0]["setId"], "lab");
     assert_eq!(rows[0]["setRelativePath"], "docs/first.md");
+    assert_eq!(rows[0]["title"], "First");
 }
 
 #[tokio::test]
@@ -213,6 +218,7 @@ async fn a_declared_set_takes_one_activity_row_and_one_library_item() {
         .iter()
         .find(|facet| facet["id"] == "status")
         .unwrap();
+    assert_eq!(status["options"].as_array().unwrap().len(), 1, "{status}");
     assert_eq!(status["options"][0]["id"], "draft");
     assert_eq!(status["options"][0]["count"], 1);
 }
@@ -242,6 +248,35 @@ async fn no_cluster_holds_a_declared_set_types_member() {
                 && entry["setRelativePath"] != "docs/second.md"),
         "{lifecycle}"
     );
+    let paths = lifecycle.to_string();
+    assert!(
+        !paths.contains("other/z.md") && !paths.contains(".hidden.md"),
+        "{lifecycle}"
+    );
+}
+
+#[tokio::test]
+async fn writes_to_files_a_declared_shape_does_not_place_emit_nothing() {
+    let mut lab = lab().await;
+    for file in ["other/z.md", ".hidden.md"] {
+        let path = lab.root.join(in_notebook(file));
+        std::fs::write(&path, "---\ntitle: Rewritten\n---\n").unwrap();
+        lab.server.changed(&path);
+    }
+    let second = lab.root.join(in_notebook("docs/second.md"));
+    std::fs::write(&second, "---\ntitle: Second, again\n---\n").unwrap();
+    lab.server.changed(&second);
+
+    let frames = read_until(&mut lab.events, "doc-changed").await;
+
+    assert_eq!(frames.matches("doc-changed").count(), 1, "{frames}");
+    assert!(frames.contains(&in_notebook("docs/second.md")), "{frames}");
+    let (_, activity) = lab.server.get("/api/activity").await;
+    let rows = activity["events"].as_array().unwrap();
+    assert_eq!(rows.len(), 1, "{activity}");
+    assert_eq!(rows[0]["path"], in_notebook("index.md"));
+    let (_, listing) = lab.server.get("/api/docs?type=notebooks").await;
+    assert_eq!(listing["docs"].as_array().unwrap().len(), 1, "{listing}");
 }
 
 #[tokio::test]
@@ -305,6 +340,9 @@ async fn sixteen_members_come_back_in_one_response_without_bodies() {
     let (status, set) = lab.server.get("/api/sets/notebooks/lab").await;
 
     assert_eq!(status, 200, "{set}");
+    assert_eq!(set["root"]["setRelativePath"], "index.md");
+    assert_eq!(set["root"]["frontmatter"]["title"], "Lab notebook");
+    assert!(set["root"].get("body").is_none(), "{set}");
     let members = set["members"].as_array().unwrap();
     assert_eq!(members.len(), 16);
     for member in members {
@@ -322,6 +360,12 @@ async fn sixteen_members_come_back_in_one_response_without_bodies() {
             .find(|m| m["setRelativePath"] == path)
             .map(|m| m["frontmatterState"].clone())
     };
+    assert_eq!(state_of("docs/d1.md"), Some("parsed".into()));
+    let d1 = members
+        .iter()
+        .find(|m| m["setRelativePath"] == "docs/d1.md")
+        .unwrap();
+    assert_eq!(d1["frontmatter"]["title"], "D1");
     assert_eq!(state_of("docs/unclosed.md"), Some("malformed".into()));
     assert_eq!(state_of("docs/plain.md"), Some("absent".into()));
     let s6 = members
