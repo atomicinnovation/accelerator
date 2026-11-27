@@ -64,10 +64,16 @@ impl From<&SetMatcher> for SetView {
             root: set.root(),
             document_slots: slots_of(MemberKind::Document),
             asset_slots: slots_of(MemberKind::Asset),
-            presentation: match set.presentation() {
-                Presentation::SetPage => PresentationView::SetPage,
-                Presentation::EntryPoint => PresentationView::EntryPoint,
-            },
+            presentation: set.presentation().into(),
+        }
+    }
+}
+
+impl From<Presentation> for PresentationView {
+    fn from(presentation: Presentation) -> Self {
+        match presentation {
+            Presentation::SetPage => Self::SetPage,
+            Presentation::EntryPoint => Self::EntryPoint,
         }
     }
 }

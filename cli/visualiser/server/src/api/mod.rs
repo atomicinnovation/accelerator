@@ -8,6 +8,7 @@ mod library;
 mod lifecycle;
 mod related;
 mod search;
+mod sets;
 mod templates;
 mod types;
 mod work_item_config;
@@ -44,6 +45,7 @@ pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/api/lifecycle/:slug", get(lifecycle::lifecycle_one))
         .route("/api/related/*path", get(related::related_get))
         .route("/api/search", get(search::search))
+        .route("/api/sets/:type/:set_id", get(sets::set_get))
         .route(
             "/api/work-item/config",
             get(work_item_config::get_work_item_config),

@@ -1235,6 +1235,23 @@ impl Indexer {
         self.entries.read().await.values().cloned().collect()
     }
 
+    /// When two sets share an id, the lexically first directory holds it.
+    pub async fn set_root(
+        &self,
+        kind: DocTypeKey,
+        set_id: &str,
+    ) -> Option<IndexEntry> {
+        self.entries
+            .read()
+            .await
+            .values()
+            .filter(|e| e.r#type == kind && e.is_set_root())
+            .filter_map(|e| Some((e.set_placement()?.context.clone(), e)))
+            .filter(|(context, _)| context.set_id == set_id)
+            .min_by(|(a, _), (b, _)| a.set_directory.cmp(&b.set_directory))
+            .map(|(_, root)| root.clone())
+    }
+
     pub async fn set_members(&self, set_directory: &Path) -> Vec<IndexEntry> {
         let mut members: Vec<IndexEntry> = self
             .entries
