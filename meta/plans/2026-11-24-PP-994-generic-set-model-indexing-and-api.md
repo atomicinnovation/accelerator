@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-27T03:41:35+00:00"
+last_updated: "2026-11-27T03:57:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3320,7 +3320,7 @@ Add an `### Added` entry under `[Unreleased]` for
 
 #### Manual Verification:
 
-- [ ] `curl localhost:<port>/api/sets/design-inventories/2026-05-21-015231-claude-design-prototype`
+- [x] `curl localhost:<port>/api/sets/design-inventories/2026-05-21-015231-claude-design-prototype`
       on this repo lists only `inventory.md` and its screenshots.
 
 ### Implementation notes
@@ -3360,9 +3360,53 @@ Add an `### Added` entry under `[Unreleased]` for
 - **Frontend types.** `SetResponse`, `SetDocumentMember` and
   `SetAssetMember` carry no behaviour and no test; `frontend:check`
   type-checks them.
-- **`mise run`** exited 0 on the final code, with `test:unit:cli` coverage
-  at lines 94.46%, functions 93.80%, regions 93.20%, and the e2e suite at
-  360 passed, 1 skipped.
+- **Root typed as a document (review).** The response's root was first a
+  `SetMember`, a type that also admits an asset. `SetDocument` and
+  `SetAsset` now each carry their own `kind` tag, `SetMember` is untagged
+  over them, and the root is a `SetDocument` (`nszvskow`); the wire is
+  unchanged, which the `api_sets.rs` tests pin.
+- **`mise run`** exited 0 on the handler commits and again on the final
+  code after the review, each time with `test:unit:cli` coverage at lines
+  94.46%, functions 93.80%, regions 93.20%, and the e2e suite at 360
+  passed, 1 skipped.
+- **Manual checks, 2026-11-27.** The user's own server was serving this
+  repository, so a debug `dev-frontend` build of `qtpttuuz`, built with its
+  own `CARGO_TARGET_DIR`, ran `accelerator-visualiser serve` with
+  `ACCELERATOR_PLUGIN_ROOT` set to this checkout in a scratch project. The
+  project held a copy of this repository's `meta/` and
+  `.accelerator/config.md`, plus
+  `cli/corpus-cli/tests/fixtures/topic-research-multiprofile-set` as
+  `meta/research/topics/attention`. Queries were sent with `curl` and
+  `jq`; the server was stopped and the project removed afterwards.
+  - **Inventories.** The set
+    `2026-05-21-015231-claude-design-prototype` returns `set` with that
+    id, its directory and `entry-point`, the root
+    `inventory.md` (parsed, titled "Design Inventory:
+    claude-design-prototype") and 21 members, all `asset`s under
+    `screenshots/`, matching the 21 PNGs on disk; its `prototype-full/`
+    and `prototype-standalone.html` are absent. Every other real
+    inventory does the same: `2026-05-06-135214-current-app` 11,
+    `2026-05-06-140608-claude-design-prototype` 35 (its `assets/` absent),
+    `2026-05-21-004250-current-app` 13,
+    `2026-09-10-174311-claude-design-prototype` 10 (its `prototype-full/`
+    absent) and `2026-09-10-184815-current-app` 6, each equal to its PNG
+    count. No document carries a `body`.
+  - **Topic set.** `/api/sets/topic-research/example-multiprofile-subject`
+    returns directory `meta/research/topics/attention`, `set-page`, the
+    root `manifest.md` and four parsed documents in order: `brief.md`, the
+    two findings and `outline.md`. The quarantined
+    `findings/.01-…-openalex.md.invalid` is absent. Addressed by its
+    directory name, `attention`, the set is 404, since its root carries an
+    `id`. A finding's `/api/docs` path is served (200).
+  - **Errors.** `/api/sets/no-such-type/x` is 400
+    `{"error":"no-such-type"}`; `/api/sets/plans/<a real plan's stem>` and
+    `/api/sets/templates/x` are 404; an unknown `setId` under either set
+    type is 404 naming it.
+- **Review, 2026-11-27.** The `zwtnkvrp`..`onpskulr` diff adds no line past
+  80 columns. Its two comments are kept: `set_root`'s tie-break rule and
+  the frontend's note that `setRelativePath` is never percent-encoded.
+  The CHANGELOG entry is reworded to separate what documents and assets
+  carry, and to name the status for each error (`nqzvurlp`).
 
 ---
 
