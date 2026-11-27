@@ -8,5 +8,5 @@ round: 1
 
 # Cost model
 
-A finding sub-document. The nested-manifest walk keys only on `manifest.md`, so
-this file must not be separately indexed.
+A finding of the set: indexed as a member document, never listed as a set of
+its own.

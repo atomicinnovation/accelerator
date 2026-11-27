@@ -58,6 +58,8 @@ pub enum FileDriverError {
     PathNotWritable { path: PathBuf },
     #[error("cross-filesystem rename not supported for {path}")]
     CrossFilesystem { path: PathBuf },
+    #[error("{kind:?} is a set type; list its sets instead")]
+    SetType { kind: DocTypeKey },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -463,83 +465,25 @@ impl FileDriver for LocalFileDriver {
             Ok(r) => r.to_path_buf(),
             Err(e) => return Box::pin(std::future::ready(Err(e))),
         };
-        let set_root = match kind.listing() {
-            Listing::Flat {
-                drafts_subdirectory,
-                filename_filter,
-            } => {
-                let is_document = match filename_filter {
-                    FilenameFilter::Markdown => has_md_extension,
-                    FilenameFilter::WorkItem => is_work_item_file,
-                };
-                return Box::pin(async move {
-                    let mut entries =
-                        markdown_files_in(&root, is_document).await?;
-                    if let Some(drafts) = drafts_subdirectory {
-                        entries.extend(
-                            markdown_files_in(&root.join(drafts), is_document)
-                                .await?,
-                        );
-                    }
-                    Ok(entries)
-                });
-            }
-            Listing::Set => {
-                self.doc_types.set_matcher(kind).map(SetMatcher::root)
-            }
+        let Listing::Flat {
+            drafts_subdirectory,
+            filename_filter,
+        } = kind.listing()
+        else {
+            return Box::pin(std::future::ready(Err(
+                FileDriverError::SetType { kind },
+            )));
         };
-        let Some(set_root) = set_root else {
-            return Box::pin(std::future::ready(Ok(Vec::new())));
+        let is_document = match filename_filter {
+            FilenameFilter::Markdown => has_md_extension,
+            FilenameFilter::WorkItem => is_work_item_file,
         };
         Box::pin(async move {
-            let read = match tokio::fs::read_dir(&root).await {
-                Ok(r) => r,
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                    return Ok(vec![]);
-                }
-                Err(source) => {
-                    return Err(FileDriverError::Io { path: root, source })
-                }
-            };
-            let mut entries = Vec::new();
-            let mut stream = read;
-            loop {
-                let entry = match stream.next_entry().await {
-                    Ok(Some(e)) => e,
-                    Ok(None) => break,
-                    Err(source) => {
-                        return Err(FileDriverError::Io {
-                            path: root.clone(),
-                            source,
-                        });
-                    }
-                };
-                let path = entry.path();
-                let file_type = match entry.file_type().await {
-                    Ok(ft) => ft,
-                    Err(source) => {
-                        return Err(FileDriverError::Io { path, source });
-                    }
-                };
-
-                // Each set lives at `<root>/<set-dir>/<set root>`.
-                if !file_type.is_dir() {
-                    continue;
-                }
-                // Skip dot-prefixed in-flight directories (e.g.
-                // `.YYYY-MM-DD-HHMMSS-{source-id}.tmp/`).
-                if path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .is_some_and(|n| n.starts_with('.'))
-                {
-                    continue;
-                }
-                let candidate = path.join(set_root);
-                match tokio::fs::metadata(&candidate).await {
-                    Ok(meta) if meta.is_file() => entries.push(candidate),
-                    _ => {}
-                }
+            let mut entries = markdown_files_in(&root, is_document).await?;
+            if let Some(drafts) = drafts_subdirectory {
+                entries.extend(
+                    markdown_files_in(&root.join(drafts), is_document).await?,
+                );
             }
             Ok(entries)
         })
@@ -931,7 +875,7 @@ mod tests {
 
     #[tokio::test]
     async fn every_built_in_doc_type_lists_by_its_declared_rule() {
-        let expected: [(&str, &[&str]); 14] = [
+        let expected: [(&str, &[&str]); 12] = [
             ("decisions", &["0001-item.md", "a-note.md"]),
             (
                 "work-items",
@@ -953,8 +897,6 @@ mod tests {
             ("notes", &["0001-item.md", "a-note.md"]),
             ("pr-descriptions", &["0001-item.md", "a-note.md"]),
             ("design-gaps", &["0001-item.md", "a-note.md"]),
-            ("design-inventories", &["set/inventory.md"]),
-            ("topic-research", &["set/manifest.md"]),
             ("root-cause-analyses", &["0001-item.md", "a-note.md"]),
         ];
         let catalogue = crate::test_support::assembled_catalogue();
@@ -963,7 +905,7 @@ mod tests {
         let configured: Vec<&str> = catalogue
             .doc_types()
             .iter()
-            .filter(|kind| kind.config_path_key().is_some())
+            .filter(|kind| kind.config_path_key().is_some() && !kind.is_set())
             .map(|kind| kind.wire_token())
             .collect();
         assert_eq!(listed, configured);
@@ -1193,6 +1135,16 @@ mod tests {
         let sets = driver.list_sets(DocTypeKey::TOPIC_RESEARCH).await.unwrap();
 
         assert_eq!(sets[0].documents, vec!["findings/01-a.md"]);
+    }
+
+    #[tokio::test]
+    async fn list_refuses_a_set_type() {
+        let tmp = tempfile::tempdir().unwrap();
+        let driver = set_driver("research_topics", tmp.path());
+
+        let err = driver.list(DocTypeKey::TOPIC_RESEARCH).await.unwrap_err();
+
+        assert!(matches!(err, FileDriverError::SetType { .. }), "{err:?}");
     }
 
     #[tokio::test]

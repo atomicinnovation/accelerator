@@ -172,5 +172,8 @@ pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {
         F::CrossFilesystem { .. } => {
             ApiError::Internal("cross-filesystem rename".into())
         }
+        F::SetType { kind } => {
+            ApiError::Internal(format!("{kind:?} is a set type"))
+        }
     }
 }
