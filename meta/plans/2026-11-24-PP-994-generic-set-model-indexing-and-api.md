@@ -3761,15 +3761,15 @@ Replace the existing tests that assert client-built live rows.
 
 #### Automated Verification:
 
-- [ ] `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
-- [ ] `mise run public-api:update`, with the `corpus` snapshot diff
+- [x] `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
+- [x] `mise run public-api:update`, with the `corpus` snapshot diff
       reviewed.
 - [ ] Real-OS rename check: extend
       `the_os_watcher_reports_a_write_under_a_registered_directory` with
       a directory-rename case, and pass
       `mise run test:integration:visualiser-os-watcher` on macOS and in
       CI (Linux).
-- [ ] Real-OS case-only rename: the lane runs exactly one test by name
+- [x] Real-OS case-only rename: the lane runs exactly one test by name
       (`tasks/test/integration.py:71-74`), so the case is folded into
       the same test function as a third step, not added as a second
       test. It renames `screenshots/a.png` to `screenshots/a.PNG`
@@ -3783,9 +3783,9 @@ Replace the existing tests that assert client-built live rows.
   - On macOS's default APFS the lane runs the test with
     `--include-ignored`, and the OS reports the rename with the stored
     name.
-- [ ] `mise run test:unit:frontend`, `mise run frontend:check`
-- [ ] `mise run test:e2e:visualiser`
-- [ ] `mise run`
+- [x] `mise run test:unit:frontend`, `mise run frontend:check`
+- [x] `mise run test:e2e:visualiser`
+- [x] `mise run`
 
 #### Manual Verification:
 
@@ -3795,6 +3795,139 @@ Replace the existing tests that assert client-built live rows.
 - [ ] Copying an inventory directory into place shows one row.
       Deleting its `inventory.md` makes the row read deleted, and the
       set leaves the listing.
+
+### Implementation notes
+
+- **Beyond the plan: lifecycle duplicate keys (user request,
+  2026-11-27).** `LifecycleIndex.tsx` keyed each row by cluster slug, which
+  orphan clusters share (`current-app-vs-claude-design-prototype` and
+  `template-management-subcommands` against this repository's `meta/`), so
+  React warned of duplicate keys. `/api/lifecycle` already gives every
+  cluster its entries, and each document sits in exactly one cluster, so a
+  row is now keyed by its cluster's lowest member path, the server's own
+  tie-break between clusters (`nsoqttxs`). The new test renders two orphan
+  clusters sharing a slug and was seen failing on React's duplicate-key
+  error first. Through the Vite dev frontend proxying to a debug server
+  over a scratch copy of this repository's `meta/`, driven by Playwright,
+  `/lifecycle` showed 678 cards for the API's 678 clusters in both sort
+  orders with no duplicate-key warning; keyed by slug again, the same page
+  logged six warnings naming both slugs and rendered 681 cards.
+- **Activity roll-up.** `ActivityRingBuffer::record(event, set)` takes an
+  `Option<SetEventContext { root_rel_path, role }>`: a set event replaces
+  the set's row with one for its root, keeping the root's last action, or
+  `Edited` when none is on record. The module's mutex notes now say the
+  critical sections are bounded by `CAPACITY` rather than O(1).
+- **Pairing.** `corpus::set::pair_case_only_renames` pairs `MemberPath`s
+  (set directory and set-relative path) into `CaseOnlyRename`s; the
+  `corpus` public API snapshot gains exactly those three items.
+- **One diff per rescan.** `Indexer::rescan_with_diff(&dyn ChangeSink)`
+  snapshots documents (members included) and assets, builds records without
+  installing them (`build_records`, which replaced the public `rescan`),
+  diffs them into `IndexDiff { documents, assets }` of `Change { before,
+  after }`, observes removals in the `RemovalLedger`, installs every map
+  once through `IndexMaps::build(records, assets, &ledger, ..)` and hands
+  the diff to the sink, all under one `rescan_lock` permit. The
+  constructor installs its first build privately. A case-only rename is one
+  change with both sides; a change is unchanged when its etag and
+  frontmatter state (assets: size and mtime) are; the diff is sorted by
+  path. `refresh_one(path, &dyn ChangeSink)` routes set paths and trust
+  flips through `rescan_with_diff`. `SetContext` gained `root_rel_path`, so
+  an event can name its set's root.
+- **The server's sink.** `change_broadcast::ChangeBroadcast` holds the
+  indexer, clusters, hub, ring buffer and write coordinator; for each diff
+  it recomputes the clusters when the diff is non-empty, drops
+  self-written paths and calls `emit`, which moved here from the watcher
+  and now records the event with its set context. Asset events carry no
+  `etag`. The PATCH handler builds one with `ChangeBroadcast::of(&state)`
+  for `refresh_one` and emits its own event through `emit`.
+- **Watcher.** `SetDocRoots` holds each set type's raw and resolved doc
+  root with its `SetMatcher`; its admission rejects any dot-prefixed name
+  below a set root, admits a set directory, a placed file or a directory a
+  member can sit under, and elsewhere admits markdown. Admitted paths under
+  a set root are debounced on their set directory; the task keeps every
+  path it admitted and skips the rescan only when all are self-writes.
+- **Departures.**
+  - `watcher::spawn` takes an `Arc<dyn ChangeSink>`, the write
+    coordinator and a `SetDocRoots` in place of the clusters, hub and ring
+    buffer, so a test can wrap the production sink; `server.rs` builds the
+    sink and the roots at the call.
+  - The plan's cluster test (an external edit that moves a work item's
+    cluster key) became `a_change_is_emitted_only_once_the_clusters_hold_it`:
+    it holds a read guard on the clusters, so no event may leave until
+    the recompute can write them. No separate test pins that a member-only
+    diff leaves the clusters unchanged; Phase 9's mutation of
+    `recompute_clusters` reading members covers it.
+  - The sixteen-member acceptance test checks each document's
+    frontmatter state and mtime and each asset's size and mtime: the
+    member API carries no document size.
+  - The acceptance test's `notebooks` type takes part in the lifecycle,
+    so the cluster assertion can fail.
+  - The injected-watcher server harness moved from `sse_e2e.rs` into
+    `tests/live_server/`, shared with `generic_set_model.rs`.
+  - The store-duplication lint allow-lists `watcher.rs` for its test-only
+    renames, as it already did `indexer.rs`.
+  - A CHANGELOG `### Changed` entry records live set updates.
+  - The feed's warning for a `doc-changed` event with an empty action or
+    timestamp went with the client-built rows, and so did its test.
+  - `RootLayout.test.tsx` mocks `useQuery` and renders with no query
+    client, so it now mocks `useQueryClient` too, which the feed calls.
+- **Strict TDD.** Seen failing first, each in its own edit before its
+  code, by compile error and then, after a minimal stub, by assertion:
+  - the five roll-up tests in `activity_feed.rs`;
+  - three of the five pairing tests in `corpus::set::rename`;
+  - seven of the ten `indexer::change_tests`;
+  - twelve of the seventeen `watcher::set_watch_tests`. The trust-flip
+    test failed first for the right reason (no member event), then on a
+    bug of its own (the root kept today's mtime, so 9 000 could never be
+    the latest) and was fixed;
+  - `patch_records_one_activity_row_and_one_event_with_its_etag`;
+  - the three new `ActivityFeed` tests. The self-caused one first passed
+    against client-built rows and was tightened to require the refetch
+    before any code changed;
+  - the lifecycle duplicate-key test.
+  Guards that passed against existing code were checked by mutation, and
+  each mutation failed at least one test:
+  - `changes_outside_sets_each_take_a_row`: rolling non-set rows up by path;
+  - the never-paired pairing tests: dropping the set-directory check, and
+    pairing any names;
+  - the empty-diff, screenshot and recreated-set indexer tests: skipping
+    the sink on an empty diff, leaving assets out of a set's latest, and
+    keeping a gone set's ledger entry;
+  - the flat dot-file, released-together, flat-debounce and startup
+    watcher tests: refusing dot names everywhere, snapshotting outside the
+    permit, debouncing flat paths on their directory, and treating the
+    first build as created on start (a rescan on start alone changes
+    nothing and survives);
+  - the cluster test: emitting before the recompute (the first version
+    survived this on the single-threaded runtime and was rewritten around
+    the read guard);
+  - `visualiser_server_names_no_set_doc_type`: seeding a
+    `TOPIC_RESEARCH` reference into the server, and exempting the server;
+  - every `generic_set_model.rs` test, all passing on first run as
+    acceptance tests over existing behaviour: an empty `set_assets`,
+    search over listed documents only, no set view on `/api/types`,
+    serving unindexed files in a set root, emitting each change twice, the
+    roll-up ignoring set context, a set's latest ignoring members, and
+    members taking their set's slug so clustering can hold them;
+  - the OS lane's case-only step: disabling the pairing.
+  One slip: the four `sse_e2e.rs` set and PATCH tests were written after
+  the watcher landed. Run against the server source of `kymvkurx` (before
+  the watcher commit), the case-only and PATCH tests failed and the
+  rename-into-place and root-deletion tests passed, since the old watcher
+  already rescanned on their markdown children; ignoring every path under
+  a set root fails all four.
+- **Real-OS lane.** Its one test now runs three steps: a write, a
+  directory renamed into place (the raw OS report) and, through the whole
+  pipeline, a screenshot renamed only in case, which must arrive only as
+  edits of that screenshot. The last step probes the tempdir and skips
+  with a log line on a case-sensitive volume. It passed on macOS in 55 s;
+  the Linux run is CI's.
+- **`mise run`** exited 0 on the final code, with `test:unit:cli`
+  coverage at lines 94.46%, functions 93.80%, regions 93.20%, and the e2e
+  suite at 360 passed, 1 skipped. An earlier run failed in
+  `lint:store-duplication:check` (the watcher's test renames) and in
+  `RootLayout.test.tsx` (no query client); both are fixed in the commits
+  that caused them.
 
 ---
 
