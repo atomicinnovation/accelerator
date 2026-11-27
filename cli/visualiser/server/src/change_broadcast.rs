@@ -90,7 +90,6 @@ struct RescanChange {
     set: Option<SetEventContext>,
 }
 
-/// The broadcasts a rescan owes its subscribers.
 fn rescan_changes(diff: &IndexDiff, now: DateTime<Utc>) -> Vec<RescanChange> {
     diff.documents
         .iter()
@@ -175,10 +174,10 @@ fn served(rel_path: &std::path::Path) -> String {
     rel_path.to_string_lossy().replace('\\', "/")
 }
 
-/// Single fan-out point for SSE events: pushes a derived `ActivityEvent`
-/// into the ring buffer (if applicable — `DocInvalid` does not surface),
-/// then broadcasts the payload. Ring-buffer push is **synchronous and
-/// before** the broadcast, so a buffered event is always available via
+/// Single fan-out point for SSE events: records a derived `ActivityEvent`
+/// in the ring buffer (if applicable — `DocInvalid` does not surface),
+/// then broadcasts the payload. Recording is **synchronous and before**
+/// the broadcast, so a buffered event is always available via
 /// `/api/activity` once a subscriber sees it on the live stream.
 pub fn emit(
     payload: SsePayload,

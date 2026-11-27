@@ -159,7 +159,6 @@ pub fn dossier(set_directory: &str) -> IndexEntry {
     set_root_for_test(dossiers(), set_directory, "cover.md", set_directory)
 }
 
-/// A change sink that keeps every diff it is handed.
 #[derive(Default)]
 pub struct RecordingSink {
     diffs: std::sync::Mutex<Vec<crate::indexer::IndexDiff>>,

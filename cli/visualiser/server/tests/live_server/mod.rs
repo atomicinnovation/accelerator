@@ -180,7 +180,6 @@ impl StartedServer {
     }
 }
 
-/// Every `doc-changed` payload on the stream within `window`.
 pub async fn doc_changes_within(
     sse_response: &mut reqwest::Response,
     window: Duration,

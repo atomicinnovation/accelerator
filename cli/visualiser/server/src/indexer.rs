@@ -432,7 +432,6 @@ impl IndexDiff {
         }
     }
 
-    /// The sets a change removed a member or asset from.
     fn sets_losing_members(&self) -> impl Iterator<Item = &Path> {
         let removed_members = self
             .documents
@@ -793,7 +792,6 @@ impl RemovalLedger {
     }
 }
 
-/// A freshly read index, not yet installed.
 struct BuiltIndex {
     records: Vec<IndexEntry>,
     assets: Vec<AssetRecord>,
