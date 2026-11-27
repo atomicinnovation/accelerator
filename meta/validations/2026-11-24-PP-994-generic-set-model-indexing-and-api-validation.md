@@ -9,7 +9,7 @@ status: "complete"
 result: "pass"
 target: "plan:2026-11-24-PP-994-generic-set-model-indexing-and-api"
 tags: ["visualiser", "server", "corpus", "set-model"]
-last_updated: "2026-11-27T09:48:59+00:00"
+last_updated: "2026-11-27T13:31:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -89,11 +89,14 @@ not recorded:
   members-inclusive refs map, not `documents_including_members()`.
 - `api/search.rs:65` calls `is_member()` directly.
 - `SetContext` gained `root_rel_path` (`indexer.rs:208`) for Phase 12.
-- The real-OS case-only rename step accepts any number of `Edited` events
-  (`watcher.rs:1453-1465`). The success criterion asks for exactly one. It
-  still rejects `deleted` and `created` events.
-- Phase 4's note that "nothing imports from `built_in`" is stale.
-  `built_in` is now a `pub mod` that the assembly reads.
+- The real-OS case-only rename step accepted any number of `Edited`
+  events. The success criterion asks for exactly one. **Fixed**
+  (`vxtwqqsk`): the step now expects exactly one.
+- Phase 4's note that "nothing imports from `built_in`" was stale.
+  `built_in` is now a `pub mod` that the assembly reads. **Corrected** in
+  the plan.
+
+The plan's "Validation follow-up" notes now record every deviation above.
 
 #### Potential Issues:
 
@@ -104,30 +107,45 @@ not recorded:
    but `/api/sets` serves only the lexically first one. Member search rows
    link to the first set too. This follows the spec's "lexically first"
    rule, but the library and the member API use different keys.
+   **Fixed** (`ntztvypt`): Each such set takes its directory name as its set
+   `id`. The spec and CHANGELOG are updated.
 2. **One bad set root can fail the whole rescan.** `set_directories_in`
    follows a symlinked root file without an allowed-roots check
    (`file_driver.rs:393`). A `PathEscape` from `read` then returns early
    from `build_records` (`indexer.rs:1023`). A member over
    `MAX_DOC_BYTES` fails the rescan the same way. This is plausible from
    the code, but not reproduced.
+   **Fixed** (`wlrpqyno`): An unreadable root leaves out its own set, and an
+   unreadable member leaves out only itself.
 3. A file directly under a set doc root (for example `topics/stray.md`) is
    admitted as a set directory (`watcher.rs:96`, `within.is_empty()`). It
    causes a rescan that produces no event.
+   **Fixed** (`vswnmumm`): Such a file causes no rescan.
 4. A case-only rename of a set directory (`S/` to `s/`) is not paired. It
    gives a delete and a create for every member. No test covers it.
+   **Fixed** (`ynxozkqk`): Every document and asset pairs as one rename.
 5. `Indexer::lies_in_a_set_doc_root` checks only resolved roots
    (`indexer.rs:1195-1201`). The driver also checks configured roots. They
    can disagree for a root created after startup.
+   **Fixed** (`pwwrszkz`): The indexer asks the file driver.
 6. `set.directory` stays absolute when a doc root lies outside the project
    root (`indexer.rs:2346-2348`). The spec says it is project-relative.
+   **Fixed** (`zovkopup`): The code matched `relPath`. The spec now says so, and
+   a test pins it.
 7. `api/sets.rs:103-124` takes separate read locks for the root and the
    members. A rescan between them can mix two snapshots.
+   **Fixed** (`luxxwxqs`): `Indexer::set` reads the set from one snapshot.
 8. `server.rs:93-98` picks the writable root by the `"work"` path key. It
    is a named doc type in production code, and probably predates this work.
+   **Fixed** (`kxoqwusq`, `xkmxsokn`): Every `in_kanban` doc root is writable.
+   The refusal is now `OnlyKanbanItemsAreWritable`, "only kanban items are
+   writable".
 9. The library response treats the first virtual type as templates
    (`api/library.rs:154-158`). That is a convention, not a declared fact.
+   **Fixed** (`kyoptuqk`): The catalogue refuses a second virtual type and names
+   its one virtual type.
 
-Comment-policy findings:
+Comment-policy findings, all **fixed** (`lrptzwzn`):
 
 - `indexer.rs:861-866` names `rescan` as a consumer. That method no longer
   exists.
@@ -137,10 +155,11 @@ Comment-policy findings:
 - `cli/corpus/src/doc_type/mod.rs:39-41,88-90` hold `//` comments in tests.
 - `paths.rs:152-163` has two `# Errors` sections in one doc comment.
 
-Test-name finding:
+Test-name finding, **fixed** (`lrptzwzn`):
 
 - `set_documents_and_assets_interleave_in_set_relative_path_order`
-  (`api_sets.rs:471`) holds no assets.
+  (`api_sets.rs:471`) held no assets. It is now
+  `set_members_come_in_set_relative_path_order`.
 
 ### Manual Testing Required:
 
@@ -151,19 +170,18 @@ The plan records every manual check as done. These remain open:
         the PP-994 pull request is raised.
 
 2. Duplicate set ids:
-  - [ ] Two topic sets with the same frontmatter `id`: decide whether
-        `/api/sets` must reach both.
+  - [x] Two topic sets with the same frontmatter `id`: `/api/sets` must
+        reach both. Decided 2026-11-27, and fixed.
+
+### Follow-up, 2026-11-27
+
+All issues above are fixed in 13 commits, `ntztvypt`..`xkmxsokn`, each
+test first. The full `mise run` exited 0 on the final code. The real-OS
+watcher lane passed on macOS after its case-only step was tightened. The
+Linux run still waits for CI.
 
 ### Recommendations:
 
 - Raise the pull request, and tick the Linux criterion when CI passes.
-- Decide on issue 1. Either resolve `/api/sets` by the library `id`, or
-  record the limit in the spec.
-- Make one unreadable set member or root skip its set, not fail the whole
-  rescan (issue 2). Add a test with a symlinked root file.
-- Tighten the case-only rename step to assert one `edited` event, or record
-  why it cannot.
-- Remove the stale and restating comments listed above.
-- Rename the interleave test, or give it an asset.
-- PP-994's 43 acceptance criteria are all unticked, and its status is
-  `ready`. Update the work item when the PR merges.
+- PP-994 is still `ready`, and its acceptance criteria are unticked.
+  Update it once each criterion is checked against its tests.

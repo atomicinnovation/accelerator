@@ -745,8 +745,9 @@ The specification contains:
 - **The endpoint.** `GET /api/sets/{type}/{setId}`:
   - `type` is a wire token;
   - `setId` is decoded once, by the router's path extractor, and matched
-    against `setId` among the type's roots, the lexically first
-    directory winning on a duplicate;
+    against `setId` among the type's roots. When roots share an `id`,
+    each set's `id` is its directory's name (changed after validation;
+    see "Validation follow-up");
   - 404 when the type is not a set type or no set matches; 400 on an
     unknown type token.
 - **The response:**
@@ -3030,10 +3031,10 @@ Then add these tests (`indexer.rs` inline tests, tempdir layouts):
   Phase 12's real-OS step does, and skips with a log line on a
   case-sensitive volume, where the path cannot resolve.
 - A directory path under a non-set root returns 404, not 500.
-- The document endpoint refuses writes to anything but work items
-  (`OnlyWorkItemsAreWritable`, `api/docs.rs:189-191`), so no set member
-  or root is writable through it; a PATCH to a member returns that
-  refusal.
+- The document endpoint refuses writes to anything but kanban items
+  (`OnlyKanbanItemsAreWritable`, renamed after validation), so no set
+  member or root is writable through it; a PATCH to a member returns
+  that refusal.
 
 **File**: `server/src/indexer.rs` (inline tests, single-path refresh)
 
@@ -3324,7 +3325,8 @@ page specs still pass unchanged.
 - **Deleted root.** After the root is deleted, its members return 404
   from the member API and from `/api/docs` (criterion 32, API half).
 - **Duplicate `setId`.** Two sets whose roots share a frontmatter `id`:
-  the lexically first directory is returned.
+  each is found by its directory's name, and the shared `id` finds none
+  (changed after validation; see "Validation follow-up").
 - **Encoded `setId`.** A set whose directory name holds a space and a
   literal `%` is found by its percent-encoded id, decoded exactly once.
 - **Order.** `members` is in `setRelativePath` order, written to disk in
@@ -3344,12 +3346,11 @@ page specs still pass unchanged.
 - Register the route as `/api/sets/:type/:set_id`, in matchit 0.7's
   syntax like its neighbours. The `Path` extractor's decoded `set_id` is
   used as is, with no second decode.
-- Find the root via `indexer.set_root(type, set_id)`, taking the
-  lexically first directory on a duplicate.
-- Collect the documents by `set_directory` with `indexer.set_members(&dir)`,
-  and the assets from the asset map. Project to the spec's wire types,
-  sorted by `setRelativePath`. Both lookups scan the maps; at today's
-  scale no extra index is added.
+- Read the set whole with `indexer.set(type, set_id)`: its root, its
+  documents and its assets from one snapshot of the index (changed after
+  validation, from separate `set_root`, `set_members` and asset reads).
+  Project to the spec's wire types, sorted by `setRelativePath`. The
+  lookup scans the maps; at today's scale no extra index is added.
 - Follow the `related_get` validation and 404 shape
   (`api/related.rs:30-57`).
 
@@ -3699,8 +3700,8 @@ rescan sees it first. The constructor's initial build (`indexer.rs:308`)
 is the one exception: it builds the first index privately, with no diff
 and no sink, because nothing has been observed before it.
 
-**In-app writes.** Only work items are writable in-app
-(`OnlyWorkItemsAreWritable`, `api/docs.rs:189-191`), and they are flat,
+**In-app writes.** Only kanban items are writable in-app
+(`OnlyKanbanItemsAreWritable`), and they are flat,
 so an in-app write never touches a set. The PATCH handler keeps today's
 order: `refresh_one(path)`, a single-path refresh (or `rescan_with_diff`
 on a trust flip), then its own event with the `FileContent` etag. The
