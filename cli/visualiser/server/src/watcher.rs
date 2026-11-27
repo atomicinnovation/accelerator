@@ -30,15 +30,12 @@ impl Settings {
     };
 }
 
-/// Each set type's doc root, as configured and as resolved, with the shape
-/// its sets take: what decides whether a change under it is worth a rescan.
 pub struct SetDocRoots {
     roots: Vec<(PathBuf, SetMatcher)>,
 }
 
-/// What a changed path asks of the watcher: nothing, a rescan debounced on
-/// the path itself, or one debounced on the set directory it lies in, so a
-/// burst inside one set costs one rescan.
+/// A change inside a set is debounced on its set directory, so a burst
+/// inside one set costs one rescan.
 enum Admission {
     Ignored,
     OwnPath,
@@ -93,7 +90,8 @@ impl SetDocRoots {
             return Admission::Ignored;
         }
         let set_relative = within.join("/");
-        if within.is_empty()
+        let names_a_set_directory = within.is_empty() && !path.is_file();
+        if names_a_set_directory
             || matcher.classify(&set_relative).is_some()
             || matcher.may_contain_members(&set_relative)
         {
@@ -1566,6 +1564,7 @@ mod set_watch_tests {
             topic(".conduct-run.json"),
             topic(".scratch/x.md"),
             format!("{TOPICS}/.draft.tmp/manifest.md"),
+            format!("{TOPICS}/stray.md"),
             inventory("prototype-full/x.html"),
             inventory("assets/y.svg"),
             inventory("notes.txt"),
