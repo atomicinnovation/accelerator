@@ -297,15 +297,18 @@ pub(crate) async fn doc_patch_frontmatter(
         // Use the etag from FileContent, not from the index after refresh. A concurrent
         // external edit between persist and refresh would change the on-disk etag, which
         // would break the self-cause filter for this tab.
-        state
-            .sse_hub
-            .broadcast(crate::sse_hub::SsePayload::DocChanged {
+        crate::change_broadcast::emit(
+            crate::sse_hub::SsePayload::DocChanged {
                 action: crate::sse_hub::ActionKind::Edited,
                 doc_type: entry.r#type,
                 path: doc_rel.to_string(),
                 etag: Some(content.etag.clone()),
                 timestamp: chrono::Utc::now(),
-            });
+            },
+            None,
+            &state.sse_hub,
+            &state.activity_feed,
+        );
     }
 
     // Step 11 — 204 No Content with new ETag.

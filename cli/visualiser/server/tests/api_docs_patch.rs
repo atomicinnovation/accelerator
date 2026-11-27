@@ -741,6 +741,42 @@ async fn patch_from_disallowed_origin_returns_403_allowed_origins_succeed() {
     );
 }
 
+#[tokio::test]
+async fn patch_records_one_activity_row_and_one_event_with_its_etag() {
+    let tmp = tempfile::tempdir().unwrap();
+    let state = setup(tmp.path()).await;
+    let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
+    let mut rx = state.sse_hub.subscribe();
+
+    let res = build_router(state.clone())
+        .oneshot(patch_req(
+            WORK_ITEM_PATH,
+            &etag,
+            r#"{"patch":{"status":"in-progress"}}"#,
+        ))
+        .await
+        .unwrap();
+
+    let written = res.headers()[header::ETAG]
+        .to_str()
+        .unwrap()
+        .trim_matches('"')
+        .to_owned();
+    let event = rx.try_recv().expect("the PATCH's event");
+    assert!(
+        matches!(
+            &event,
+            SsePayload::DocChanged { path, etag: Some(sent), .. }
+                if path == WORK_ITEM_PATH && *sent == written
+        ),
+        "{event:?}"
+    );
+    assert!(rx.try_recv().is_err(), "a second event was sent");
+    let rows = state.activity_feed.recent(10);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].path, WORK_ITEM_PATH);
+}
+
 // ── Step 3.15 ────────────────────────────────────────────────────────────────
 
 #[tokio::test]
