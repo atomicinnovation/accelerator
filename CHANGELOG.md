@@ -747,6 +747,14 @@
   `relates_to`. As with `ask`, the commands it runs after a reply ask for
   permission, and a headless session denies them; the same four allow rules
   avoid that.
+- **`GET /api/sets/{type}/{setId}` serves a set whole.** The visualiser
+  returns a topic research set or design inventory's root and every member in
+  one response: each document's set-relative path, title, frontmatter and
+  etag, and each asset's set-relative path, size and modification time, in
+  set-relative path order, with no document bodies. A set is named by its
+  root's frontmatter `id`, or else its directory's name; when two sets share
+  an `id`, the lexically first directory is served. An unknown doc type is a
+  400, and a type that is not a set type, or an unknown set, a 404.
 
 ### Changed
 
