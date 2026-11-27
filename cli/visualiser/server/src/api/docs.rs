@@ -112,8 +112,7 @@ pub(crate) async fn doc_fetch(
         .into_response())
 }
 
-/// Under a set doc root only indexed documents are served. The decision is
-/// made on the canonical path, so a case variant or a symlinked ancestor
+/// Decided on the canonical path, so a case variant or a symlinked ancestor
 /// reaches the same answer as the stored path.
 async fn lies_in_a_set_doc_root(state: &AppState, abs: &Path) -> bool {
     tokio::fs::canonicalize(abs).await.is_ok_and(|canonical| {

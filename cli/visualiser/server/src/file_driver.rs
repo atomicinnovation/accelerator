@@ -380,8 +380,6 @@ impl LocalFileDriver {
     }
 }
 
-/// The non-dot directories directly in `root` that hold `set_root` as a
-/// file; none when `root` does not exist.
 async fn set_directories_in(
     root: &Path,
     set_root: &str,
@@ -400,9 +398,8 @@ async fn set_directories_in(
     Ok(directories)
 }
 
-/// The entries of `dir` whose names do not start with a dot, each with the
-/// metadata of the entry itself, so a symlink is never taken for a
-/// directory; none when `dir` does not exist.
+/// Each entry carries its own metadata, not its target's, so a symlink is
+/// never taken for a directory.
 async fn undotted_entries_of(
     dir: &Path,
 ) -> Result<Vec<(String, std::fs::Metadata)>, FileDriverError> {
