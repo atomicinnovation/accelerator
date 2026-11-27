@@ -53,6 +53,9 @@ pub(crate) async fn doc_fetch(
     let abs = state.cfg.project_root.join(&path);
 
     let entry = state.indexer.get(&abs).await;
+    if entry.is_none() && lies_in_a_set_doc_root(&state, &abs).await {
+        return Err(ApiError::NotFound(path));
+    }
     if let Some(ref e) = entry {
         if let Some(inm) = headers.get("if-none-match") {
             let quoted = format!("\"{}\"", e.etag);
@@ -107,6 +110,15 @@ pub(crate) async fn doc_fetch(
         Body::from(bytes),
     )
         .into_response())
+}
+
+/// Under a set doc root only indexed documents are served. The decision is
+/// made on the canonical path, so a case variant or a symlinked ancestor
+/// reaches the same answer as the stored path.
+async fn lies_in_a_set_doc_root(state: &AppState, abs: &Path) -> bool {
+    tokio::fs::canonicalize(abs).await.is_ok_and(|canonical| {
+        state.file_driver.lies_in_a_set_doc_root(&canonical)
+    })
 }
 
 // ── Write structs ─────────────────────────────────────────────────────────────

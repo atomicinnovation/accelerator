@@ -130,11 +130,16 @@ pub trait FileDriver: Send + Sync {
     >;
 
     fn kind_for_canonical_path(&self, path: &Path) -> Option<DocTypeKey>;
+
+    fn lies_in_a_set_doc_root(&self, canonical_path: &Path) -> bool;
 }
 
 pub struct LocalFileDriver {
     doc_types: Arc<DocTypeCatalogue>,
     roots: HashMap<DocTypeKey, PathBuf>,
+    /// Each set type's doc root as configured and as resolved, so a path
+    /// matching either counts as inside it.
+    set_roots: Vec<PathBuf>,
     extra_roots: Vec<PathBuf>,
     writable_roots: Vec<PathBuf>,
     path_locks:
@@ -199,6 +204,7 @@ impl LocalFileDriver {
         writable_roots: Vec<PathBuf>,
     ) -> Self {
         let mut roots = HashMap::new();
+        let mut set_roots = Vec::new();
         for &kind in doc_types.doc_types() {
             let Some(cfg_key) = kind.config_path_key() else {
                 continue;
@@ -206,7 +212,11 @@ impl LocalFileDriver {
             let Some(raw) = doc_paths.get(cfg_key) else {
                 continue;
             };
-            roots.insert(kind, resolved_root(raw));
+            let resolved = resolved_root(raw);
+            if kind.is_set() {
+                set_roots.extend([raw.clone(), resolved.clone()]);
+            }
+            roots.insert(kind, resolved);
         }
         let extra_roots = extra_roots
             .into_iter()
@@ -219,6 +229,7 @@ impl LocalFileDriver {
         Self {
             doc_types: Arc::clone(doc_types),
             roots,
+            set_roots,
             extra_roots,
             writable_roots,
             path_locks: Arc::new(std::sync::Mutex::new(HashMap::new())),
@@ -551,6 +562,9 @@ impl FileDriver for LocalFileDriver {
                         source,
                     }
                 })?;
+            if meta.is_dir() {
+                return Err(FileDriverError::NotFound { path });
+            }
             if meta.len() > MAX_DOC_BYTES {
                 return Err(FileDriverError::TooLarge {
                     path,
@@ -698,6 +712,12 @@ impl FileDriver for LocalFileDriver {
             .iter()
             .find(|(_, root)| path.starts_with(*root))
             .map(|(kind, _)| *kind)
+    }
+
+    fn lies_in_a_set_doc_root(&self, canonical_path: &Path) -> bool {
+        self.set_roots
+            .iter()
+            .any(|root| canonical_path.starts_with(root))
     }
 }
 

@@ -750,6 +750,13 @@
 
 ### Changed
 
+- **The visualiser serves only a set's documents from inside its
+  directory.** `/api/docs/{path}` now returns 404 for a file in a topic
+  research set or design inventory that is not its root or one of its member
+  documents, such as a screenshot, a prototype file or a dot-prefixed working
+  file, for a file in a directory that holds no root, and for any directory,
+  which used to fail with 500. A case variant of the path, or a path through a
+  symlink, is refused the same way.
 - **A finding stem for a long question is cut at a word.** A question slug
   over 60 characters is now cut before the word that would pass 60, or at 60
   when that would leave 40 or fewer, as a report's name is. Findings already

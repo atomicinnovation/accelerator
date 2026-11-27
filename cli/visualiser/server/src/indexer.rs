@@ -3016,6 +3016,10 @@ mod identity_join_tests {
         fn kind_for_canonical_path(&self, path: &Path) -> Option<DocTypeKey> {
             self.inner.kind_for_canonical_path(path)
         }
+
+        fn lies_in_a_set_doc_root(&self, canonical_path: &Path) -> bool {
+            self.inner.lies_in_a_set_doc_root(canonical_path)
+        }
     }
 
     #[tokio::test]
