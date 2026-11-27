@@ -177,11 +177,9 @@ export interface IndexEntry {
    *  `null` for entries that fall back to slug-bucket clustering or to
    *  per-path orphan buckets. */
   clusterKey: string | null;
-  /** The id of the set this document belongs to; null outside a set. Older
-   *  servers omitting the field are normalised to null at the API client
-   *  boundary. */
+  /** Both null outside a set. Older servers omit both, and the API client
+   *  normalises them to null. */
   setId: string | null;
-  /** The document's path within its set; null outside a set. */
   setRelativePath: string | null;
 }
 

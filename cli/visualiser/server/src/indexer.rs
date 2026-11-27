@@ -506,8 +506,7 @@ pub struct Indexer {
     /// paths of entries that reference that work-item via `work_item_id:`,
     /// `parent:`, or `related:` frontmatter keys.
     work_item_refs_by_target: Arc<RwLock<HashMap<String, BTreeSet<PathBuf>>>>,
-    /// Each set's newest modification time over its root and members, by
-    /// set directory. Acquire after `work_item_refs_by_target`.
+    /// Lock-ordering invariant: acquire after `work_item_refs_by_target`.
     latest_change_by_set: Arc<RwLock<HashMap<PathBuf, i64>>>,
     // Serialises rescan() against refresh_one() so they cannot interleave.
     rescan_lock: Arc<Semaphore>,
