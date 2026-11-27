@@ -165,3 +165,55 @@ async fn a_declared_set_type_lists_its_sets_and_describes_its_shape() {
         })
     );
 }
+
+static TASKS: DocType = DocType {
+    wire_token: "tasks",
+    config_path_key: Some("tasks"),
+    label: "Tasks",
+    in_kanban: true,
+    ..DocType::FLAT_DEFAULTS
+};
+
+#[tokio::test]
+async fn a_declared_kanban_doc_type_takes_frontmatter_writes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let tasks = tmp.path().join("meta/tasks");
+    std::fs::create_dir_all(&tasks).unwrap();
+    std::fs::write(tasks.join("t.md"), "---\nstatus: todo\n---\n# body\n")
+        .unwrap();
+    let mut cfg = common::seeded_cfg(tmp.path());
+    cfg.doc_paths.insert("tasks".into(), tasks.clone());
+    cfg.doc_types = Some(common::catalogue_with(&[&TASKS], &[]));
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+    let res = build_router(state.clone())
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs/meta/tasks/t.md")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let etag = res.headers()["etag"].to_str().unwrap().to_owned();
+
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri("/api/docs/meta/tasks/t.md/frontmatter")
+                .header("content-type", "application/json")
+                .header("if-match", etag)
+                .body(Body::from(r#"{"patch":{"status":"done"}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let status = res.status();
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body:?}");
+    let on_disk = std::fs::read_to_string(tasks.join("t.md")).unwrap();
+    assert!(on_disk.contains("status: done"), "{on_disk}");
+}

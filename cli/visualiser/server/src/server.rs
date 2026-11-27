@@ -90,17 +90,18 @@ impl AppState {
         let cfg = Arc::new(cfg);
         let template_roots =
             crate::file_driver::template_extra_roots(&cfg.templates);
-        let work_root = cfg
-            .doc_paths
-            .get("work")
+        let kanban_roots = doc_types
+            .doc_types()
+            .iter()
+            .filter(|kind| kind.in_kanban())
+            .filter_map(|kind| cfg.doc_paths.get(kind.config_path_key()?))
             .cloned()
-            .map(|p| vec![p])
-            .unwrap_or_default();
+            .collect();
         let driver = Arc::new(crate::file_driver::LocalFileDriver::new(
             &doc_types,
             &cfg.doc_paths,
             template_roots,
-            work_root,
+            kanban_roots,
         ));
         let work_item_cfg = Arc::new(WorkItemConfig::of(&cfg.work_item));
         let indexer = Arc::new(
