@@ -32,6 +32,10 @@ ALLOWLIST: frozenset[str] = frozenset(
         # is a read/index module and performs no atomic writes (those route
         # through the file driver onto store::atomic_write).
         "cli/visualiser/server/src/indexer.rs",
+        # Test-only renames that move a set directory into place and rename
+        # a screenshot only in case, to drive the watcher; the watcher
+        # writes no files.
+        "cli/visualiser/server/src/watcher.rs",
         # Grafts a `.jj` *directory* into the colocated fixture, mirroring the
         # shell suite's `mv`. Both `git worktree add` and `jj workspace add`
         # refuse an existing non-empty target, so the workspace is built

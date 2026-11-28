@@ -24,6 +24,8 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tracing::info;
 
+use corpus::DocTypeCatalogue;
+
 use crate::config::{Config, WorkItemConfig};
 use crate::shutdown::ShutdownReason;
 
@@ -38,6 +40,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct AppState {
     pub cfg: Arc<Config>,
+    pub doc_types: Arc<DocTypeCatalogue>,
     pub kanban_columns: Arc<Vec<crate::config::KanbanColumn>>,
     /// Resolved idle auto-shutdown window in milliseconds, or
     /// `config::DISABLED_IDLE_LIMIT_MS` when idle shutdown is disabled.
@@ -76,24 +79,35 @@ impl AppState {
     ) -> Result<Arc<Self>, AppStateError> {
         let kanban_columns = Arc::new(cfg.resolve_kanban_columns()?);
         let idle_limit_ms = cfg.resolve_idle_limit_ms()?;
+        let doc_types = match cfg.doc_types.clone() {
+            Some(doc_types) => doc_types,
+            None => declarations::catalogue()?,
+        };
+        crate::file_driver::refuse_overlapping_doc_roots(
+            &doc_types,
+            &cfg.doc_paths,
+        )?;
         let cfg = Arc::new(cfg);
         let template_roots =
             crate::file_driver::template_extra_roots(&cfg.templates);
-        let work_root = cfg
-            .doc_paths
-            .get("work")
+        let kanban_roots = doc_types
+            .doc_types()
+            .iter()
+            .filter(|kind| kind.in_kanban())
+            .filter_map(|kind| cfg.doc_paths.get(kind.config_path_key()?))
             .cloned()
-            .map(|p| vec![p])
-            .unwrap_or_default();
+            .collect();
         let driver = Arc::new(crate::file_driver::LocalFileDriver::new(
+            &doc_types,
             &cfg.doc_paths,
             template_roots,
-            work_root,
+            kanban_roots,
         ));
         let work_item_cfg = Arc::new(WorkItemConfig::of(&cfg.work_item));
         let indexer = Arc::new(
             crate::indexer::Indexer::build(
                 driver.clone(),
+                doc_types.clone(),
                 cfg.project_root.clone(),
                 work_item_cfg,
             )
@@ -113,37 +127,8 @@ impl AppState {
             )
             .await,
         ));
-        let snapshot = indexer.all().await;
-        let work_item_by_identity_key =
-            indexer.work_item_by_identity_key_snapshot().await;
-        let plans_by_id = indexer.plans_by_id_snapshot().await;
-        let work_item_cfg = indexer.work_item_cfg();
-        let cluster_ctx = crate::clusters::ClusterContext::from_entries(
-            &snapshot,
-            &work_item_by_identity_key,
-            &plans_by_id,
-            indexer.project_root(),
-            &work_item_cfg,
-        );
-        let (cluster_seed, completeness_backfill, cluster_key_backfill) =
-            crate::clusters::compute_clusters_with_backfill(
-                &snapshot,
-                &cluster_ctx,
-            );
-        let linked_counts = crate::related::collect_linked_counts(
-            &indexer,
-            &cluster_seed,
-            &snapshot,
-        )
-        .await;
-        indexer
-            .apply_completeness_backfill(completeness_backfill)
-            .await;
-        indexer
-            .apply_cluster_key_backfill(cluster_key_backfill)
-            .await;
-        indexer.apply_linked_count_backfill(linked_counts).await;
-        let clusters = Arc::new(RwLock::new(cluster_seed));
+        let clusters = Arc::new(RwLock::new(Vec::new()));
+        crate::clusters::recompute_clusters(&indexer, &clusters).await;
         let sse_hub = Arc::new(crate::sse_hub::SseHub::new(256));
         let activity_feed =
             Arc::new(crate::activity_feed::ActivityRingBuffer::new());
@@ -165,6 +150,7 @@ impl AppState {
             ));
         Ok(Arc::new(Self {
             cfg,
+            doc_types,
             kanban_columns,
             idle_limit_ms,
             file_driver: driver,
@@ -190,6 +176,10 @@ pub enum AppStateError {
     Indexer(#[from] crate::file_driver::FileDriverError),
     #[error("invalid configuration: {0}")]
     Config(#[from] crate::config::ConfigError),
+    #[error("invalid configuration: {0}")]
+    DocRoots(#[from] config::ConfigError),
+    #[error("invalid doc type declarations: {0}")]
+    DocTypes(#[from] corpus::doc_type::CatalogueError),
 }
 
 #[derive(Debug, Serialize)]
@@ -432,10 +422,12 @@ pub async fn run_with<W: crate::watcher::DirectoryWatcher>(
         open,
         watch_dirs,
         state.indexer.clone(),
-        state.clusters.clone(),
-        state.sse_hub.clone(),
-        state.activity_feed.clone(),
+        Arc::new(crate::change_broadcast::ChangeBroadcast::of(&state)),
         state.write_coordinator.clone(),
+        crate::watcher::SetDocRoots::new(
+            &state.doc_types,
+            &state.cfg.doc_paths,
+        ),
         Some(state.template_change_handler.clone()),
         crate::watcher::Settings::DEFAULT,
     );
@@ -685,6 +677,7 @@ mod tests {
             owner_start_time: None,
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
+            doc_types: Some(crate::test_support::assembled_catalogue()),
             templates: HashMap::new(),
             work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,

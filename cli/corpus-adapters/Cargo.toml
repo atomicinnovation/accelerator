@@ -22,3 +22,8 @@ vcs = { path = "../vcs" }
 time = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+corpus = { path = "../corpus", features = ["test-support"] }
+declarations = { path = "../declarations" }
+cli-test-support = { path = "../cli-test-support" }

@@ -24,6 +24,7 @@ path = "src/main.rs"
 [dependencies]
 corpus = { path = "../../corpus" }
 corpus-adapters = { path = "../../corpus-adapters" }
+declarations = { path = "../../declarations" }
 document = { path = "../../document" }
 config = { path = "../../config" }
 config-adapters = { path = "../../config-adapters" }
@@ -63,6 +64,7 @@ form_urlencoded = "1"
 jiff = { version = "0.2", default-features = false, features = ["std"] }
 
 [dev-dependencies]
+corpus = { path = "../../corpus", features = ["test-support"] }
 regex = { workspace = true }
 tracker = { path = "../../tracker" }
 # The tests reach the server over plain http on loopback, so no TLS backend.

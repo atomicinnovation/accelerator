@@ -206,6 +206,18 @@ pub fn type_from_path(
     crate::doc_type::infer(Path::new(path), table)?.linkage_type_name()
 }
 
+/// How a doc type's documents are identified in a typed-linkage address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinkageIdRule {
+    WorkItemIdInFilename,
+    /// `ADR-` and the number the filename carries after it.
+    AdrNumber,
+    /// The name of the set directory holding the document.
+    SetDirectory,
+    PrNumber,
+    Stem,
+}
+
 /// Resolves a meta path to its `(type, id)` target, or `None` when the path is
 /// outside every configured doc-type directory.
 #[must_use]
@@ -216,12 +228,25 @@ pub fn resolve_path_target(
 ) -> Option<(&'static str, String)> {
     let kind = crate::doc_type::infer(Path::new(path), table)?;
     let name = kind.linkage_type_name()?;
+    linkage_id_of(kind, path, ids).map(|id| (name, id))
+}
+
+/// The id a document of `kind` at `path` carries by its type's linkage id
+/// rule, or `None` when the path carries none.
+#[must_use]
+pub fn linkage_id_of(
+    kind: DocTypeKey,
+    path: &str,
+    ids: &dyn LinkageIds,
+) -> Option<String> {
     let file = path.rsplit('/').next()?;
     let stem = file.strip_suffix(".md").unwrap_or(file);
 
-    let id = match kind {
-        DocTypeKey::WorkItems => ids.id_in_filename(file).unwrap_or_default(),
-        DocTypeKey::Decisions => {
+    let id = match kind.linkage_id_rule() {
+        LinkageIdRule::WorkItemIdInFilename => {
+            ids.id_in_filename(file).unwrap_or_default()
+        }
+        LinkageIdRule::AdrNumber => {
             stem.strip_prefix("ADR-").map_or_else(String::new, |rest| {
                 let digits: String =
                     rest.chars().take_while(char::is_ascii_digit).collect();
@@ -232,22 +257,18 @@ pub fn resolve_path_target(
                 }
             })
         }
-        DocTypeKey::DesignInventories => path
+        LinkageIdRule::SetDirectory => path
             .rsplit_once('/')
             .and_then(|(dir, _)| dir.rsplit('/').next())
             .unwrap_or_default()
             .to_owned(),
-        DocTypeKey::PrDescriptions => {
+        LinkageIdRule::PrNumber => {
             pr_number(stem).unwrap_or_else(|| stem.to_owned())
         }
-        _ => stem.to_owned(),
+        LinkageIdRule::Stem => stem.to_owned(),
     };
 
-    if id.is_empty() {
-        None
-    } else {
-        Some((name, id))
-    }
+    Some(id).filter(|id| !id.is_empty())
 }
 
 /// The PR number a stem carries.
@@ -630,22 +651,22 @@ mod tests {
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
         [
-            (DocTypeKey::WorkItems, "meta/work"),
-            (DocTypeKey::Plans, "meta/plans"),
-            (DocTypeKey::Validations, "meta/validations"),
-            (DocTypeKey::PrDescriptions, "meta/prs"),
-            (DocTypeKey::Decisions, "meta/decisions"),
-            (DocTypeKey::Research, "meta/research/codebase"),
-            (DocTypeKey::RootCauseAnalyses, "meta/research/issues"),
+            (DocTypeKey::WORK_ITEMS, "meta/work"),
+            (DocTypeKey::PLANS, "meta/plans"),
+            (DocTypeKey::VALIDATIONS, "meta/validations"),
+            (DocTypeKey::PR_DESCRIPTIONS, "meta/prs"),
+            (DocTypeKey::DECISIONS, "meta/decisions"),
+            (DocTypeKey::RESEARCH, "meta/research/codebase"),
+            (DocTypeKey::ROOT_CAUSE_ANALYSES, "meta/research/issues"),
             (
-                DocTypeKey::DesignInventories,
+                DocTypeKey::DESIGN_INVENTORIES,
                 "meta/research/design-inventories",
             ),
-            (DocTypeKey::DesignGaps, "meta/research/design-gaps"),
-            (DocTypeKey::PlanReviews, "meta/reviews/plans"),
-            (DocTypeKey::WorkItemReviews, "meta/reviews/work"),
-            (DocTypeKey::PrReviews, "meta/reviews/prs"),
-            (DocTypeKey::Notes, "meta/notes"),
+            (DocTypeKey::DESIGN_GAPS, "meta/research/design-gaps"),
+            (DocTypeKey::PLAN_REVIEWS, "meta/reviews/plans"),
+            (DocTypeKey::WORK_ITEM_REVIEWS, "meta/reviews/work"),
+            (DocTypeKey::PR_REVIEWS, "meta/reviews/prs"),
+            (DocTypeKey::NOTES, "meta/notes"),
         ]
         .into_iter()
         .map(|(kind, dir)| (kind, PathBuf::from(dir)))
@@ -735,7 +756,7 @@ mod tests {
     #[test]
     fn resolve_path_target_respects_a_custom_configured_directory() {
         let table =
-            vec![(DocTypeKey::WorkItems, PathBuf::from("custom/work-items"))];
+            vec![(DocTypeKey::WORK_ITEMS, PathBuf::from("custom/work-items"))];
 
         assert_eq!(
             super::resolve_path_target(
@@ -762,8 +783,8 @@ mod tests {
         // `meta/` still has its references extracted. A hardcoded `meta/` prefix
         // would find nothing here.
         let table = vec![
-            (DocTypeKey::WorkItems, PathBuf::from("docs/tickets")),
-            (DocTypeKey::Plans, PathBuf::from("docs/plans")),
+            (DocTypeKey::WORK_ITEMS, PathBuf::from("docs/tickets")),
+            (DocTypeKey::PLANS, PathBuf::from("docs/plans")),
         ];
         let content = "## References\n- A sibling `docs/tickets/0002-y.md`\n";
 
@@ -781,9 +802,9 @@ mod tests {
     #[test]
     fn path_roots_are_the_distinct_leading_segments() {
         let table = vec![
-            (DocTypeKey::WorkItems, PathBuf::from("meta/work")),
-            (DocTypeKey::Plans, PathBuf::from("meta/plans")),
-            (DocTypeKey::Notes, PathBuf::from("docs/notes")),
+            (DocTypeKey::WORK_ITEMS, PathBuf::from("meta/work")),
+            (DocTypeKey::PLANS, PathBuf::from("meta/plans")),
+            (DocTypeKey::NOTES, PathBuf::from("docs/notes")),
         ];
         assert_eq!(super::path_roots(&table), vec!["meta", "docs"]);
     }

@@ -44,6 +44,53 @@ describe("fetchTypes", () => {
     expect(types[0].key).toBe("decisions");
   });
 
+  it("reads a type from a server that predates sets as no set", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        types: [
+          {
+            key: "plans",
+            label: "Plans",
+            dirPath: "/p",
+            inLifecycle: true,
+            inKanban: false,
+            virtual: false,
+          },
+        ],
+      }),
+    });
+    const types = await fetchTypes();
+    expect(types[0].set).toBeNull();
+  });
+
+  it("keeps a set type's shape and presentation", async () => {
+    const set = {
+      root: "inventory.md",
+      documentSlots: [],
+      assetSlots: ["screenshots/*.png"],
+      presentation: "entry-point",
+    };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        types: [
+          {
+            key: "design-inventories",
+            label: "Design inventories",
+            dirPath: "/p",
+            inLifecycle: true,
+            inKanban: false,
+            virtual: false,
+            set,
+          },
+        ],
+      }),
+    });
+    const types = await fetchTypes();
+    expect(types[0].set).toEqual(set);
+  });
+
   it("throws on non-200", async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
     await expect(fetchTypes()).rejects.toThrow("500");
@@ -94,6 +141,17 @@ describe("fetchDocs", () => {
     });
     const [doc] = await fetchDocs("plans");
     expect(doc.id).toBeNull();
+  });
+
+  it("reads an entry from a server that predates sets as outside any set", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        docs: [{ type: "plans", path: "/p", relPath: "r" }],
+      }),
+    });
+    const [doc] = await fetchDocs("plans");
+    expect([doc.setId, doc.setRelativePath]).toEqual([null, null]);
   });
 
   it("url-encodes the type parameter", async () => {
@@ -600,14 +658,38 @@ describe("fetchSearch", () => {
     ).toBe("/library/plans/foo");
   });
 
+  it("reads a row from a server that predates sets as outside any set", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            docType: "plans",
+            title: "Foo",
+            slug: "foo",
+            id: null,
+            relPath: "meta/plans/2026-01-01-foo.md",
+            mtimeMs: 1,
+          },
+        ],
+      }),
+    });
+
+    const [row] = await fetchSearch("foo");
+
+    expect([row.setId, row.setRelativePath]).toEqual([null, null]);
+  });
+
   it("returns results on 2xx", async () => {
     const row = {
-      docType: "plans",
-      title: "Foo",
-      slug: "foo",
-      id: null,
-      relPath: "meta/plans/2026-01-01-foo.md",
+      docType: "topic-research",
+      title: "Cost model",
+      slug: "prompt-caching",
+      id: "prompt-caching",
+      relPath: "meta/research/topics/prompt-caching/findings/01-cost.md",
       mtimeMs: 1,
+      setId: "prompt-caching",
+      setRelativePath: "findings/01-cost.md",
     };
     mockFetch.mockResolvedValueOnce({
       ok: true,

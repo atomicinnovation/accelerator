@@ -2604,6 +2604,7 @@ mod tests {
     use work::sync::SyncDirection;
 
     use super::build_selection;
+    use super::corpus_roots;
     use super::highest_precedence_code;
     use super::leftover_marker_warnings;
     use super::partition_candidates;
@@ -9975,5 +9976,21 @@ mod tests {
                 markers
             );
         }
+    }
+
+    #[test]
+    fn the_corpus_roots_of_an_overlapping_configuration_are_refused() {
+        let refused = corpus_roots(
+            &crate::config::tests::OverlappingConfig,
+            Path::new("/repo"),
+        );
+
+        assert!(
+            matches!(
+                refused,
+                Err(::config::ConfigError::OverlappingDocRoots { .. })
+            ),
+            "the corpus roots were not refused: {refused:?}"
+        );
     }
 }

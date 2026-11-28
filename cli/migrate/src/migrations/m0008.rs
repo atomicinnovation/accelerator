@@ -91,7 +91,7 @@ fn enumerate(
     ctx: &dyn MigrationContext,
 ) -> Result<Vec<(PathBuf, FileKind)>, MigrationError> {
     let mut meta = BTreeSet::new();
-    for dir in ctx.doc_type_dirs() {
+    for dir in ctx.doc_type_dirs()? {
         for file in ctx.list_md_files(&dir.dir)? {
             meta.insert(file);
         }
@@ -287,11 +287,20 @@ mod tests {
     }
 
     impl MigrationContext for TestCtx {
-        fn doc_type_dirs(&self) -> Vec<DocTypeDir> {
-            self.dirs.clone()
+        fn doc_types(&self) -> &corpus::DocTypeCatalogue {
+            static ASSEMBLED: std::sync::LazyLock<
+                std::sync::Arc<corpus::DocTypeCatalogue>,
+            > = std::sync::LazyLock::new(|| {
+                declarations::catalogue()
+                    .expect("the assembled catalogue builds")
+            });
+            &ASSEMBLED
         }
-        fn corpus_index(&self) -> &dyn CorpusIndex {
-            &self.index
+        fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError> {
+            Ok(self.dirs.clone())
+        }
+        fn corpus_index(&self) -> Result<&dyn CorpusIndex, MigrationError> {
+            Ok(&self.index)
         }
         fn root(&self) -> &Path {
             &self.root

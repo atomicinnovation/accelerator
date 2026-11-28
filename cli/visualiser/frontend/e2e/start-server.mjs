@@ -67,10 +67,9 @@ if (!existsSync(bin)) {
 // served files from the on-disk fixtures these specs mutate (breaking the
 // fs-driven SSE and per-test reset flow). So the fixtures directory itself is
 // the project root — meta/ and templates/ are already real children — and only
-// .accelerator (config + git-ignored runtime state) is added. config.md remaps
-// the one path that differs from the catalogue default (research_codebase →
-// meta/research). globalSetup/globalTeardown snapshot and restore the mutated
-// work-item, research-set manifest and design-inventory files.
+// .accelerator (git-ignored runtime state) is added. globalSetup/globalTeardown
+// snapshot and restore the mutated work-item, research-set manifest and
+// design-inventory files.
 
 const project = join(serverDir, "tests/fixtures");
 // The project root is fixed (not a fresh tempdir), so runtime state from an
@@ -78,11 +77,8 @@ const project = join(serverDir, "tests/fixtures");
 // below blocks on THIS server's server-info.json rather than reading a stale
 // port left by a previous run (or a checkout that accidentally tracked one).
 rmSync(join(project, ".accelerator", "tmp"), { recursive: true, force: true });
+rmSync(join(project, ".accelerator", "config.md"), { force: true });
 mkdirSync(join(project, ".accelerator"), { recursive: true });
-writeFileSync(
-  join(project, ".accelerator", "config.md"),
-  "---\npaths:\n  research_codebase: meta/research\n---\n",
-);
 const infoPath = join(project, ".accelerator/tmp/visualiser/server-info.json");
 
 // ── 4. Spawn the visualiser server ────────────────────────────────────────────

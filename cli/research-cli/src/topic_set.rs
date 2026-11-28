@@ -40,17 +40,20 @@ impl From<SetError> for String {
 /// # Errors
 ///
 /// [`SetError::UnreadableConfig`] when the configured directory cannot be
-/// read, and [`SetError::Unresolved`] when `slug` resolves to no set.
+/// read or the doc type catalogue cannot be assembled, and
+/// [`SetError::Unresolved`] when `slug` resolves to no set.
 pub fn resolve_set(
     project: &ProjectContext,
     cwd: &Path,
     slug: &str,
 ) -> Result<PathBuf, SetError> {
     let sets = project
-        .type_dir(DocTypeKey::TopicResearch)
+        .type_dir(DocTypeKey::TOPIC_RESEARCH)
         .map_err(SetError::UnreadableConfig)?;
+    let catalogue = declarations::catalogue()
+        .map_err(|error| SetError::UnreadableConfig(error.to_string()))?;
     let Resolution::Resolved(set_root) =
-        resolve_document(cwd, DOC_TYPE, slug, |_| Ok(sets))
+        resolve_document(&catalogue, cwd, DOC_TYPE, slug, |_| Ok(sets))
     else {
         return Err(SetError::Unresolved(format!(
             "E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set '{slug}'"

@@ -68,6 +68,11 @@ def _workspace() -> list[Package]:
         _crate("work-adapters", "adapter", context="work"),
         _crate("research", "domain", context="research", kind="product"),
         _crate("research-adapters", "adapter", context="research"),
+        _crate("research-declarations", "declarations", context="research"),
+        _crate("design", "domain", context="design", kind="product"),
+        _crate("design-adapters", "adapter", context="design"),
+        _crate("design-declarations", "declarations", context="design"),
+        _crate("declarations", "declarations-assembly"),
         _crate("jira-client", "adapter", context="jira", kind="product"),
         _crate("document", "technical-library"),
         _crate("store", "technical-library"),
@@ -246,6 +251,154 @@ def test_an_undeclared_downstream_may_not_build_on_a_shared_context() -> None:
         f"research -> tracker: {Rule.UPSTREAM}",
         f"research-adapters -> tracker-support: {Rule.UPSTREAM}",
         f"research-adapters -> tracker-support: {Rule.INJECTION}",
+    ]
+
+
+@pytest.mark.parametrize("target", ["kernel", "corpus"])
+def test_a_declarations_crate_reaches_only_kernel_and_platform_domains(
+    target,
+) -> None:
+    assert _findings(("research-declarations", target)) == []
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "work",
+        "tracker",
+        "corpus-adapters",
+        "document",
+        "design-declarations",
+        "declarations",
+    ],
+)
+def test_a_declarations_crate_reaching_further_breaks_the_rule(
+    target,
+) -> None:
+    assert f"research-declarations -> {target}: {Rule.DECLARATIONS}" in (
+        _findings(("research-declarations", target))
+    )
+
+
+def test_a_declarations_crate_needs_a_context() -> None:
+    assert _declaration_findings(
+        _crate("research-declarations", "declarations")
+    ) == [
+        f"research-declarations: {Rule.DECLARATION} (role 'declarations' "
+        "needs a context)"
+    ]
+
+
+def test_a_declarations_crate_carries_no_kind() -> None:
+    assert _declaration_findings(
+        _crate("research", "domain", context="research", kind="product"),
+        _crate(
+            "research-declarations",
+            "declarations",
+            context="research",
+            kind="product",
+        ),
+    ) == [
+        f"research-declarations: {Rule.DECLARATION} (role 'declarations' "
+        "carries no kind)"
+    ]
+
+
+def test_a_declarations_crate_alone_leaves_its_context_without_a_kind() -> None:
+    assert _declaration_findings(
+        _crate("research-declarations", "declarations", context="research")
+    ) == [
+        f"research-declarations: {Rule.DECLARATION} (context 'research' "
+        "declares no kind)"
+    ]
+
+
+@pytest.mark.parametrize(
+    "source",
+    ["research", "research-adapters", "declarations", "work-cli", "launcher"],
+)
+def test_a_declarations_crate_is_reached_from_its_context_roots_and_assembly(
+    source,
+) -> None:
+    assert _findings((source, "research-declarations")) == []
+
+
+@pytest.mark.parametrize(
+    "source", ["work", "work-adapters", "corpus", "document"]
+)
+def test_a_declarations_crate_is_reached_from_no_other_crate(source) -> None:
+    assert (
+        f"{source} -> research-declarations: {Rule.DECLARATIONS_REACH}"
+        in _findings((source, "research-declarations"))
+    )
+
+
+@pytest.mark.parametrize("target", ["corpus", "research-declarations"])
+def test_the_assembly_reaches_platform_domains_and_declarations(
+    target,
+) -> None:
+    assert _findings(("declarations", target)) == []
+
+
+@pytest.mark.parametrize(
+    "target", ["research", "corpus-adapters", "document", "work-cli"]
+)
+def test_the_assembly_reaching_further_breaks_the_rule(target) -> None:
+    assert f"declarations -> {target}: {Rule.ASSEMBLY}" in _findings(
+        ("declarations", target)
+    )
+
+
+def test_the_assembly_carries_no_context() -> None:
+    assert _declaration_findings(
+        _crate("declarations", "declarations-assembly", context="corpus")
+    ) == [
+        f"declarations: {Rule.DECLARATION} (role 'declarations-assembly' "
+        "carries no context)"
+    ]
+
+
+@pytest.mark.parametrize("source", ["work-cli", "launcher"])
+def test_composition_roots_and_the_launcher_depend_on_the_assembly(
+    source,
+) -> None:
+    assert _findings((source, "declarations")) == []
+
+
+@pytest.mark.parametrize(
+    "source", ["corpus", "corpus-adapters", "research-declarations"]
+)
+def test_only_composition_roots_and_the_launcher_depend_on_the_assembly(
+    source,
+) -> None:
+    assert f"{source} -> declarations: {Rule.ASSEMBLY_REACH}" in _findings(
+        (source, "declarations")
+    )
+
+
+def test_a_dev_dependency_on_the_assembly_is_not_judged() -> None:
+    assert _findings(("corpus-adapters", "declarations", "dev")) == []
+
+
+def test_a_domain_may_depend_on_its_own_contexts_declarations_crate() -> None:
+    assert _findings(("research", "research-declarations")) == []
+    assert _findings(("research", "design-declarations")) == [
+        f"research -> design-declarations: {Rule.INWARD}",
+        f"research -> design-declarations: {Rule.DECLARATIONS_REACH}",
+    ]
+
+
+def test_the_launcher_may_depend_on_declarations_crates_and_the_assembly() -> (
+    None
+):
+    assert (
+        _findings(
+            ("launcher", "research-declarations"), ("launcher", "declarations")
+        )
+        == []
+    )
+    assert _findings(("launcher", "research")) == [
+        f"launcher -> research: {Rule.LAUNCHER}"
     ]
 
 
@@ -428,6 +581,9 @@ _EXPECTED_DECLARATIONS = {
     "design-adapters": ("adapter", "design", None, None),
     "research": ("domain", "research", _PRODUCT, None),
     "research-adapters": ("adapter", "research", None, None),
+    "research-declarations": ("declarations", "research", None, None),
+    "design-declarations": ("declarations", "design", None, None),
+    "declarations": ("declarations-assembly", None, None, None),
     "jira-client": ("adapter", "jira", _PRODUCT, None),
     "linear-client": ("adapter", "linear", _PRODUCT, None),
     "shortcut-client": ("adapter", "shortcut", _PRODUCT, None),

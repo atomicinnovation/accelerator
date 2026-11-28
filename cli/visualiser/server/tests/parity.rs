@@ -25,11 +25,11 @@ fn slug_and_id_conventions_are_pinned() {
     let derive =
         |kind, f: &str| corpus::slug::derive(kind, f, cfg.convention());
     assert_eq!(
-        derive(DocTypeKey::WorkItems, "0042-ship-it.md").as_deref(),
+        derive(DocTypeKey::WORK_ITEMS, "0042-ship-it.md").as_deref(),
         Some("ship-it")
     );
     assert_eq!(
-        derive(DocTypeKey::Decisions, "ADR-0012-some-choice.md").as_deref(),
+        derive(DocTypeKey::DECISIONS, "ADR-0012-some-choice.md").as_deref(),
         Some("some-choice")
     );
     assert_eq!(
@@ -55,54 +55,55 @@ fn slug_and_id_conventions_are_pinned() {
 #[test]
 fn doc_type_wire_and_config_keys_are_pinned() {
     let rows: &[(DocTypeKey, &str, Option<&str>)] = &[
-        (DocTypeKey::Decisions, "decisions", Some("decisions")),
-        (DocTypeKey::WorkItems, "work-items", Some("work")),
-        (DocTypeKey::Plans, "plans", Some("plans")),
+        (DocTypeKey::DECISIONS, "decisions", Some("decisions")),
+        (DocTypeKey::WORK_ITEMS, "work-items", Some("work")),
+        (DocTypeKey::PLANS, "plans", Some("plans")),
         (
-            DocTypeKey::Research,
+            DocTypeKey::RESEARCH,
             "codebase-research",
             Some("research_codebase"),
         ),
         (
-            DocTypeKey::PlanReviews,
+            DocTypeKey::PLAN_REVIEWS,
             "plan-reviews",
             Some("review_plans"),
         ),
-        (DocTypeKey::PrReviews, "pr-reviews", Some("review_prs")),
+        (DocTypeKey::PR_REVIEWS, "pr-reviews", Some("review_prs")),
         (
-            DocTypeKey::WorkItemReviews,
+            DocTypeKey::WORK_ITEM_REVIEWS,
             "work-item-reviews",
             Some("review_work"),
         ),
-        (DocTypeKey::Validations, "validations", Some("validations")),
-        (DocTypeKey::Notes, "notes", Some("notes")),
-        (DocTypeKey::PrDescriptions, "pr-descriptions", Some("prs")),
+        (DocTypeKey::VALIDATIONS, "validations", Some("validations")),
+        (DocTypeKey::NOTES, "notes", Some("notes")),
+        (DocTypeKey::PR_DESCRIPTIONS, "pr-descriptions", Some("prs")),
         (
-            DocTypeKey::DesignGaps,
+            DocTypeKey::DESIGN_GAPS,
             "design-gaps",
             Some("research_design_gaps"),
         ),
         (
-            DocTypeKey::DesignInventories,
+            DocTypeKey::DESIGN_INVENTORIES,
             "design-inventories",
             Some("research_design_inventories"),
         ),
         (
-            DocTypeKey::TopicResearch,
+            DocTypeKey::TOPIC_RESEARCH,
             "topic-research",
             Some("research_topics"),
         ),
         (
-            DocTypeKey::RootCauseAnalyses,
+            DocTypeKey::ROOT_CAUSE_ANALYSES,
             "root-cause-analyses",
             Some("research_issues"),
         ),
-        (DocTypeKey::Templates, "templates", None),
+        (DocTypeKey::TEMPLATES, "templates", None),
     ];
-    assert_eq!(rows.len(), DocTypeKey::all().len());
+    let catalogue = declarations::catalogue().unwrap();
+    assert_eq!(rows.len(), catalogue.doc_types().len());
     for (kind, wire, config_key) in rows {
-        assert_eq!(kind.wire_str(), *wire, "wire for {kind:?}");
-        assert_eq!(DocTypeKey::from_wire_str(wire), Some(*kind));
+        assert_eq!(kind.wire_token(), *wire, "wire for {kind:?}");
+        assert_eq!(catalogue.from_wire_token(wire), Some(*kind));
         assert_eq!(kind.config_path_key(), *config_key, "config for {kind:?}");
         if let Some(key) = kind.config_path_key() {
             assert!(
@@ -203,6 +204,7 @@ fn entry(
         completeness: None,
         linked_count: 0,
         cluster_key: None,
+        set: None,
     }
 }
 
@@ -214,7 +216,7 @@ fn entry(
 fn clustering_typed_linkage_is_pinned() {
     let cfg = WorkItemConfig::default_numeric();
     let mut wi = entry(
-        DocTypeKey::WorkItems,
+        DocTypeKey::WORK_ITEMS,
         "/repo/meta/work/0040-pipeline.md",
         "pipeline",
         serde_json::Value::Null,
@@ -222,13 +224,13 @@ fn clustering_typed_linkage_is_pinned() {
     wi.work_item_id = Some("0040".to_string());
     wi.identity_key = Some("0040".to_string());
     let plan = entry(
-        DocTypeKey::Plans,
+        DocTypeKey::PLANS,
         "/repo/meta/plans/2026-05-31-0040-pipeline.md",
         "pipeline",
         serde_json::json!({ "parent": "work-item:0040" }),
     );
     let note = entry(
-        DocTypeKey::Notes,
+        DocTypeKey::NOTES,
         "/repo/meta/notes/loose-thought.md",
         "loose-thought",
         serde_json::Value::Null,
@@ -241,12 +243,12 @@ fn clustering_typed_linkage_is_pinned() {
     )]
     .into_iter()
     .collect();
-    let plans_by_id = HashMap::new();
+    let documents_by_address = HashMap::new();
     let root = PathBuf::from("/repo");
     let ctx = ClusterContext::from_entries(
         &entries,
         &work_item_by_identity_key,
-        &plans_by_id,
+        &documents_by_address,
         &root,
         &cfg,
     );

@@ -422,9 +422,9 @@ mod tests {
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
         vec![
-            (DocTypeKey::WorkItems, PathBuf::from("meta/work")),
-            (DocTypeKey::Plans, PathBuf::from("meta/plans")),
-            (DocTypeKey::Decisions, PathBuf::from("meta/decisions")),
+            (DocTypeKey::WORK_ITEMS, PathBuf::from("meta/work")),
+            (DocTypeKey::PLANS, PathBuf::from("meta/plans")),
+            (DocTypeKey::DECISIONS, PathBuf::from("meta/decisions")),
         ]
     }
 
@@ -456,8 +456,8 @@ mod tests {
             vec![PathBuf::from("meta/work/0001.md")],
         );
         let table = vec![
-            (DocTypeKey::WorkItems, PathBuf::from("meta/work")),
-            (DocTypeKey::Plans, PathBuf::from("meta")),
+            (DocTypeKey::WORK_ITEMS, PathBuf::from("meta/work")),
+            (DocTypeKey::PLANS, PathBuf::from("meta")),
         ];
         let files = corpus_files(&table, &walker)?;
         assert_eq!(files, vec![PathBuf::from("meta/work/0001.md")]);

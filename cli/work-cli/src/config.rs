@@ -115,3 +115,63 @@ pub fn resolve_work_dir(
         })?;
     Ok(root.join(relative))
 }
+
+#[cfg(test)]
+pub mod tests {
+    use std::path::Path;
+
+    use ::config::ConfigAccess;
+    use ::config::ConfigError;
+    use ::config::Key;
+    use ::config::Level;
+    use ::config::Resolved;
+    use ::config::Scalar;
+    use ::config::Value;
+
+    use super::resolve_work_dir;
+
+    pub struct OverlappingConfig;
+
+    impl ConfigAccess for OverlappingConfig {
+        fn get(
+            &self,
+            key: &Key,
+            level: Option<Level>,
+        ) -> Result<Resolved, ConfigError> {
+            Ok(
+                if level != Some(Level::Team)
+                    && key.to_string() == "paths.research_codebase"
+                {
+                    Resolved::Found(Value::Scalar(Scalar::String(
+                        "meta/research".to_owned(),
+                    )))
+                } else {
+                    Resolved::Absent
+                },
+            )
+        }
+
+        fn set(
+            &self,
+            _key: &Key,
+            _value: &str,
+            _level: Level,
+        ) -> Result<(), ConfigError> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn the_work_directory_of_an_overlapping_configuration_is_refused() {
+        let refused = resolve_work_dir(&OverlappingConfig, Path::new("/repo"));
+
+        let message = refused.err().map(|error| error.to_string());
+        assert!(
+            message
+                .as_deref()
+                .is_some_and(|text| text.contains("paths.research_codebase")
+                    && text.contains("paths.research_issues")),
+            "the work directory was not refused naming both keys: {message:?}"
+        );
+    }
+}

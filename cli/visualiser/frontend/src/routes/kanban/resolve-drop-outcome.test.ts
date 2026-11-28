@@ -24,6 +24,8 @@ function makeEntry(relPath: string, status: string): IndexEntry {
     completeness: null,
     linkedCount: 0,
     clusterKey: null,
+    setId: null,
+    setRelativePath: null,
   };
 }
 

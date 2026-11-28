@@ -4,6 +4,32 @@
 
 ### Breaking
 
+- **Doc roots may not equal or contain one another.** A configuration in which
+  one `paths.*` doc root equals or contains another, such as
+  `research_codebase: meta/research` alongside the default
+  `meta/research/issues`, is now refused, naming both keys. The visualiser
+  refuses it, comparing roots after following symlinks. So do
+  `accelerator config paths --doc-types`, `accelerator config path` for any
+  doc type's key, and the `corpus`, `work` and `research` commands. Other path
+  keys still resolve, and `accelerator config set` still writes, so the
+  overlap can be fixed.
+- **`accelerator migrate` refuses doc roots the configuration resolver
+  rejects.** A run, and `accelerator migrate --list`, now stop before
+  applying or listing any migration when the doc roots overlap or a doc path
+  is unsafe (absolute, or escaping the project with `..`). An up-to-date run
+  refuses too. Migrations 0006 and 0010 used to warn and skip an unsafe path,
+  and migration 0006 used to walk two keys aliased to one directory once. A
+  migration that writes such a configuration stops the run and is not
+  recorded as applied.
+- **`accelerator corpus resolve` resolves a set only through its shape.** For
+  a set type, such as `topic-research` or `design-inventory`, a slug now
+  resolves only a directory whose name has no leading dot and which holds the
+  set's root file (`manifest.md`, `inventory.md`). A path resolves to its set
+  only when it is the set directory, its root, a member, or a directory that
+  may hold members, such as `findings/` or `screenshots/`. A rootless or
+  dot-prefixed directory, a file the set's shape does not name and a stray
+  file in the type directory now exit 3. The `accelerator research topic`
+  commands resolve sets the same way.
 - **Jira Markdown conversion covers more of Markdown, and escapes text that
   would read as syntax.** `jira show` and `jira search --render-adf` now render
   strike as `~~`, blockquotes, pipe tables, rules, nested lists and a list
@@ -721,9 +747,43 @@
   `relates_to`. As with `ask`, the commands it runs after a reply ask for
   permission, and a headless session denies them; the same four allow rules
   avoid that.
+- **`GET /api/sets/{type}/{setId}` serves a set whole.** For a topic
+  research set or a design inventory, the visualiser returns the set's root
+  and every member in one response, members in set-relative path order. Each
+  document carries its set-relative path, title, frontmatter and etag, but no
+  body; each asset carries its set-relative path, size and modification
+  time. `setId` is the root's frontmatter `id`, or else the set directory's
+  name; when two sets share an `id`, each takes its directory's name, as the
+  library does. An unknown doc type returns 400; a doc type that is not a
+  set type, or an unknown `setId`, returns 404.
 
 ### Changed
 
+- **The visualiser's refused frontmatter write names kanban items.** A
+  `PATCH /api/docs/{path}/frontmatter` to a document outside the kanban now
+  returns 400 with `{"error": "only kanban items are writable"}`, not
+  `"only work-items are writable"`. Any doc type the kanban shows takes
+  frontmatter writes; work items are still the only built-in one.
+- **The visualiser serves only a set's documents from inside its
+  directory.** `/api/docs/{path}` now returns 404 for any file in a topic
+  research set or design inventory other than the set's root and member
+  documents: a screenshot, a prototype file or a dot-prefixed working file,
+  for instance. It also returns 404 for a file in a directory that holds no
+  set root, and for any directory, which used to fail with 500. A case variant
+  of such a path, or one reached through a symlink, is refused too.
+- **Visualiser search finds a topic research set's member documents.** A
+  brief, outline, synthesis, finding or report is matched on its own title,
+  file name and first paragraph, and its result opens the set. The type
+  listing, counts and lifecycle still show one entry per set.
+- **The visualiser follows a set's members and screenshots live.** Adding,
+  editing or removing a topic research set's member document or a design
+  inventory's screenshot now sends a change event, where only a set's root
+  did before, and a set renamed into place or a screenshot renamed only in
+  case reads as one change. A set's changes share one activity row, for its
+  root, which keeps the root's last action, and the activity feed now shows
+  the rows the server recorded, the application's own edits included. A
+  set's latest change counts a removed member or screenshot from when it was
+  seen gone.
 - **A finding stem for a long question is cut at a word.** A question slug
   over 60 characters is now cut before the word that would pass 60, or at 60
   when that would leave 40 or fewer, as a report's name is. Findings already

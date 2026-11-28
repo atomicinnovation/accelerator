@@ -968,6 +968,8 @@ const KANBAN_ENTRY: IndexEntry = {
   },
   linkedCount: 3,
   clusterKey: "0086",
+  setId: null,
+  setRelativePath: null,
 };
 const KANBAN_STATES = [
   { id: "resting", props: {} },

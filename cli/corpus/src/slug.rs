@@ -3,8 +3,21 @@
 use crate::doc_type::DocTypeKey;
 use crate::id_convention::IdConvention;
 
-/// Derives the descriptive slug for a document filename, dispatching on its
-/// type. Returns `None` when the filename carries no slug.
+/// How a doc type's filenames carry their descriptive slug.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlugRule {
+    /// A fixed prefix and a number, such as `ADR-0007-`.
+    NumberedPrefix(&'static str),
+    WorkItem,
+    DateAndOptionalId,
+    DateAndOptionalIdThenReviewSuffix,
+    WorkItemReview,
+    VerbatimStem,
+    NoSlug,
+}
+
+/// Derives the descriptive slug for a document filename by its type's
+/// slug rule. Returns `None` when the filename carries no slug.
 #[must_use]
 pub fn derive(
     kind: DocTypeKey,
@@ -12,29 +25,22 @@ pub fn derive(
     ids: &dyn IdConvention,
 ) -> Option<String> {
     let stem = markdown_stem(filename)?;
-    match kind {
-        DocTypeKey::Decisions => strip_prefix_numbered(stem, "ADR-"),
-        DocTypeKey::WorkItems => derive_work_item(filename, ids)
+    match kind.slug_rule() {
+        SlugRule::NumberedPrefix(prefix) => strip_prefix_numbered(stem, prefix),
+        SlugRule::WorkItem => derive_work_item(filename, ids)
             .or_else(|| strip_prefix_work_item_id(stem)),
-        DocTypeKey::Plans
-        | DocTypeKey::Research
-        | DocTypeKey::Validations
-        | DocTypeKey::Notes
-        | DocTypeKey::PrDescriptions
-        | DocTypeKey::DesignGaps
-        | DocTypeKey::DesignInventories
-        | DocTypeKey::RootCauseAnalyses => {
+        SlugRule::DateAndOptionalId => {
             strip_prefix_date_and_optional_id(stem, ids)
         }
-        DocTypeKey::PlanReviews | DocTypeKey::PrReviews => {
+        SlugRule::DateAndOptionalIdThenReviewSuffix => {
             strip_prefix_date_and_optional_id(stem, ids)
                 .and_then(|slug| strip_suffix_review_n(&slug))
         }
-        DocTypeKey::WorkItemReviews => derive_work_item_review(stem, ids),
-        DocTypeKey::TopicResearch => {
+        SlugRule::WorkItemReview => derive_work_item_review(stem, ids),
+        SlugRule::VerbatimStem => {
             Some(stem.to_owned()).filter(|slug| !slug.is_empty())
         }
-        DocTypeKey::Templates => None,
+        SlugRule::NoSlug => None,
     }
 }
 
@@ -206,7 +212,24 @@ mod tests {
     use crate::doc_type::DocTypeKey;
     use crate::id_convention::test_ids::{FourDigitIds, NUMERIC};
 
-    use super::{derive, humanise_slug};
+    use super::{derive, humanise_slug, SlugRule};
+    use crate::doc_type::DocType;
+
+    static REQUESTS_FOR_COMMENT: DocType = DocType {
+        wire_token: "requests-for-comment",
+        slug_rule: SlugRule::NumberedPrefix("RFC-"),
+        ..DocType::FLAT_DEFAULTS
+    };
+
+    #[test]
+    fn a_declared_numbered_prefix_is_stripped_from_its_type_s_filenames() {
+        let rfcs = DocTypeKey::declared(&REQUESTS_FOR_COMMENT);
+        assert_eq!(
+            derive(rfcs, "RFC-0012-streaming.md", &NUMERIC).as_deref(),
+            Some("streaming")
+        );
+        assert_eq!(derive(rfcs, "ADR-0012-streaming.md", &NUMERIC), None);
+    }
 
     const PROJECT: FourDigitIds = FourDigitIds { key: Some("PROJ") };
 
@@ -220,7 +243,7 @@ mod tests {
         ];
         for (input, expected) in cases {
             assert_eq!(
-                derive(DocTypeKey::Decisions, input, &NUMERIC).as_deref(),
+                derive(DocTypeKey::DECISIONS, input, &NUMERIC).as_deref(),
                 expected,
                 "{input}"
             );
@@ -231,20 +254,21 @@ mod tests {
     fn work_items_strip_the_numeric_id() {
         assert_eq!(
             derive(
-                DocTypeKey::WorkItems,
+                DocTypeKey::WORK_ITEMS,
                 "0029-template-subcommand.md",
                 &NUMERIC
             )
             .as_deref(),
             Some("template-subcommand")
         );
-        assert_eq!(derive(DocTypeKey::WorkItems, "0001.md", &NUMERIC), None);
+        assert_eq!(derive(DocTypeKey::WORK_ITEMS, "0001.md", &NUMERIC), None);
     }
 
     #[test]
     fn work_items_keep_their_slug_under_an_upper_case_extension() {
         assert_eq!(
-            derive(DocTypeKey::WorkItems, "0400-probe.MD", &NUMERIC).as_deref(),
+            derive(DocTypeKey::WORK_ITEMS, "0400-probe.MD", &NUMERIC)
+                .as_deref(),
             Some("probe")
         );
     }
@@ -252,12 +276,12 @@ mod tests {
     #[test]
     fn work_items_fall_back_to_bare_numeric_under_a_project_pattern() {
         assert_eq!(
-            derive(DocTypeKey::WorkItems, "PROJ-0042-ship.md", &PROJECT)
+            derive(DocTypeKey::WORK_ITEMS, "PROJ-0042-ship.md", &PROJECT)
                 .as_deref(),
             Some("ship")
         );
         assert_eq!(
-            derive(DocTypeKey::WorkItems, "0042-legacy.md", &PROJECT)
+            derive(DocTypeKey::WORK_ITEMS, "0042-legacy.md", &PROJECT)
                 .as_deref(),
             Some("legacy")
         );
@@ -277,7 +301,7 @@ mod tests {
         ];
         for (input, expected) in cases {
             assert_eq!(
-                derive(DocTypeKey::Plans, input, &NUMERIC).as_deref(),
+                derive(DocTypeKey::PLANS, input, &NUMERIC).as_deref(),
                 expected,
                 "{input}"
             );
@@ -288,7 +312,7 @@ mod tests {
     fn plan_reviews_strip_the_trailing_review_suffix() {
         assert_eq!(
             derive(
-                DocTypeKey::PlanReviews,
+                DocTypeKey::PLAN_REVIEWS,
                 "2026-03-28-review-pr-migration-review-1.md",
                 &NUMERIC
             )
@@ -297,7 +321,7 @@ mod tests {
         );
         assert_eq!(
             derive(
-                DocTypeKey::PlanReviews,
+                DocTypeKey::PLAN_REVIEWS,
                 "2026-04-18-no-suffix.md",
                 &NUMERIC
             ),
@@ -311,7 +335,7 @@ mod tests {
         // the slug and survives.
         assert_eq!(
             derive(
-                DocTypeKey::PlanReviews,
+                DocTypeKey::PLAN_REVIEWS,
                 "2026-03-28-review-pr-review-2-review-1.md",
                 &NUMERIC
             )
@@ -323,7 +347,7 @@ mod tests {
         // review to name and the slug is absent rather than silently truncated.
         assert_eq!(
             derive(
-                DocTypeKey::PlanReviews,
+                DocTypeKey::PLAN_REVIEWS,
                 "2026-03-28-plan-review-final.md",
                 &NUMERIC
             ),
@@ -335,7 +359,7 @@ mod tests {
     fn work_item_reviews_accept_the_no_date_id_prefixed_shape() {
         assert_eq!(
             derive(
-                DocTypeKey::WorkItemReviews,
+                DocTypeKey::WORK_ITEM_REVIEWS,
                 "0030-centralise-path-defaults-review-1.md",
                 &NUMERIC
             )
@@ -346,14 +370,14 @@ mod tests {
 
     #[test]
     fn templates_have_no_slug() {
-        assert_eq!(derive(DocTypeKey::Templates, "plan.md", &NUMERIC), None);
+        assert_eq!(derive(DocTypeKey::TEMPLATES, "plan.md", &NUMERIC), None);
     }
 
     #[test]
     fn topic_research_takes_the_subject_directory_name_verbatim() {
         assert_eq!(
             derive(
-                DocTypeKey::TopicResearch,
+                DocTypeKey::TOPIC_RESEARCH,
                 "model-context-protocol.md",
                 &NUMERIC
             )
@@ -364,7 +388,7 @@ mod tests {
 
     #[test]
     fn topic_research_guards_the_empty_stem() {
-        assert_eq!(derive(DocTypeKey::TopicResearch, ".md", &NUMERIC), None);
+        assert_eq!(derive(DocTypeKey::TOPIC_RESEARCH, ".md", &NUMERIC), None);
     }
 
     #[test]

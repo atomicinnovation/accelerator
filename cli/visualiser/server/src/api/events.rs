@@ -58,6 +58,7 @@ mod tests {
             owner_start_time: None,
             log_path: tmp.path().join("server.log"),
             doc_paths: std::collections::HashMap::default(),
+            doc_types: Some(crate::test_support::assembled_catalogue()),
             templates: std::collections::HashMap::default(),
             work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,
@@ -120,7 +121,7 @@ mod tests {
 
         hub.broadcast(SsePayload::DocChanged {
             action: crate::sse_hub::ActionKind::Edited,
-            doc_type: DocTypeKey::Plans,
+            doc_type: DocTypeKey::PLANS,
             path: "meta/plans/foo.md".into(),
             etag: Some("sha256-abc".into()),
             timestamp: chrono::Utc::now(),

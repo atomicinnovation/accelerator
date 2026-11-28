@@ -8,6 +8,8 @@ use crate::indexer::{
     facets_for, LatestPreview, LibraryAggregates, PerTypeAggregate, Selection,
 };
 use crate::server::AppState;
+use corpus::doc_type::LibraryPhase;
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
 #[derive(Serialize, Debug)]
@@ -15,7 +17,7 @@ use corpus::DocTypeKey;
 pub struct LibraryStructureResponse {
     pub phases: Vec<Phase>,
     /// Virtual templates entry, emitted at the top level (templates has no phase).
-    pub templates: LibraryDocType,
+    pub templates: Option<LibraryDocType>,
 }
 
 #[derive(Serialize, Debug)]
@@ -72,60 +74,32 @@ pub struct FacetOption {
     pub count: usize,
 }
 
-/// Static phase membership. Centralises what was previously the client-side
-/// `PHASE_DOC_TYPES` table. If phase configuration needs to be data-driven
-/// later, this is the seam to extend.
-const PHASES: &[(&str, &str, &[DocTypeKey])] = &[
-    (
-        "define",
-        "Define",
-        &[DocTypeKey::WorkItems, DocTypeKey::WorkItemReviews],
-    ),
-    (
-        "discover",
-        "Discover",
-        &[
-            DocTypeKey::DesignInventories,
-            DocTypeKey::DesignGaps,
-            DocTypeKey::TopicResearch,
-            DocTypeKey::Research,
-        ],
-    ),
-    (
-        "build",
-        "Build",
-        &[
-            DocTypeKey::Plans,
-            DocTypeKey::PlanReviews,
-            DocTypeKey::Validations,
-        ],
-    ),
-    (
-        "ship",
-        "Ship",
-        &[DocTypeKey::PrDescriptions, DocTypeKey::PrReviews],
-    ),
-    ("operate", "Operate", &[DocTypeKey::RootCauseAnalyses]),
-    (
-        "remember",
-        "Remember",
-        &[DocTypeKey::Decisions, DocTypeKey::Notes],
-    ),
+const PHASES: &[(LibraryPhase, &str, &str)] = &[
+    (LibraryPhase::Define, "define", "Define"),
+    (LibraryPhase::Discover, "discover", "Discover"),
+    (LibraryPhase::Build, "build", "Build"),
+    (LibraryPhase::Ship, "ship", "Ship"),
+    (LibraryPhase::Operate, "operate", "Operate"),
+    (LibraryPhase::Remember, "remember", "Remember"),
 ];
 
 pub(crate) async fn library_structure(
     State(state): State<Arc<AppState>>,
     axum::extract::RawQuery(raw): axum::extract::RawQuery,
 ) -> Json<LibraryStructureResponse> {
-    let selection = parse_selection_query(raw.as_deref().unwrap_or(""));
+    let selection =
+        parse_selection_query(&state.doc_types, raw.as_deref().unwrap_or(""));
     let agg = state.indexer.library_aggregates(&selection).await;
-    Json(build_structure(&state.cfg, &agg))
+    Json(build_structure(&state.cfg, &state.doc_types, &agg))
 }
 
 /// Parses repeated query keys of the form `selection[<type>][<facet>]=<option>`
 /// into a `Selection`. URL-decoded values are returned verbatim. Repeated keys
 /// accumulate (OR within a facet). Malformed shapes are silently dropped.
-pub(crate) fn parse_selection_query(raw: &str) -> Selection {
+pub(crate) fn parse_selection_query(
+    doc_types: &DocTypeCatalogue,
+    raw: &str,
+) -> Selection {
     let mut out: Selection = HashMap::new();
     for (key, value) in form_urlencoded::parse(raw.as_bytes()) {
         let Some(rest) = key.strip_prefix("selection[") else {
@@ -146,7 +120,7 @@ pub(crate) fn parse_selection_query(raw: &str) -> Selection {
         if value.is_empty() {
             continue;
         }
-        let Some(doc_type) = DocTypeKey::from_wire_str(type_token) else {
+        let Some(doc_type) = doc_types.from_wire_token(type_token) else {
             continue;
         };
         out.entry(doc_type)
@@ -160,24 +134,44 @@ pub(crate) fn parse_selection_query(raw: &str) -> Selection {
 
 fn build_structure(
     cfg: &crate::config::Config,
+    catalogue: &DocTypeCatalogue,
     agg: &LibraryAggregates,
 ) -> LibraryStructureResponse {
     let phases = PHASES
         .iter()
-        .map(|(id, label, doc_types)| Phase {
+        .map(|(phase, id, label)| Phase {
             id: (*id).to_string(),
             label: (*label).to_string(),
-            doc_types: doc_types
-                .iter()
-                .map(|dt| build_doc_type(cfg, agg, *dt))
+            doc_types: placed_in(catalogue, *phase)
+                .into_iter()
+                .map(|dt| build_doc_type(cfg, agg, dt))
                 .collect(),
         })
         .collect();
 
     LibraryStructureResponse {
         phases,
-        templates: build_doc_type(cfg, agg, DocTypeKey::Templates),
+        templates: catalogue
+            .virtual_type()
+            .map(|templates| build_doc_type(cfg, agg, templates)),
     }
+}
+
+fn placed_in(
+    catalogue: &DocTypeCatalogue,
+    phase: LibraryPhase,
+) -> Vec<DocTypeKey> {
+    let mut placed: Vec<(u8, DocTypeKey)> = catalogue
+        .doc_types()
+        .iter()
+        .filter_map(|kind| {
+            kind.library_placement()
+                .filter(|placement| placement.phase == phase)
+                .map(|placement| (placement.position, *kind))
+        })
+        .collect();
+    placed.sort_by_key(|(position, _)| *position);
+    placed.into_iter().map(|(_, kind)| kind).collect()
 }
 
 fn build_doc_type(
@@ -263,24 +257,28 @@ fn humanise_status(id: &str) -> String {
 mod tests {
     use super::*;
 
+    fn selection_of(raw: &str) -> Selection {
+        parse_selection_query(&crate::test_support::assembled_catalogue(), raw)
+    }
+
     #[test]
     fn parses_empty_string_to_empty_selection() {
-        assert!(parse_selection_query("").is_empty());
+        assert!(selection_of("").is_empty());
     }
 
     #[test]
     fn parses_single_selection_key() {
-        let sel = parse_selection_query("selection[decisions][status]=open");
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let sel = selection_of("selection[decisions][status]=open");
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(decisions.get("status").unwrap(), &vec!["open".to_string()]);
     }
 
     #[test]
     fn parses_repeated_keys_accumulating_into_a_single_facet() {
-        let sel = parse_selection_query(
+        let sel = selection_of(
             "selection[decisions][status]=open&selection[decisions][status]=blocked",
         );
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(
             decisions.get("status").unwrap(),
             &vec!["open".to_string(), "blocked".to_string()]
@@ -289,10 +287,10 @@ mod tests {
 
     #[test]
     fn parses_two_facets_under_one_doc_type() {
-        let sel = parse_selection_query(
+        let sel = selection_of(
             "selection[decisions][status]=open&selection[decisions][clusterSlug]=foo",
         );
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(decisions.get("status").unwrap(), &vec!["open".to_string()]);
         assert_eq!(
             decisions.get("clusterSlug").unwrap(),
@@ -302,16 +300,14 @@ mod tests {
 
     #[test]
     fn empty_value_is_silently_dropped() {
-        let sel = parse_selection_query("selection[decisions][status]=");
+        let sel = selection_of("selection[decisions][status]=");
         assert!(sel.is_empty());
     }
 
     #[test]
     fn url_encoded_value_round_trips() {
-        let sel = parse_selection_query(
-            "selection[decisions][clusterSlug]=foo%20bar",
-        );
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let sel = selection_of("selection[decisions][clusterSlug]=foo%20bar");
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(
             decisions.get("clusterSlug").unwrap(),
             &vec!["foo bar".to_string()]
@@ -320,9 +316,8 @@ mod tests {
 
     #[test]
     fn percent_encoded_reserved_characters_round_trip() {
-        let sel =
-            parse_selection_query("selection[decisions][clusterSlug]=a%2Cb");
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let sel = selection_of("selection[decisions][clusterSlug]=a%2Cb");
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(
             decisions.get("clusterSlug").unwrap(),
             &vec!["a,b".to_string()]
@@ -331,33 +326,31 @@ mod tests {
 
     #[test]
     fn unknown_doc_type_is_silently_dropped() {
-        let sel = parse_selection_query("selection[bogus][status]=open");
+        let sel = selection_of("selection[bogus][status]=open");
         assert!(sel.is_empty());
     }
 
     #[test]
     fn malformed_shapes_are_silently_dropped() {
-        assert!(parse_selection_query("selection[decisions]=open").is_empty());
-        assert!(parse_selection_query("selectionopen").is_empty());
-        assert!(parse_selection_query("[decisions][status]=open").is_empty());
+        assert!(selection_of("selection[decisions]=open").is_empty());
+        assert!(selection_of("selectionopen").is_empty());
+        assert!(selection_of("[decisions][status]=open").is_empty());
     }
 
     #[test]
     fn unrelated_query_params_are_ignored() {
-        let sel = parse_selection_query(
-            "other=value&selection[decisions][status]=open",
-        );
+        let sel = selection_of("other=value&selection[decisions][status]=open");
         assert_eq!(sel.len(), 1);
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(decisions.get("status").unwrap(), &vec!["open".to_string()]);
     }
 
     #[test]
     fn duplicate_options_preserve_duplicates() {
-        let sel = parse_selection_query(
+        let sel = selection_of(
             "selection[decisions][status]=open&selection[decisions][status]=open",
         );
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(
             decisions.get("status").unwrap(),
             &vec!["open".to_string(), "open".to_string()]

@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use super::ApiError;
-use crate::indexer::IndexEntry;
+use crate::indexer::{link_keys_of, IndexEntry, Indexer};
 use crate::server::AppState;
 use corpus::DocTypeKey;
 
@@ -34,6 +34,8 @@ pub(crate) struct SearchResultRow {
     slug: String,
     rel_path: String,
     mtime_ms: i64,
+    set_id: Option<String>,
+    set_relative_path: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -58,12 +60,10 @@ enum Bucket {
 /// allocation in the common case where matches come from title/slug.
 fn classify(entry: &IndexEntry, q_lc: &str) -> Option<Bucket> {
     let title_lc = entry.title.to_ascii_lowercase();
-    let slug_lc = entry.slug.as_deref().map(str::to_ascii_lowercase);
+    let slug_lc = entry.search_key().map(str::to_ascii_lowercase);
 
-    if let Some(s) = slug_lc.as_deref() {
-        if s == q_lc {
-            return Some(Bucket::ExactSlug);
-        }
+    if !entry.is_member() && slug_lc.as_deref() == Some(q_lc) {
+        return Some(Bucket::ExactSlug);
     }
     let title_prefix = title_lc.starts_with(q_lc);
     let slug_prefix = slug_lc.as_deref().is_some_and(|s| s.starts_with(q_lc));
@@ -86,14 +86,17 @@ fn classify(entry: &IndexEntry, q_lc: &str) -> Option<Bucket> {
 /// Returns `None` for slug-less entries — every bucketing path funnels through
 /// this projector so the slug invariant is enforced at the type level.
 fn project(entry: &IndexEntry) -> Option<SearchResultRow> {
-    let slug = entry.slug.clone()?;
+    let link_keys = link_keys_of(entry);
+    let placement = entry.set_placement();
     Some(SearchResultRow {
         doc_type: entry.r#type,
-        id: entry.id.clone(),
+        id: link_keys.id,
         title: entry.title.clone(),
-        slug,
+        slug: link_keys.slug?,
         rel_path: entry.served_rel_path(),
         mtime_ms: entry.mtime_ms,
+        set_id: placement.map(|p| p.context.set_id.clone()),
+        set_relative_path: placement.map(|p| p.set_relative_path.clone()),
     })
 }
 
@@ -112,14 +115,21 @@ pub(crate) async fn search(
     }
     let q_lc = trimmed.to_ascii_lowercase();
 
-    let snapshot = state.indexer.all().await;
+    let results = search_index(&state.indexer, &q_lc).await;
+    Ok(Json(SearchResponse { results }).into_response())
+}
 
+async fn search_index(indexer: &Indexer, q_lc: &str) -> Vec<SearchResultRow> {
+    ranked(indexer.documents_including_members().await, q_lc)
+}
+
+fn ranked(candidates: Vec<IndexEntry>, q_lc: &str) -> Vec<SearchResultRow> {
     let mut buckets: [Vec<IndexEntry>; 4] = [vec![], vec![], vec![], vec![]];
-    for entry in snapshot {
-        if entry.r#type == DocTypeKey::Templates {
+    for entry in candidates {
+        if entry.r#type.is_virtual() {
             continue;
         }
-        if let Some(bucket) = classify(&entry, &q_lc) {
+        if let Some(bucket) = classify(&entry, q_lc) {
             buckets[bucket as usize].push(entry);
         }
     }
@@ -133,11 +143,106 @@ pub(crate) async fn search(
         });
     }
 
-    let results: Vec<SearchResultRow> = buckets
+    buckets
         .into_iter()
         .flatten()
         .filter_map(|e| project(&e))
-        .collect();
+        .collect()
+}
 
-    Ok(Json(SearchResponse { results }).into_response())
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::{dossier, entry_for_test, set_member_for_test};
+
+    fn row_json(rows: &[SearchResultRow]) -> Vec<serde_json::Value> {
+        rows.iter()
+            .map(|row| serde_json::to_value(row).unwrap())
+            .collect()
+    }
+
+    async fn searched(
+        records: Vec<IndexEntry>,
+        q_lc: &str,
+    ) -> Vec<serde_json::Value> {
+        let indexer = Indexer::from_records("/x".into(), records).await;
+        row_json(&search_index(&indexer, q_lc).await)
+    }
+
+    #[tokio::test]
+    async fn a_phrase_in_a_members_first_paragraph_finds_the_member() {
+        let root = dossier("dossier-a");
+        let mut member = set_member_for_test(&root, "findings/01-cost.md");
+        member.slug = None;
+        member.title = "Cost model".into();
+        member.body_preview = "The cache halves the bill.".into();
+
+        let rows = searched(vec![root, member], "halves the bill").await;
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["title"], "Cost model");
+        assert_eq!(rows[0]["slug"], "dossier-a");
+        assert_eq!(rows[0]["setId"], "dossier-a");
+        assert_eq!(rows[0]["setRelativePath"], "findings/01-cost.md");
+    }
+
+    #[test]
+    fn searching_a_sets_slug_ranks_its_root_above_a_member_named_alike() {
+        let mut root = dossier("dossier-a");
+        root.mtime_ms = 1;
+        let mut member = set_member_for_test(&root, "notes/dossier-a.md");
+        member.slug = None;
+        member.title = "dossier-a".into();
+        member.mtime_ms = 2;
+
+        let rows = row_json(&ranked(vec![member, root], "dossier-a"));
+
+        let relative_paths: Vec<&serde_json::Value> =
+            rows.iter().map(|row| &row["setRelativePath"]).collect();
+        assert_eq!(relative_paths, ["cover.md", "notes/dossier-a.md"]);
+    }
+
+    #[test]
+    fn a_member_is_found_by_its_filename_stem() {
+        let root = dossier("dossier-a");
+        let mut member =
+            set_member_for_test(&root, "findings/01-cost-model.md");
+        member.slug = None;
+        member.title = "Economics".into();
+
+        let rows = row_json(&ranked(vec![root, member], "cost-model"));
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["title"], "Economics");
+    }
+
+    #[test]
+    fn a_member_is_not_found_by_its_link_keys() {
+        let root = crate::test_support::set_root_for_test(
+            crate::test_support::dossiers(),
+            "dossier-a",
+            "cover.md",
+            "set-id-x",
+        );
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.slug = None;
+        member.title = "Notes".into();
+        member.body_preview = "Observations.".into();
+
+        let rows = row_json(&ranked(vec![root, member], "set-id-x"));
+
+        assert!(rows
+            .iter()
+            .all(|row| row["setRelativePath"] != "notes/a.md"));
+    }
+
+    #[test]
+    fn a_document_outside_a_set_has_null_set_fields_in_its_row() {
+        let plan = entry_for_test(DocTypeKey::PLANS, "foo", 1, "Foo");
+
+        let rows = row_json(&ranked(vec![plan], "foo"));
+
+        assert_eq!(rows[0]["setId"], serde_json::Value::Null);
+        assert_eq!(rows[0]["setRelativePath"], serde_json::Value::Null);
+    }
 }

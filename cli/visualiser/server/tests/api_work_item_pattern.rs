@@ -95,6 +95,7 @@ fn config_for(
         owner_start_time: None,
         log_path: tmp.join("server.log"),
         doc_paths,
+        doc_types: Some(declarations::catalogue().unwrap()),
         templates,
         work_item: accelerator_visualiser::config::WorkItemScheme::Configured(
             work_item,
@@ -353,6 +354,7 @@ async fn default_numeric_pattern_indexes_bare_numeric_files() {
         owner_start_time: None,
         log_path: tmp.join("server.log"),
         doc_paths,
+        doc_types: Some(declarations::catalogue().unwrap()),
         templates,
         work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,

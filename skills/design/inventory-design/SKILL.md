@@ -315,15 +315,16 @@ Move the tmp directory to its final name:
 <design_inventories>/YYYY-MM-DD-HHMMSS-{source-id}/
 ```
 
-Both the directory glob and the resolver explicitly skip leading-dot directories,
-so an in-progress `.tmp/` is invisible to readers.
+Both the directory glob and the resolver (`accelerator corpus resolve`) skip
+leading-dot directories, so an in-progress `.tmp/` is invisible to readers.
 
 **Supersede prior inventories**: after the new directory is in place, glob
 `*-{source-id}/` under the inventory root (excluding leading-dot names). Exclude
 the just-written directory. For each remaining directory where `inventory.md` has
 `status: draft` or `status: accepted`, set `status: superseded`. This step is
 idempotent; if it fails partway through, the new directory is already
-authoritative (the resolver uses `sequence` as its primary tiebreaker).
+authoritative (`analyse-design-gaps` uses `sequence` as its primary tiebreaker
+when picking among inventories).
 
 **Validate the frontmatter**: after the inventory is at its final path, run
 
@@ -369,8 +370,9 @@ Suggest next steps:
 - If a partial crawl fires a bound, write what was found and mark the inventory
   `status: incomplete` — do not silently drop data.
 - Do not expose env-var values in any output, log, or artifact body.
-- The `sequence` field is the resolver's primary tiebreaker. Always compute it
-  by reading existing inventories before writing.
+- The `sequence` field is the primary tiebreaker `analyse-design-gaps` uses to
+  pick among inventories; `accelerator corpus resolve` does not read it.
+  Always compute it by reading existing inventories before writing.
 - The `.tmp/` → final directory rename is atomic on POSIX filesystems. Do not
   write directly to the final directory name.
 

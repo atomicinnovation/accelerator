@@ -104,18 +104,18 @@ pub fn doc_type_table() -> Result<Vec<(DocTypeKey, PathBuf)>, TestError> {
         .into());
     }
 
+    let catalogue = declarations::catalogue()?;
     let mut table = Vec::new();
     for line in String::from_utf8(output.stdout)?.lines() {
         let Some((name, dir)) = line.split_once('\t') else {
             continue;
         };
-        let kind =
-            DocTypeKey::from_linkage_type_name(name).ok_or_else(|| {
-                format!(
-                    "the doc-type registry emits '{name}', which no DocTypeKey \
+        let kind = catalogue.from_linkage_type_name(name).ok_or_else(|| {
+            format!(
+                "the doc-type registry emits '{name}', which no DocTypeKey \
                      claims — the vocabulary has drifted from the crate"
-                )
-            })?;
+            )
+        })?;
         table.push((kind, PathBuf::from(dir)));
     }
 

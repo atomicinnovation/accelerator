@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { fetchActivity, fetchTypes } from "../../api/fetch";
@@ -10,7 +10,6 @@ import {
   DOC_TYPE_LABELS,
   type DocTypeKey,
   isPhysicalDocTypeKey,
-  type SseEvent,
 } from "../../api/types";
 import { useDocEventsContext } from "../../api/use-doc-events";
 import { Glyph } from "../Glyph/Glyph";
@@ -26,20 +25,6 @@ function basename(path: string): string {
 
 function activityRowId(event: ActivityEvent): string {
   return `${event.timestamp}|${event.path}|${event.action}`;
-}
-
-function dedupeAndSortRows(rows: ActivityEvent[]): ActivityEvent[] {
-  const seen = new Set<string>();
-  const out: ActivityEvent[] = [];
-  for (const r of rows) {
-    const k = activityRowId(r);
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(r);
-  }
-  // RFC-3339 ISO strings sort lexicographically as time.
-  out.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  return out;
 }
 
 function ActivityRowContent({
@@ -75,7 +60,7 @@ function ActivityRowContent({
 }
 
 export function ActivityFeed() {
-  const { data: initial, isSuccess } = useQuery({
+  const { data, isSuccess } = useQuery({
     queryKey: queryKeys.activity(LIMIT),
     queryFn: () => fetchActivity(LIMIT),
   });
@@ -91,7 +76,7 @@ export function ActivityFeed() {
     docTypes?.find((t) => t.key === key)?.label ?? DOC_TYPE_LABELS[key] ?? key;
 
   const { connectionState, subscribe } = useDocEventsContext();
-  const [live, setLive] = useState<ActivityEvent[]>([]);
+  const queryClient = useQueryClient();
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -99,43 +84,21 @@ export function ActivityFeed() {
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    const unsub = subscribe((event: SseEvent) => {
-      if (event.type !== "doc-changed") return;
-      if (
-        typeof event.action !== "string" ||
-        typeof event.timestamp !== "string" ||
-        (event.action as string) === "" ||
-        event.timestamp === ""
-      ) {
-        console.warn(
-          "[activity-feed] dropping doc-changed event with missing/empty " +
-            "action or timestamp — likely cross-version dev drift OR a server " +
-            "serialisation regression",
-          event,
-        );
-        return;
-      }
-      setLive((prev) =>
-        [
-          {
-            action: event.action,
-            docType: event.docType,
-            path: event.path,
-            timestamp: event.timestamp,
-          },
-          ...prev,
-        ].slice(0, LIMIT),
-      );
-    });
-    return unsub;
-  }, [subscribe]);
+  useEffect(
+    () =>
+      subscribe((event) => {
+        if (event.type !== "doc-changed") return;
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.activity(LIMIT),
+        });
+      }),
+    [subscribe, queryClient],
+  );
 
-  const rows = dedupeAndSortRows([...live, ...(initial ?? [])]).slice(0, LIMIT);
+  const rows = data ?? [];
   const documentOf = useActivityRowDocuments(rows);
   const isLive = connectionState === "open";
-  const isEmptyHistory =
-    isSuccess && (initial?.length ?? 0) === 0 && live.length === 0;
+  const isEmptyHistory = isSuccess && rows.length === 0;
 
   return (
     <section aria-labelledby="activity-heading" className={styles.section}>

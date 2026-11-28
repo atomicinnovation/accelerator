@@ -10,11 +10,10 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{api_from_fd, parse_kind, ApiError};
+use super::{api_from_fd, ApiError};
 use crate::file_driver::FileDriver;
 use crate::indexer::IndexEntry;
 use crate::server::AppState;
-use corpus::DocTypeKey;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct DocsListQuery {
@@ -31,9 +30,11 @@ pub(crate) async fn docs_list(
     State(state): State<Arc<AppState>>,
     Query(q): Query<DocsListQuery>,
 ) -> Result<Response, ApiError> {
-    let kind = parse_kind(&q.type_)
+    let kind = state
+        .doc_types
+        .from_wire_token(&q.type_)
         .ok_or(ApiError::InvalidDocType(q.type_.clone()))?;
-    if kind == DocTypeKey::Templates {
+    if kind.is_virtual() {
         return Err(ApiError::InvalidDocType(q.type_.clone()));
     }
     let mut entries: Vec<IndexEntry> = state.indexer.all_by_type(kind).await;
@@ -52,6 +53,9 @@ pub(crate) async fn doc_fetch(
     let abs = state.cfg.project_root.join(&path);
 
     let entry = state.indexer.get(&abs).await;
+    if entry.is_none() && lies_in_a_set_doc_root(&state, &abs).await {
+        return Err(ApiError::NotFound(path));
+    }
     if let Some(ref e) = entry {
         if let Some(inm) = headers.get("if-none-match") {
             let quoted = format!("\"{}\"", e.etag);
@@ -106,6 +110,14 @@ pub(crate) async fn doc_fetch(
         Body::from(bytes),
     )
         .into_response())
+}
+
+/// Decided on the canonical path, so a case variant or a symlinked ancestor
+/// reaches the same answer as the stored path.
+async fn lies_in_a_set_doc_root(state: &AppState, abs: &Path) -> bool {
+    tokio::fs::canonicalize(abs).await.is_ok_and(|canonical| {
+        state.file_driver.lies_in_a_set_doc_root(&canonical)
+    })
 }
 
 // ── Write structs ─────────────────────────────────────────────────────────────
@@ -185,9 +197,9 @@ pub(crate) async fn doc_patch_frontmatter(
         .await
         .ok_or_else(|| ApiError::NotFound(doc_rel.to_string()))?;
 
-    // Step 5 — work-item type guard.
-    if entry.r#type != corpus::DocTypeKey::WorkItems {
-        return Err(ApiError::OnlyWorkItemsAreWritable);
+    // Step 5 — kanban type guard.
+    if !entry.r#type.in_kanban() {
+        return Err(ApiError::OnlyKanbanItemsAreWritable);
     }
 
     // Step 6 — parse JSON body. Result<Json<T>, JsonRejection> intercepts axum's extractor
@@ -267,61 +279,36 @@ pub(crate) async fn doc_patch_frontmatter(
     let committed = committed_canonical.lock().unwrap().take();
     if let Some(canonical) = committed {
         // Refresh index first so subscribers that refetch on the broadcast see fresh data.
-        let _ = state.indexer.refresh_one(&canonical).await;
+        let _ = state
+            .indexer
+            .refresh_one(
+                &canonical,
+                &crate::change_broadcast::ChangeBroadcast::of(&state),
+            )
+            .await;
 
         // Re-cluster + back-fill per-entry Completeness and linked_count so
         // /api/lifecycle, /api/docs/work-items, and /api/related agree on
         // the same slug after a kanban status edit changes cluster
         // membership or cross-reference shape.
-        let snapshot = state.indexer.all().await;
-        let work_item_by_identity_key =
-            state.indexer.work_item_by_identity_key_snapshot().await;
-        let plans_by_id = state.indexer.plans_by_id_snapshot().await;
-        let work_item_cfg = state.indexer.work_item_cfg();
-        let cluster_ctx = crate::clusters::ClusterContext::from_entries(
-            &snapshot,
-            &work_item_by_identity_key,
-            &plans_by_id,
-            state.indexer.project_root(),
-            &work_item_cfg,
-        );
-        let (new_clusters, completeness_backfill, cluster_key_backfill) =
-            crate::clusters::compute_clusters_with_backfill(
-                &snapshot,
-                &cluster_ctx,
-            );
-        let linked_counts = crate::related::collect_linked_counts(
-            &state.indexer,
-            &new_clusters,
-            &snapshot,
-        )
-        .await;
-        state
-            .indexer
-            .apply_completeness_backfill(completeness_backfill)
+        crate::clusters::recompute_clusters(&state.indexer, &state.clusters)
             .await;
-        state
-            .indexer
-            .apply_cluster_key_backfill(cluster_key_backfill)
-            .await;
-        state
-            .indexer
-            .apply_linked_count_backfill(linked_counts)
-            .await;
-        *state.clusters.write().await = new_clusters;
 
         // Use the etag from FileContent, not from the index after refresh. A concurrent
         // external edit between persist and refresh would change the on-disk etag, which
         // would break the self-cause filter for this tab.
-        state
-            .sse_hub
-            .broadcast(crate::sse_hub::SsePayload::DocChanged {
+        crate::change_broadcast::emit(
+            crate::sse_hub::SsePayload::DocChanged {
                 action: crate::sse_hub::ActionKind::Edited,
                 doc_type: entry.r#type,
                 path: doc_rel.to_string(),
                 etag: Some(content.etag.clone()),
                 timestamp: chrono::Utc::now(),
-            });
+            },
+            None,
+            &state.sse_hub,
+            &state.activity_feed,
+        );
     }
 
     // Step 11 — 204 No Content with new ETag.

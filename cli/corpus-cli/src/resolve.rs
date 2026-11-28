@@ -3,6 +3,7 @@
 
 use std::path::Path;
 
+use corpus::DocTypeCatalogue;
 use corpus_adapters::resolve::resolve_document;
 use corpus_adapters::resolve::Resolution;
 
@@ -13,12 +14,13 @@ use crate::config::Composed;
 /// [`Resolution`] to the binary's exit codes: `Resolved` → 0, `Invalid` → 1,
 /// `Ambiguous` → 2, `NotFound` → 3, `UnknownType` → 4, `OutsideRoot` → 6.
 pub fn run(
+    catalogue: &DocTypeCatalogue,
     start: &Path,
     composed: &Composed,
     doc_type: &str,
     slug: &str,
 ) -> Resolution {
-    resolve_document(start, doc_type, slug, |key| {
+    resolve_document(catalogue, start, doc_type, slug, |key| {
         resolve_type_dir(composed, key).map_err(|error| error.to_string())
     })
 }

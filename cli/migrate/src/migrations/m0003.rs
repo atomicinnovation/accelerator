@@ -325,18 +325,34 @@ mod tests {
     }
 
     impl MigrationContext for FakeContext {
-        fn doc_type_dirs(&self) -> Vec<crate::ports::DocTypeDir> {
-            Vec::new()
+        #[allow(clippy::expect_used)]
+        fn doc_types(&self) -> &corpus::DocTypeCatalogue {
+            static ASSEMBLED: std::sync::LazyLock<
+                std::sync::Arc<corpus::DocTypeCatalogue>,
+            > = std::sync::LazyLock::new(|| {
+                declarations::catalogue()
+                    .expect("the assembled catalogue builds")
+            });
+            &ASSEMBLED
+        }
+        fn doc_type_dirs(
+            &self,
+        ) -> Result<Vec<crate::ports::DocTypeDir>, crate::ports::MigrationError>
+        {
+            Ok(Vec::new())
         }
 
-        fn corpus_index(&self) -> &dyn crate::ports::CorpusIndex {
+        fn corpus_index(
+            &self,
+        ) -> Result<&dyn crate::ports::CorpusIndex, crate::ports::MigrationError>
+        {
             struct NoIndex;
             impl crate::ports::CorpusIndex for NoIndex {
                 fn target_exists(&self, _: &str, _: &str) -> bool {
                     false
                 }
             }
-            &NoIndex
+            Ok(&NoIndex)
         }
 
         fn write(

@@ -7,9 +7,14 @@ use serde::Serialize;
 use tokio::sync::{RwLock, Semaphore};
 
 use crate::clusters::Completeness;
-use crate::file_driver::{FileContent, FileDriver, FileDriverError};
+use crate::file_driver::{
+    AssetListing, FileContent, FileDriver, FileDriverError, SetListing,
+};
 use crate::frontmatter::{self, FrontmatterState};
+use corpus::set::{pair_case_only_renames, MemberPath};
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
+use corpus::LinkageAddress;
 
 pub const FRONTMATTER_MALFORMED: &str = "malformed";
 
@@ -48,23 +53,19 @@ pub struct LatestPreview {
 }
 
 impl LatestPreview {
-    fn from_entry(entry: &IndexEntry) -> Self {
+    fn from_entry(entry: &IndexEntry, modified_at: i64) -> Self {
         Self {
             title: entry.title.clone(),
             slug: entry.slug.clone(),
             rel_path: entry.rel_path.to_string_lossy().into_owned(),
-            modified_at: entry.mtime_ms,
+            modified_at,
         }
     }
 }
 
 /// Facet ids declared for a given doc type.
-pub fn facets_for(doc_type: DocTypeKey) -> &'static [&'static str] {
-    match doc_type {
-        DocTypeKey::WorkItems => &["status", "project", "clusterSlug"],
-        DocTypeKey::Templates => &[],
-        _ => &["status", "clusterSlug"],
-    }
+pub fn facets_for(doc_type: DocTypeKey) -> Vec<&'static str> {
+    doc_type.facets().iter().map(|facet| facet.id()).collect()
 }
 
 /// Extracts the value an entry contributes to the given facet, or `None` when
@@ -149,8 +150,8 @@ pub struct IndexEntry {
     pub rel_path: PathBuf,
     pub slug: Option<String>,
     /// The `id` the library links this document by: its frontmatter `id`
-    /// unless another document of the same type shares it, otherwise a
-    /// nested manifest's directory name.
+    /// unless another document of the same type shares it, otherwise a set
+    /// root's set directory name.
     pub id: Option<String>,
     /// The document's own non-empty frontmatter `id`, whether or not
     /// another document of the same type shares it.
@@ -195,6 +196,137 @@ pub struct IndexEntry {
     /// bucket (lifecycle-participating types) or a per-path orphan bucket
     /// (orphan-by-design types). Serialises on the wire as `clusterKey`.
     pub cluster_key: Option<String>,
+    #[serde(flatten, serialize_with = "serialize_set_wire_fields")]
+    pub set: Option<SetDocument>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetContext {
+    pub set_id: String,
+    pub set_slug: Option<String>,
+    pub set_directory: PathBuf,
+    pub root_rel_path: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub struct SetPlacement {
+    pub context: Arc<SetContext>,
+    pub set_relative_path: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetDocumentRole {
+    Root,
+    Member,
+}
+
+#[derive(Debug, Clone)]
+pub struct SetDocument {
+    pub placement: SetPlacement,
+    pub role: SetDocumentRole,
+}
+
+impl SetDocument {
+    pub const fn root(
+        context: Arc<SetContext>,
+        set_relative_path: String,
+    ) -> Self {
+        Self::placed(context, set_relative_path, SetDocumentRole::Root)
+    }
+
+    pub const fn member(
+        context: Arc<SetContext>,
+        set_relative_path: String,
+    ) -> Self {
+        Self::placed(context, set_relative_path, SetDocumentRole::Member)
+    }
+
+    const fn placed(
+        context: Arc<SetContext>,
+        set_relative_path: String,
+        role: SetDocumentRole,
+    ) -> Self {
+        Self {
+            placement: SetPlacement {
+                context,
+                set_relative_path,
+            },
+            role,
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SetWireFields<'a> {
+    set_id: Option<&'a str>,
+    set_relative_path: Option<&'a str>,
+}
+
+fn serialize_set_wire_fields<S: serde::Serializer>(
+    set: &Option<SetDocument>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let placement = set.as_ref().map(|set| &set.placement);
+    SetWireFields {
+        set_id: placement.map(|p| p.context.set_id.as_str()),
+        set_relative_path: placement.map(|p| p.set_relative_path.as_str()),
+    }
+    .serialize(serializer)
+}
+
+pub struct IndexedSet {
+    pub root: IndexEntry,
+    pub members: Vec<IndexEntry>,
+    pub assets: Vec<AssetRecord>,
+}
+
+fn members_in<'a>(
+    entries: impl Iterator<Item = &'a IndexEntry>,
+    set_directory: &Path,
+) -> Vec<IndexEntry> {
+    let mut members: Vec<IndexEntry> = entries
+        .filter(|e| e.is_member())
+        .filter(|e| {
+            e.set_placement()
+                .is_some_and(|p| p.context.set_directory == set_directory)
+        })
+        .cloned()
+        .collect();
+    members.sort_by(|a, b| {
+        a.set_placement()
+            .map(|p| &p.set_relative_path)
+            .cmp(&b.set_placement().map(|p| &p.set_relative_path))
+    });
+    members
+}
+
+fn assets_in<'a>(
+    assets: impl Iterator<Item = &'a AssetRecord>,
+    set_directory: &Path,
+) -> Vec<AssetRecord> {
+    let mut assets: Vec<AssetRecord> = assets
+        .filter(|asset| asset.placement.context.set_directory == set_directory)
+        .cloned()
+        .collect();
+    assets.sort_by(|a, b| {
+        a.placement
+            .set_relative_path
+            .cmp(&b.placement.set_relative_path)
+    });
+    assets
+}
+
+fn set_id_of(
+    root_frontmatter: &FrontmatterState,
+    set_directory: &Path,
+) -> String {
+    document_id(root_frontmatter).unwrap_or_else(|| {
+        set_directory
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    })
 }
 
 /// Test rendezvous point used by the concurrency tests to inspect
@@ -237,10 +369,486 @@ impl IndexEntry {
     pub fn served_rel_path(&self) -> String {
         self.rel_path.to_string_lossy().replace('\\', "/")
     }
+
+    pub fn is_member(&self) -> bool {
+        self.set_role() == Some(SetDocumentRole::Member)
+    }
+
+    pub fn is_set_root(&self) -> bool {
+        self.set_role() == Some(SetDocumentRole::Root)
+    }
+
+    /// No slug rule applies to a member's filename, so search keys a
+    /// member on its stem.
+    pub fn search_key(&self) -> Option<&str> {
+        if self.is_member() {
+            return Path::new(&self.set_placement()?.set_relative_path)
+                .file_stem()?
+                .to_str();
+        }
+        self.slug.as_deref()
+    }
+
+    pub fn set_placement(&self) -> Option<&SetPlacement> {
+        self.set.as_ref().map(|set| &set.placement)
+    }
+
+    fn set_role(&self) -> Option<SetDocumentRole> {
+        self.set.as_ref().map(|set| set.role)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AssetRecord {
+    pub doc_type: DocTypeKey,
+    pub path: PathBuf,
+    pub rel_path: PathBuf,
+    pub placement: SetPlacement,
+    pub size: u64,
+    pub mtime_ms: i64,
+}
+
+impl AssetRecord {
+    fn listed(
+        doc_type: DocTypeKey,
+        context: &Arc<SetContext>,
+        asset: AssetListing,
+        project_root: &Path,
+    ) -> Self {
+        let path = context.set_directory.join(&asset.set_relative_path);
+        Self {
+            doc_type,
+            rel_path: path
+                .strip_prefix(project_root)
+                .map_or_else(|_| path.clone(), Path::to_path_buf),
+            path,
+            placement: SetPlacement {
+                context: context.clone(),
+                set_relative_path: asset.set_relative_path,
+            },
+            size: asset.size,
+            mtime_ms: asset.mtime_ms,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Change<T> {
+    pub before: Option<T>,
+    pub after: Option<T>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct IndexDiff {
+    pub documents: Vec<Change<IndexEntry>>,
+    pub assets: Vec<Change<AssetRecord>>,
+}
+
+impl IndexDiff {
+    pub fn is_empty(&self) -> bool {
+        self.documents.is_empty() && self.assets.is_empty()
+    }
+
+    fn between(
+        before: (&[IndexEntry], &[AssetRecord]),
+        after: (&[IndexEntry], &[AssetRecord]),
+    ) -> Self {
+        Self {
+            documents: changes_between(
+                before.0,
+                after.0,
+                |entry| &entry.path,
+                IndexEntry::set_placement,
+                |was, now| {
+                    was.etag == now.etag
+                        && was.frontmatter_state == now.frontmatter_state
+                },
+            ),
+            assets: changes_between(
+                before.1,
+                after.1,
+                |asset| &asset.path,
+                |asset| Some(&asset.placement),
+                |was, now| was.size == now.size && was.mtime_ms == now.mtime_ms,
+            ),
+        }
+    }
+
+    fn sets_losing_members(&self) -> impl Iterator<Item = &Path> {
+        let removed_members = self
+            .documents
+            .iter()
+            .filter(|change| change.after.is_none())
+            .filter_map(|change| change.before.as_ref())
+            .filter(|entry| entry.is_member())
+            .filter_map(IndexEntry::set_placement);
+        let removed_assets = self
+            .assets
+            .iter()
+            .filter(|change| change.after.is_none())
+            .filter_map(|change| change.before.as_ref())
+            .map(|asset| &asset.placement);
+        removed_members
+            .chain(removed_assets)
+            .map(|placement| placement.context.set_directory.as_path())
+    }
+}
+
+/// Every record that `after` adds, changes or drops relative to `before`.
+/// A removed set document or asset and an added one that differ only in case
+/// are one rename, since a case-insensitive volume lists the file by its new
+/// name.
+fn changes_between<T: Clone>(
+    before: &[T],
+    after: &[T],
+    path_of: impl Fn(&T) -> &PathBuf,
+    member_place_of: impl Fn(&T) -> Option<&SetPlacement>,
+    unchanged: impl Fn(&T, &T) -> bool,
+) -> Vec<Change<T>> {
+    let before_by_path: HashMap<&PathBuf, &T> = before
+        .iter()
+        .map(|record| (path_of(record), record))
+        .collect();
+    let after_paths: HashSet<&PathBuf> = after.iter().map(&path_of).collect();
+    let mut changes: Vec<Change<T>> = Vec::new();
+    let mut added: Vec<&T> = Vec::new();
+    for record in after {
+        match before_by_path.get(path_of(record)) {
+            Some(was) if unchanged(was, record) => {}
+            Some(was) => changes.push(Change {
+                before: Some((*was).clone()),
+                after: Some(record.clone()),
+            }),
+            None => added.push(record),
+        }
+    }
+    let mut removed: Vec<&T> = before
+        .iter()
+        .filter(|record| !after_paths.contains(path_of(record)))
+        .collect();
+    let removed_members = member_paths_of(&removed, &member_place_of);
+    let added_members = member_paths_of(&added, &member_place_of);
+    let renames = pair_case_only_renames(
+        &removed_members.iter().map(|(_, p)| *p).collect::<Vec<_>>(),
+        &added_members.iter().map(|(_, p)| *p).collect::<Vec<_>>(),
+    );
+    let index_of = |members: &[(usize, MemberPath<'_>)],
+                    path: MemberPath<'_>| {
+        members
+            .iter()
+            .find(|(_, member)| *member == path)
+            .map(|(at, _)| *at)
+    };
+    let mut renamed: Vec<(usize, usize)> = renames
+        .iter()
+        .filter_map(|rename| {
+            Some((
+                index_of(&removed_members, rename.from)?,
+                index_of(&added_members, rename.to)?,
+            ))
+        })
+        .collect();
+    let renamed_from: HashSet<usize> =
+        renamed.iter().map(|(from, _)| *from).collect();
+    let renamed_to: HashSet<usize> =
+        renamed.iter().map(|(_, to)| *to).collect();
+    changes.extend(renamed.drain(..).map(|(from, to)| Change {
+        before: Some(removed[from].clone()),
+        after: Some(added[to].clone()),
+    }));
+    changes.extend(
+        added
+            .iter()
+            .enumerate()
+            .filter(|(at, _)| !renamed_to.contains(at))
+            .map(|(_, record)| Change {
+                before: None,
+                after: Some((*record).clone()),
+            }),
+    );
+    removed = removed
+        .into_iter()
+        .enumerate()
+        .filter(|(at, _)| !renamed_from.contains(at))
+        .map(|(_, record)| record)
+        .collect();
+    changes.extend(removed.into_iter().map(|record| Change {
+        before: Some(record.clone()),
+        after: None,
+    }));
+    changes.sort_by_cached_key(|change| {
+        change
+            .after
+            .as_ref()
+            .or(change.before.as_ref())
+            .map(|record| path_of(record).clone())
+    });
+    changes
+}
+
+fn member_paths_of<'r, T>(
+    records: &[&'r T],
+    member_place_of: &impl Fn(&T) -> Option<&SetPlacement>,
+) -> Vec<(usize, MemberPath<'r>)> {
+    records
+        .iter()
+        .enumerate()
+        .filter_map(|(at, record)| {
+            let placement = member_place_of(record)?;
+            Some((
+                at,
+                MemberPath {
+                    set_directory: &placement.context.set_directory,
+                    set_relative_path: &placement.set_relative_path,
+                },
+            ))
+        })
+        .collect()
+}
+
+/// Hears what each rescan changed, in the order the rescans saw it.
+pub trait ChangeSink: Send + Sync {
+    fn changed<'a>(
+        &'a self,
+        diff: &'a IndexDiff,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>>;
+}
+
+struct ReadTarget {
+    kind: DocTypeKey,
+    path: PathBuf,
+    place: ReadPlace,
+}
+
+enum ReadPlace {
+    Flat,
+    SetRoot {
+        directory: PathBuf,
+        assets: Vec<AssetListing>,
+    },
+    SetMember {
+        set_relative_path: String,
+    },
+}
+
+impl ReadPlace {
+    const fn is_in_a_set(&self) -> bool {
+        !matches!(self, Self::Flat)
+    }
+}
+
+impl ReadTarget {
+    const fn flat(kind: DocTypeKey, path: PathBuf) -> Self {
+        Self {
+            kind,
+            path,
+            place: ReadPlace::Flat,
+        }
+    }
+
+    fn of_sets(kind: DocTypeKey, sets: Vec<SetListing>) -> Vec<Self> {
+        sets.into_iter()
+            .flat_map(|set| {
+                let members: Vec<Self> = set
+                    .documents
+                    .into_iter()
+                    .map(|set_relative_path| Self {
+                        kind,
+                        path: set.directory.join(&set_relative_path),
+                        place: ReadPlace::SetMember { set_relative_path },
+                    })
+                    .collect();
+                std::iter::once(Self {
+                    kind,
+                    path: set.root,
+                    place: ReadPlace::SetRoot {
+                        directory: set.directory,
+                        assets: set.assets,
+                    },
+                })
+                .chain(members)
+            })
+            .collect()
+    }
+}
+
+enum Placement<'a> {
+    Flat,
+    SetRoot(&'a Path),
+    SetMember(Arc<SetContext>, &'a str),
+}
+
+pub struct LinkKeys {
+    pub slug: Option<String>,
+    pub id: Option<String>,
+}
+
+pub fn link_keys_of(entry: &IndexEntry) -> LinkKeys {
+    match entry.set_placement() {
+        Some(placement) if entry.is_member() => LinkKeys {
+            slug: placement.context.set_slug.clone(),
+            id: Some(placement.context.set_id.clone()),
+        },
+        _ => LinkKeys {
+            slug: entry.slug.clone(),
+            id: entry.id.clone(),
+        },
+    }
+}
+
+fn listed<'a>(
+    entries: impl IntoIterator<Item = &'a IndexEntry>,
+) -> impl Iterator<Item = &'a IndexEntry> {
+    entries.into_iter().filter(|entry| !entry.is_member())
+}
+
+fn latest_change_of(
+    entry: &IndexEntry,
+    latest_change_by_set: &HashMap<PathBuf, i64>,
+) -> i64 {
+    entry
+        .set_placement()
+        .and_then(|p| latest_change_by_set.get(&p.context.set_directory))
+        .copied()
+        .unwrap_or(entry.mtime_ms)
+}
+
+struct IndexMaps {
+    work_item_by_identity_key: HashMap<String, PathBuf>,
+    documents_by_address: HashMap<LinkageAddress, PathBuf>,
+    reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>>,
+    work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>>,
+    latest_change_by_set: HashMap<PathBuf, i64>,
+}
+
+impl IndexMaps {
+    fn build(
+        records: &[IndexEntry],
+        assets: &[AssetRecord],
+        removals: &RemovalLedger,
+        reading: &crate::config::WorkItemConfig,
+        project_root: &Path,
+    ) -> Self {
+        let mut work_item_by_identity_key: HashMap<String, PathBuf> =
+            HashMap::new();
+        let mut documents_by_address: HashMap<LinkageAddress, PathBuf> =
+            HashMap::new();
+        for entry in listed(records) {
+            if let Some(id) = identity_key_of_entry(entry) {
+                hold_if_lower(&mut work_item_by_identity_key, id, &entry.path);
+            }
+            if let Some(address) =
+                linkage_address_of(entry, reading.linkage_ids())
+            {
+                documents_by_address.insert(address, entry.path.clone());
+            }
+        }
+        let reviews_by_target = reviews_by_target_of(
+            listed(records),
+            &documents_by_address,
+            &work_item_by_identity_key,
+            reading,
+            project_root,
+        );
+        Self {
+            work_item_by_identity_key,
+            documents_by_address,
+            reviews_by_target,
+            work_item_refs_by_target: work_item_refs_by_target_of(
+                records, reading,
+            ),
+            latest_change_by_set: latest_change_by_set_of(
+                records
+                    .iter()
+                    .filter_map(|entry| {
+                        Some((
+                            &entry.set_placement()?.context.set_directory,
+                            entry.mtime_ms,
+                        ))
+                    })
+                    .chain(assets.iter().map(|asset| {
+                        (&asset.placement.context.set_directory, asset.mtime_ms)
+                    }))
+                    .chain(removals.observed()),
+            ),
+        }
+    }
+}
+
+fn work_item_refs_by_target_of(
+    records: &[IndexEntry],
+    reading: &crate::config::WorkItemConfig,
+) -> HashMap<String, BTreeSet<PathBuf>> {
+    let mut refs: HashMap<String, BTreeSet<PathBuf>> = HashMap::new();
+    for entry in records {
+        for id in identity_keys_of(entry.work_item_refs.clone(), reading) {
+            if entry.identity_key.as_deref() == Some(id.as_str()) {
+                continue;
+            }
+            refs.entry(id).or_default().insert(entry.path.clone());
+        }
+    }
+    refs
+}
+
+fn latest_change_by_set_of<'a>(
+    changes: impl IntoIterator<Item = (&'a PathBuf, i64)>,
+) -> HashMap<PathBuf, i64> {
+    let mut latest: HashMap<PathBuf, i64> = HashMap::new();
+    for (set_directory, mtime_ms) in changes {
+        latest
+            .entry(set_directory.clone())
+            .and_modify(|newest| *newest = (*newest).max(mtime_ms))
+            .or_insert(mtime_ms);
+    }
+    latest
+}
+
+/// When each set was last seen to lose a member or asset, which its latest
+/// change counts since a removed file leaves no mtime behind.
+#[derive(Debug, Clone, Default)]
+struct RemovalLedger {
+    last_removal_observed_ms: HashMap<PathBuf, i64>,
+}
+
+impl RemovalLedger {
+    fn observe(
+        &mut self,
+        diff: &IndexDiff,
+        records: &[IndexEntry],
+        now_ms: i64,
+    ) {
+        for set_directory in diff.sets_losing_members() {
+            self.last_removal_observed_ms
+                .insert(set_directory.to_path_buf(), now_ms);
+        }
+        let standing: HashSet<&PathBuf> = records
+            .iter()
+            .filter(|entry| entry.is_set_root())
+            .filter_map(IndexEntry::set_placement)
+            .map(|placement| &placement.context.set_directory)
+            .collect();
+        self.last_removal_observed_ms
+            .retain(|set_directory, _| standing.contains(set_directory));
+    }
+
+    fn observed(&self) -> impl Iterator<Item = (&PathBuf, i64)> {
+        self.last_removal_observed_ms
+            .iter()
+            .map(|(set_directory, at)| (set_directory, *at))
+    }
+}
+
+struct BuiltIndex {
+    records: Vec<IndexEntry>,
+    assets: Vec<AssetRecord>,
+    reading: Arc<crate::config::WorkItemConfig>,
+    trust: Trust,
 }
 
 pub struct Indexer {
     driver: Arc<dyn FileDriver>,
+    doc_types: Arc<DocTypeCatalogue>,
     /// Canonicalised once at the top of `Indexer::build`. Every
     /// secondary-index key derivation routes through this prefix so
     /// primary keys (canonical via `build_entry`) and secondary keys
@@ -260,13 +868,12 @@ pub struct Indexer {
     /// the trust check reads instead of reading the files again.
     work_item_files: std::sync::Mutex<BTreeMap<PathBuf, Option<String>>>,
     entries: Arc<RwLock<HashMap<PathBuf, IndexEntry>>>,
-    adr_by_id: Arc<RwLock<HashMap<u32, PathBuf>>>,
     work_item_by_identity_key: Arc<RwLock<HashMap<String, PathBuf>>>,
-    /// Secondary index mapping plan `id:` (filename stem) to plan path.
-    /// Used to resolve `target: "plan:<id>"` typed-linkage references per
-    /// ADR-0034. Lock-ordering invariant: acquire after
-    /// `work_item_by_identity_key` and before `reviews_by_target`.
-    plans_by_id: Arc<RwLock<HashMap<String, PathBuf>>>,
+    /// Each document's path by the typed-linkage address it answers to.
+    /// Resolves `target: "plan:<id>"` references. Lock-ordering invariant:
+    /// acquire after `work_item_by_identity_key` and before
+    /// `reviews_by_target`.
+    documents_by_address: Arc<RwLock<HashMap<LinkageAddress, PathBuf>>>,
     /// Reverse declared-link index. Keys are lexically-clean absolute
     /// paths of target plans (or any future target type); values are
     /// sets of canonicalised paths of reviews referencing the target.
@@ -278,7 +885,13 @@ pub struct Indexer {
     /// paths of entries that reference that work-item via `work_item_id:`,
     /// `parent:`, or `related:` frontmatter keys.
     work_item_refs_by_target: Arc<RwLock<HashMap<String, BTreeSet<PathBuf>>>>,
-    // Serialises rescan() against refresh_one() so they cannot interleave.
+    /// Lock-ordering invariant: acquire after `work_item_refs_by_target`.
+    latest_change_by_set: Arc<RwLock<HashMap<PathBuf, i64>>>,
+    /// Lock-ordering invariant: acquire after `latest_change_by_set`.
+    assets: Arc<RwLock<HashMap<PathBuf, AssetRecord>>>,
+    /// Held under `rescan_lock`.
+    removals: std::sync::Mutex<RemovalLedger>,
+    // Serialises rescans against refresh_one() so they cannot interleave.
     rescan_lock: Arc<Semaphore>,
     #[cfg(test)]
     test_post_secondary_update:
@@ -288,72 +901,118 @@ pub struct Indexer {
 impl Indexer {
     pub async fn build(
         driver: Arc<dyn FileDriver>,
+        doc_types: Arc<DocTypeCatalogue>,
         project_root: PathBuf,
         work_item_cfg: Arc<crate::config::WorkItemConfig>,
     ) -> Result<Self, FileDriverError> {
-        // Canonicalise once. Every downstream consumer — `rescan`,
-        // `refresh_one`, the secondary-index helpers, and
-        // `Indexer::reviews_by_target` — sees a canonical path. The
-        // failure (e.g., the project_root does not exist) is mapped
-        // into the existing `FileDriverError` channel so call sites
-        // do not learn a new error type.
+        // Every path the index holds is canonical, so the root is resolved
+        // once, here.
         let project_root = tokio::fs::canonicalize(&project_root)
             .await
             .map_err(|source| FileDriverError::Io {
                 path: project_root.clone(),
                 source,
             })?;
-        let me = Self {
+        let me = Self::empty(driver, doc_types, project_root, work_item_cfg);
+        let first = me.build_records().await?;
+        me.install(first, &RemovalLedger::default()).await;
+        Ok(me)
+    }
+
+    fn empty(
+        driver: Arc<dyn FileDriver>,
+        doc_types: Arc<DocTypeCatalogue>,
+        project_root: PathBuf,
+        work_item_cfg: Arc<crate::config::WorkItemConfig>,
+    ) -> Self {
+        Self {
             driver,
+            doc_types,
             project_root,
             unread: Arc::new(crate::config::WorkItemConfig::unreadable()),
             trust: std::sync::RwLock::new(Trust::Trusted),
             configured: work_item_cfg,
             work_item_files: std::sync::Mutex::new(BTreeMap::new()),
             entries: Arc::new(RwLock::new(HashMap::new())),
-            adr_by_id: Arc::new(RwLock::new(HashMap::new())),
             work_item_by_identity_key: Arc::new(RwLock::new(HashMap::new())),
-            plans_by_id: Arc::new(RwLock::new(HashMap::new())),
+            documents_by_address: Arc::new(RwLock::new(HashMap::new())),
             reviews_by_target: Arc::new(RwLock::new(HashMap::new())),
             work_item_refs_by_target: Arc::new(RwLock::new(HashMap::new())),
+            latest_change_by_set: Arc::new(RwLock::new(HashMap::new())),
+            assets: Arc::new(RwLock::new(HashMap::new())),
+            removals: std::sync::Mutex::new(RemovalLedger::default()),
             rescan_lock: Arc::new(Semaphore::new(1)),
             #[cfg(test)]
             test_post_secondary_update: tokio::sync::Mutex::new(None),
-        };
-        me.rescan().await?;
-        Ok(me)
+        }
     }
 
     pub fn rescan_lock(&self) -> Arc<Semaphore> {
         self.rescan_lock.clone()
     }
 
-    pub async fn rescan(&self) -> Result<(), FileDriverError> {
-        // Phase 2 reads files concurrently; this bounds the in-flight reads.
-        const READ_CONCURRENCY: usize = 64;
+    /// Rescans every doc root, installs the result and hands what changed
+    /// to `sink`, all under one `rescan_lock` permit, so each change is
+    /// handed on once and in the order the rescans saw it.
+    pub async fn rescan_with_diff(
+        &self,
+        sink: &dyn ChangeSink,
+    ) -> Result<(), FileDriverError> {
         // acquire() errors only if the semaphore is closed, which never happens.
         #[allow(clippy::unwrap_used)]
         let _permit = self.rescan_lock.acquire().await.unwrap();
+        let before_documents = self.documents_including_members().await;
+        let before_assets: Vec<AssetRecord> =
+            self.assets.read().await.values().cloned().collect();
+        let built = self.build_records().await?;
+        let diff = IndexDiff::between(
+            (&before_documents, &before_assets),
+            (&built.records, &built.assets),
+        );
+        let removals = {
+            let mut removals = self
+                .removals
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            removals.observe(
+                &diff,
+                &built.records,
+                chrono::Utc::now().timestamp_millis(),
+            );
+            removals.clone()
+        };
+        self.install(built, &removals).await;
+        sink.changed(&diff).await;
+        Ok(())
+    }
 
-        let mut entries: HashMap<PathBuf, IndexEntry> = HashMap::new();
-        let mut adr_by_id: HashMap<u32, PathBuf> = HashMap::new();
-        let mut work_item_by_identity_key: HashMap<String, PathBuf> =
-            HashMap::new();
-        let mut plans_by_id: HashMap<String, PathBuf> = HashMap::new();
-        let mut work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>> =
-            HashMap::new();
+    async fn build_records(&self) -> Result<BuiltIndex, FileDriverError> {
+        // Phase 2 reads files concurrently; this bounds the in-flight reads.
+        const READ_CONCURRENCY: usize = 64;
 
-        // Phase 1: enumerate every (kind, path) up front, preserving doc-type
-        // and per-type listing order so the dedup folds below stay deterministic.
-        let mut targets: Vec<(DocTypeKey, PathBuf)> = Vec::new();
-        for kind in DocTypeKey::all() {
-            if kind == DocTypeKey::Templates {
+        // Phase 1: enumerate every document up front, preserving doc-type
+        // and per-type listing order so the dedup folds below stay
+        // deterministic. A set's root comes just before its members.
+        let mut targets: Vec<ReadTarget> = Vec::new();
+        for &kind in self.doc_types.doc_types() {
+            if kind.is_virtual() {
                 continue;
             }
-            match self.driver.list(kind).await {
-                Ok(paths) => {
-                    targets.extend(paths.into_iter().map(|p| (kind, p)));
-                }
+            let listed = if kind.is_set() {
+                self.driver
+                    .list_sets(kind)
+                    .await
+                    .map(|sets| ReadTarget::of_sets(kind, sets))
+            } else {
+                self.driver.list(kind).await.map(|paths| {
+                    paths
+                        .into_iter()
+                        .map(|path| ReadTarget::flat(kind, path))
+                        .collect()
+                })
+            };
+            match listed {
+                Ok(listed) => targets.extend(listed),
                 Err(FileDriverError::TypeNotConfigured { .. }) => {}
                 Err(e) => return Err(e),
             }
@@ -364,15 +1023,14 @@ impl Indexer {
         // service many at once instead of one round-trip at a time. `buffered`
         // preserves input order, so the serial fold below remains deterministic.
         let read_results: Vec<(
-            DocTypeKey,
-            PathBuf,
+            ReadTarget,
             Result<FileContent, FileDriverError>,
         )> = stream::iter(targets)
-            .map(|(kind, path)| {
+            .map(|target| {
                 let driver = &self.driver;
                 async move {
-                    let content = driver.read(&path).await;
-                    (kind, path, content)
+                    let content = driver.read(&target.path).await;
+                    (target, content)
                 }
             })
             .buffered(READ_CONCURRENCY)
@@ -384,11 +1042,11 @@ impl Indexer {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = read_results
             .iter()
-            .filter(|(kind, _, _)| *kind == DocTypeKey::WorkItems)
-            .filter_map(|(_, path, content)| {
+            .filter(|(target, _)| target.kind.cluster_anchor())
+            .filter_map(|(target, content)| {
                 content.as_ref().ok().map(|content| {
                     (
-                        path.clone(),
+                        target.path.clone(),
                         String::from_utf8(content.bytes.clone()).ok(),
                     )
                 })
@@ -397,82 +1055,155 @@ impl Indexer {
         let trust = self.judge_trust();
         let reading = self.reading_under(&trust);
 
-        // Phase 3 Pass A: parse and fold serially, in original order.
-        // Build entries and every primary-id map. Defer reviews_by_target
-        // until Pass B because resolving `target: "plan:<id>"` requires
-        // the fully-populated `plans_by_id`.
-        for (kind, path, content) in read_results {
+        let mut records: Vec<IndexEntry> =
+            Vec::with_capacity(read_results.len());
+        let mut assets: Vec<AssetRecord> = Vec::new();
+        let mut current_set: Option<Arc<SetContext>> = None;
+        for (target, content) in read_results {
             let content = match content {
-                Ok(c) => c,
-                Err(FileDriverError::NotFound { .. }) => continue,
+                Ok(c) => Some(c),
+                Err(FileDriverError::NotFound { .. }) => None,
+                Err(e) if target.place.is_in_a_set() => {
+                    tracing::warn!(
+                        path = %target.path.display(),
+                        error = %e,
+                        "left a set document out of the index",
+                    );
+                    None
+                }
                 Err(e) => return Err(e),
             };
+            let placement = match target.place {
+                ReadPlace::Flat => Placement::Flat,
+                ReadPlace::SetRoot { ref directory, .. } => {
+                    current_set = None;
+                    Placement::SetRoot(directory)
+                }
+                ReadPlace::SetMember {
+                    ref set_relative_path,
+                } => match &current_set {
+                    Some(context) => {
+                        Placement::SetMember(context.clone(), set_relative_path)
+                    }
+                    None => continue,
+                },
+            };
+            let Some(content) = content else { continue };
             let entry = build_entry(
-                kind,
-                path.clone(),
+                target.kind,
+                target.path.clone(),
                 &content,
                 &self.project_root,
                 &reading,
+                placement,
             );
-
-            if let Some(id) = adr_id_from_entry(&entry) {
-                adr_by_id.insert(id, path.clone());
-            }
-            if let Some(id) = identity_key_of_entry(&entry) {
-                hold_if_lower(&mut work_item_by_identity_key, id, &path);
-            }
-            if let Some(id) = plan_id_from_entry(&entry) {
-                plans_by_id.insert(id, path.clone());
-            }
-            for id in identity_keys_of(entry.work_item_refs.clone(), &reading) {
-                // Skip self-references: a doc must not appear in its own index.
-                if entry.identity_key.as_deref() == Some(id.as_str()) {
-                    continue;
+            if let ReadPlace::SetRoot {
+                assets: listed_assets,
+                ..
+            } = target.place
+            {
+                let context = entry
+                    .set_placement()
+                    .map(|placement| placement.context.clone());
+                if let Some(context) = &context {
+                    assets.extend(listed_assets.into_iter().map(|asset| {
+                        AssetRecord::listed(
+                            target.kind,
+                            context,
+                            asset,
+                            &self.project_root,
+                        )
+                    }));
                 }
-                work_item_refs_by_target
-                    .entry(id)
-                    .or_default()
-                    .insert(path.clone());
+                current_set = context;
             }
-
-            entries.insert(path, entry);
+            records.push(entry);
         }
+        give_shared_set_ids_way_to_set_directories(&mut records, &mut assets);
+        Ok(BuiltIndex {
+            records,
+            assets,
+            reading,
+            trust,
+        })
+    }
 
-        // Phase 3 Pass B: resolve reviews_by_target with the fully-
-        // populated `plans_by_id` so typed-linkage `target: "plan:<id>"`
-        // references resolve regardless of file-driver iteration order.
-        let reviews_by_target = reviews_by_target_of(
-            &entries,
-            &plans_by_id,
-            &work_item_by_identity_key,
+    /// Replaces the index with `records`, swapping every map under the
+    /// same ordered write locks so readers never see a partial index.
+    async fn install(&self, built: BuiltIndex, removals: &RemovalLedger) {
+        let BuiltIndex {
+            records,
+            assets,
+            reading,
+            trust,
+        } = built;
+        let maps = IndexMaps::build(
+            &records,
+            &assets,
+            removals,
             &reading,
             &self.project_root,
         );
-
-        // Hold all six write locks simultaneously and replace contents
-        // so readers never observe a partial (entries, secondary)
-        // snapshot. Always acquire in the same order: entries → adr →
-        // work_item → plans → reviews_by_target → work_item_refs_by_target.
+        let mut entries: HashMap<PathBuf, IndexEntry> = records
+            .into_iter()
+            .map(|entry| (entry.path.clone(), entry))
+            .collect();
         publish_document_ids(&mut entries);
         let mut entries_w = self.entries.write().await;
-        let mut adr_w = self.adr_by_id.write().await;
         let mut work_item_w = self.work_item_by_identity_key.write().await;
-        let mut plans_w = self.plans_by_id.write().await;
+        let mut addresses_w = self.documents_by_address.write().await;
         let mut reviews_w = self.reviews_by_target.write().await;
         let mut refs_w = self.work_item_refs_by_target.write().await;
+        let mut latest_w = self.latest_change_by_set.write().await;
+        let mut assets_w = self.assets.write().await;
         *entries_w = entries;
-        *adr_w = adr_by_id;
-        *work_item_w = work_item_by_identity_key;
-        *plans_w = plans_by_id;
-        *reviews_w = reviews_by_target;
-        *refs_w = work_item_refs_by_target;
+        *work_item_w = maps.work_item_by_identity_key;
+        *addresses_w = maps.documents_by_address;
+        *reviews_w = maps.reviews_by_target;
+        *refs_w = maps.work_item_refs_by_target;
+        *latest_w = maps.latest_change_by_set;
+        *assets_w = assets
+            .into_iter()
+            .map(|asset| (asset.path.clone(), asset))
+            .collect();
         self.hold_trust(trust);
-        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn from_records(
+        project_root: PathBuf,
+        records: Vec<IndexEntry>,
+    ) -> Self {
+        let doc_types = crate::test_support::assembled_catalogue();
+        let driver = Arc::new(crate::file_driver::LocalFileDriver::new(
+            &doc_types,
+            &HashMap::new(),
+            vec![],
+            vec![],
+        ));
+        let me = Self::empty(
+            driver,
+            doc_types,
+            project_root,
+            Arc::new(crate::config::WorkItemConfig::default_numeric()),
+        );
+        let reading = me.work_item_cfg();
+        me.install(
+            BuiltIndex {
+                records,
+                assets: Vec::new(),
+                reading,
+                trust: Trust::Trusted,
+            },
+            &RemovalLedger::default(),
+        )
+        .await;
+        me
     }
 
     /// Refreshes a single index entry for the given path without a full rescan.
     ///
-    /// Acquires the same `rescan_lock` that `rescan()` uses, so the two cannot
+    /// Acquires the same `rescan_lock` that a rescan uses, so the two cannot
     /// interleave. If the file no longer exists, its entry is removed and
     /// `Ok(None)` is returned.
     ///
@@ -483,7 +1214,12 @@ impl Indexer {
     pub async fn refresh_one(
         &self,
         path: &Path,
+        sink: &dyn ChangeSink,
     ) -> Result<Option<IndexEntry>, FileDriverError> {
+        if self.lies_in_a_set_doc_root(path).await {
+            self.rescan_with_diff(sink).await?;
+            return Ok(self.get(path).await);
+        }
         let refreshed = self.refresh_entry(path).await?;
         let trust_flipped = {
             // acquire() errors only if the semaphore is closed, which never happens.
@@ -499,11 +1235,19 @@ impl Indexer {
         if !trust_flipped {
             return Ok(refreshed);
         }
-        self.rescan().await?;
+        self.rescan_with_diff(sink).await?;
         Ok(match refreshed {
             Some(entry) => self.get(&entry.path).await,
             None => None,
         })
+    }
+
+    /// A set document's record depends on its root, so any path in a set
+    /// type's doc root is refreshed with the whole index.
+    async fn lies_in_a_set_doc_root(&self, path: &Path) -> bool {
+        let canonical =
+            crate::watcher::canonicalise_path_or_ancestor(path).await;
+        self.driver.lies_in_a_set_doc_root(&canonical)
     }
 
     async fn refresh_entry(
@@ -536,7 +1280,7 @@ impl Indexer {
                     return Ok(None);
                 };
 
-                if kind == DocTypeKey::WorkItems {
+                if kind.cluster_anchor() {
                     self.remember_work_item(&canonical, Some(&content));
                 }
                 let reading = self.work_item_cfg();
@@ -546,6 +1290,7 @@ impl Indexer {
                     &content,
                     &self.project_root,
                     &reading,
+                    Placement::Flat,
                 );
 
                 // Single-writer-lock invariant: hold entries.write() across
@@ -556,8 +1301,6 @@ impl Indexer {
                 let holders_before =
                     self.work_item_by_identity_key.read().await.clone();
 
-                update_adr_by_id(&self.adr_by_id, &entry, previous.as_ref())
-                    .await;
                 update_work_item_by_identity_key(
                     &self.work_item_by_identity_key,
                     &entry,
@@ -565,25 +1308,27 @@ impl Indexer {
                     &entries,
                 )
                 .await;
-                update_plans_by_id(
-                    &self.plans_by_id,
+                update_documents_by_address(
+                    &self.documents_by_address,
+                    &reading,
                     &entry,
                     previous.as_ref(),
                 )
                 .await;
-                // Acquire a snapshot of plans_by_id AFTER the plans-by-id
+                // Acquire a snapshot of documents_by_address AFTER its
                 // helper has folded the new entry in, so the
                 // reviews_by_target update sees a consistent view.
-                let plans_snapshot = self.plans_by_id.read().await.clone();
+                let addresses_snapshot =
+                    self.documents_by_address.read().await.clone();
                 // Snapshot work_item_by_identity_key AFTER
                 // update_work_item_by_identity_key has folded the new entry
-                // in, mirroring plans_snapshot, so a typed `work-item:`
+                // in, mirroring addresses_snapshot, so a typed `work-item:`
                 // target resolves against a consistent view.
                 let work_item_snapshot =
                     self.work_item_by_identity_key.read().await.clone();
                 update_reviews_by_target(
                     &self.reviews_by_target,
-                    &plans_snapshot,
+                    &addresses_snapshot,
                     &work_item_snapshot,
                     &reading,
                     &self.project_root,
@@ -652,22 +1397,26 @@ impl Indexer {
         self.remember_work_item(&previous.path, None);
         let holders_before =
             self.work_item_by_identity_key.read().await.clone();
-        remove_from_adr_by_id(&self.adr_by_id, previous).await;
         remove_from_work_item_by_identity_key(
             &self.work_item_by_identity_key,
             previous,
             entries,
         )
         .await;
-        remove_from_plans_by_id(&self.plans_by_id, previous).await;
+        remove_from_documents_by_address(
+            &self.documents_by_address,
+            &self.work_item_cfg(),
+            previous,
+        )
+        .await;
         // Snapshot both id indexes AFTER their removals so a typed
         // `work-item:` target resolves against a consistent view.
-        let plans_snapshot = self.plans_by_id.read().await.clone();
+        let addresses_snapshot = self.documents_by_address.read().await.clone();
         let work_item_snapshot =
             self.work_item_by_identity_key.read().await.clone();
         remove_from_reviews_by_target(
             &self.reviews_by_target,
-            &plans_snapshot,
+            &addresses_snapshot,
             &work_item_snapshot,
             &self.work_item_cfg(),
             &self.project_root,
@@ -696,10 +1445,10 @@ impl Indexer {
         if holders == *holders_before {
             return;
         }
-        let plans = self.plans_by_id.read().await.clone();
+        let addresses = self.documents_by_address.read().await.clone();
         *self.reviews_by_target.write().await = reviews_by_target_of(
-            entries,
-            &plans,
+            listed(entries.values()),
+            &addresses,
             &holders,
             &self.work_item_cfg(),
             &self.project_root,
@@ -715,10 +1464,7 @@ impl Indexer {
     }
 
     pub async fn all_by_type(&self, kind: DocTypeKey) -> Vec<IndexEntry> {
-        self.entries
-            .read()
-            .await
-            .values()
+        listed(self.entries.read().await.values())
             .filter(|e| e.r#type == kind)
             .cloned()
             .collect()
@@ -726,7 +1472,7 @@ impl Indexer {
 
     pub async fn counts_by_type(&self) -> HashMap<DocTypeKey, usize> {
         let mut out: HashMap<DocTypeKey, usize> = HashMap::new();
-        for entry in self.entries.read().await.values() {
+        for entry in listed(self.entries.read().await.values()) {
             *out.entry(entry.r#type).or_insert(0) += 1;
         }
         out
@@ -747,14 +1493,18 @@ impl Indexer {
         selection: &Selection,
     ) -> LibraryAggregates {
         let entries = self.entries.read().await;
+        let latest_change_by_set = self.latest_change_by_set.read().await;
         let mut agg = LibraryAggregates::default();
 
         // First pass: counts and latest preview (selection-unaware).
-        for entry in entries.values() {
+        for entry in listed(entries.values()) {
             let per = agg.per_type.entry(entry.r#type).or_default();
             per.count += 1;
 
-            let preview = LatestPreview::from_entry(entry);
+            let preview = LatestPreview::from_entry(
+                entry,
+                latest_change_of(entry, &latest_change_by_set),
+            );
             per.latest = Some(match per.latest.take() {
                 None => preview,
                 Some(existing) => {
@@ -773,8 +1523,9 @@ impl Indexer {
         // Second pass: facet scoping per doc type, under the same lock.
         for (doc_type, per) in &mut agg.per_type {
             let type_selection = selection.get(doc_type);
-            let type_entries: Vec<&IndexEntry> =
-                entries.values().filter(|e| e.r#type == *doc_type).collect();
+            let type_entries: Vec<&IndexEntry> = listed(entries.values())
+                .filter(|e| e.r#type == *doc_type)
+                .collect();
 
             per.filtered_count = type_entries
                 .iter()
@@ -807,7 +1558,43 @@ impl Indexer {
     }
 
     pub async fn all(&self) -> Vec<IndexEntry> {
+        listed(self.entries.read().await.values())
+            .cloned()
+            .collect()
+    }
+
+    pub async fn documents_including_members(&self) -> Vec<IndexEntry> {
         self.entries.read().await.values().cloned().collect()
+    }
+
+    pub async fn set(
+        &self,
+        kind: DocTypeKey,
+        set_id: &str,
+    ) -> Option<IndexedSet> {
+        let entries = self.entries.read().await;
+        let assets = self.assets.read().await;
+        let root = entries
+            .values()
+            .filter(|e| e.r#type == kind && e.is_set_root())
+            .filter_map(|e| Some((e.set_placement()?.context.clone(), e)))
+            .filter(|(context, _)| context.set_id == set_id)
+            .min_by(|(a, _), (b, _)| a.set_directory.cmp(&b.set_directory))
+            .map(|(_, root)| root.clone())?;
+        let directory = root.set_placement()?.context.set_directory.clone();
+        Some(IndexedSet {
+            members: members_in(entries.values(), &directory),
+            assets: assets_in(assets.values(), &directory),
+            root,
+        })
+    }
+
+    pub async fn set_members(&self, set_directory: &Path) -> Vec<IndexEntry> {
+        members_in(self.entries.read().await.values(), set_directory)
+    }
+
+    pub async fn set_assets(&self, set_directory: &Path) -> Vec<AssetRecord> {
+        assets_in(self.assets.read().await.values(), set_directory)
     }
 
     /// Returns a cloned snapshot of `work_item_by_identity_key` for callers
@@ -818,10 +1605,12 @@ impl Indexer {
         self.work_item_by_identity_key.read().await.clone()
     }
 
-    /// Returns a cloned snapshot of `plans_by_id` for callers
+    /// Returns a cloned snapshot of `documents_by_address` for callers
     /// constructing a `ClusterContext`.
-    pub async fn plans_by_id_snapshot(&self) -> HashMap<String, PathBuf> {
-        self.plans_by_id.read().await.clone()
+    pub async fn documents_by_address_snapshot(
+        &self,
+    ) -> HashMap<LinkageAddress, PathBuf> {
+        self.documents_by_address.read().await.clone()
     }
 
     /// The work-item config IDs are read through now. Cluster-key
@@ -977,8 +1766,17 @@ impl Indexer {
         None
     }
 
-    pub async fn adr_by_id(&self, id: u32) -> Option<IndexEntry> {
-        let path = { self.adr_by_id.read().await.get(&id).cloned()? };
+    pub async fn document_at(
+        &self,
+        address: &LinkageAddress,
+    ) -> Option<IndexEntry> {
+        let path = {
+            self.documents_by_address
+                .read()
+                .await
+                .get(address)
+                .cloned()?
+        };
         self.get(&path).await
     }
 
@@ -1044,14 +1842,14 @@ impl Indexer {
     ) -> Vec<IndexEntry> {
         let entries = self.entries.read().await;
         let by_id = self.work_item_by_identity_key.read().await;
-        let plans = self.plans_by_id.read().await;
+        let addresses = self.documents_by_address.read().await;
         let mut result: Vec<IndexEntry> = Vec::new();
         let mut seen: HashSet<PathBuf> = HashSet::new();
 
         // Existing: plan-review `target:` field.
         if let Some(target_key) = target_path_from_entry(
             entry,
-            &plans,
+            &addresses,
             &by_id,
             &self.work_item_cfg(),
             &self.project_root,
@@ -1129,8 +1927,8 @@ fn normalize_absolute(path: &Path) -> PathBuf {
 ///   - Path form: `target: "meta/plans/2026-...md"` — resolved via
 ///     `normalize_target_key` against `project_root`.
 ///   - Typed `plan:` form: `target: "plan:<plan-id>"` — resolved via
-///     the `plans_by_id` index (the plan's `id:` field; usually the
-///     filename stem).
+///     the `documents_by_address` index (the plan's `id:` field, or its
+///     filename stem when it has none).
 ///   - Typed `work-item:` form: `target: "work-item:NNNN"` — resolved via
 ///     the `work_item_by_identity_key` index under the raw id's identity key,
 ///     so any spelling of the item resolves, as clustering does. Resolving
@@ -1141,7 +1939,7 @@ fn normalize_absolute(path: &Path) -> PathBuf {
 /// targets (no corpus path).
 pub(crate) fn target_path_from_entry(
     entry: &IndexEntry,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
@@ -1149,7 +1947,7 @@ pub(crate) fn target_path_from_entry(
     corpus::cluster::target_path_from_entry(
         entry.r#type,
         entry.frontmatter.get("target").and_then(|v| v.as_str()),
-        plans_by_id,
+        documents_by_address,
         work_item_by_identity_key,
         work_item_cfg.convention(),
         project_root,
@@ -1184,24 +1982,6 @@ fn find_entry_for_deleted(
 // `RwLock::write().await`, and must be called while the caller holds
 // `entries.write()`, per the lock-ordering invariant on `Indexer`.
 
-async fn update_adr_by_id(
-    map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
-    new_entry: &IndexEntry,
-    previous: Option<&IndexEntry>,
-) {
-    let prev_id = previous.and_then(adr_id_from_entry);
-    let next_id = adr_id_from_entry(new_entry);
-    let mut m = map.write().await;
-    if let Some(prev_id) = prev_id {
-        if Some(prev_id) != next_id {
-            m.remove(&prev_id);
-        }
-    }
-    if let Some(id) = next_id {
-        m.insert(id, new_entry.path.clone());
-    }
-}
-
 /// Gives `key` to `path` when nothing holds it or `path` sorts lower than
 /// its holder, so two files sharing an identity key resolve to the same
 /// one whatever order they are read in.
@@ -1226,8 +2006,7 @@ fn release(
     if map.get(key).map(PathBuf::as_path) != Some(leaving) {
         return;
     }
-    let next = entries
-        .values()
+    let next = listed(entries.values())
         .filter(|entry| entry.path != leaving)
         .filter(|entry| identity_key_of_entry(entry).as_deref() == Some(key))
         .map(|entry| entry.path.clone())
@@ -1261,27 +2040,30 @@ async fn update_work_item_by_identity_key(
     }
 }
 
-async fn update_plans_by_id(
-    map: &Arc<RwLock<HashMap<String, PathBuf>>>,
+async fn update_documents_by_address(
+    map: &Arc<RwLock<HashMap<LinkageAddress, PathBuf>>>,
+    work_item_cfg: &crate::config::WorkItemConfig,
     new_entry: &IndexEntry,
     previous: Option<&IndexEntry>,
 ) {
-    let prev_id = previous.and_then(plan_id_from_entry);
-    let next_id = plan_id_from_entry(new_entry);
+    let ids = work_item_cfg.linkage_ids();
+    let previous_address =
+        previous.and_then(|previous| linkage_address_of(previous, ids));
+    let next_address = linkage_address_of(new_entry, ids);
     let mut m = map.write().await;
-    if let Some(ref prev_id) = prev_id {
-        if Some(prev_id.as_str()) != next_id.as_deref() {
-            m.remove(prev_id);
+    if let Some(previous_address) = previous_address {
+        if Some(&previous_address) != next_address.as_ref() {
+            m.remove(&previous_address);
         }
     }
-    if let Some(id) = next_id {
-        m.insert(id, new_entry.path.clone());
+    if let Some(address) = next_address {
+        m.insert(address, new_entry.path.clone());
     }
 }
 
 async fn update_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
@@ -1299,7 +2081,7 @@ async fn update_reviews_by_target(
     let prev_target = previous.and_then(|p| {
         target_path_from_entry(
             p,
-            plans_by_id,
+            documents_by_address,
             work_item_by_identity_key,
             work_item_cfg,
             project_root,
@@ -1307,7 +2089,7 @@ async fn update_reviews_by_target(
     });
     let next_target = target_path_from_entry(
         new_entry,
-        plans_by_id,
+        documents_by_address,
         work_item_by_identity_key,
         work_item_cfg,
         project_root,
@@ -1326,15 +2108,6 @@ async fn update_reviews_by_target(
     }
 }
 
-async fn remove_from_adr_by_id(
-    map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
-    previous: &IndexEntry,
-) {
-    if let Some(id) = adr_id_from_entry(previous) {
-        map.write().await.remove(&id);
-    }
-}
-
 async fn remove_from_work_item_by_identity_key(
     map: &Arc<RwLock<HashMap<String, PathBuf>>>,
     previous: &IndexEntry,
@@ -1345,28 +2118,30 @@ async fn remove_from_work_item_by_identity_key(
     }
 }
 
-async fn remove_from_plans_by_id(
-    map: &Arc<RwLock<HashMap<String, PathBuf>>>,
+async fn remove_from_documents_by_address(
+    map: &Arc<RwLock<HashMap<LinkageAddress, PathBuf>>>,
+    work_item_cfg: &crate::config::WorkItemConfig,
     previous: &IndexEntry,
 ) {
-    if let Some(id) = plan_id_from_entry(previous) {
-        map.write().await.remove(&id);
+    let address = linkage_address_of(previous, work_item_cfg.linkage_ids());
+    if let Some(address) = address {
+        map.write().await.remove(&address);
     }
 }
 
 /// Every review, by the path of the document it targets.
-fn reviews_by_target_of(
-    entries: &HashMap<PathBuf, IndexEntry>,
-    plans_by_id: &HashMap<String, PathBuf>,
+fn reviews_by_target_of<'a>(
+    entries: impl IntoIterator<Item = &'a IndexEntry>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
 ) -> HashMap<PathBuf, BTreeSet<PathBuf>> {
     let mut reviews: HashMap<PathBuf, BTreeSet<PathBuf>> = HashMap::new();
-    for entry in entries.values() {
+    for entry in entries {
         if let Some(target) = target_path_from_entry(
             entry,
-            plans_by_id,
+            documents_by_address,
             work_item_by_identity_key,
             work_item_cfg,
             project_root,
@@ -1382,7 +2157,7 @@ fn reviews_by_target_of(
 
 async fn remove_from_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
@@ -1390,7 +2165,7 @@ async fn remove_from_reviews_by_target(
 ) {
     if let Some(target_key) = target_path_from_entry(
         previous,
-        plans_by_id,
+        documents_by_address,
         work_item_by_identity_key,
         work_item_cfg,
         project_root,
@@ -1525,23 +2300,23 @@ fn build_entry(
     content: &FileContent,
     project_root: &Path,
     work_item_cfg: &crate::config::WorkItemConfig,
+    placement: Placement<'_>,
 ) -> IndexEntry {
     let parsed = frontmatter::parse(&content.bytes);
     let filename = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
 
-    // For nested-manifest doc types (e.g. design inventories) the slug
-    // source is the parent directory name, not the manifest filename.
-    let slug_filename: String = if kind.nested_manifest_filename().is_some() {
-        path.parent()
-            .and_then(|p| p.file_name())
+    let slug_filename: String = match placement {
+        Placement::SetRoot(directory) => directory
+            .file_name()
             .and_then(|n| n.to_str())
-            .map_or_else(|| filename.to_string(), |n| format!("{n}.md"))
-    } else {
-        filename.to_string()
+            .map_or_else(|| filename.to_string(), |n| format!("{n}.md")),
+        Placement::Flat | Placement::SetMember(..) => filename.to_string(),
     };
 
     let (slug_val, work_item_id, identity_key) =
-        if kind == DocTypeKey::WorkItems {
+        if matches!(placement, Placement::SetMember(..)) {
+            (None, None, None)
+        } else if kind.cluster_anchor() {
             let id_slug = corpus::slug::derive_work_item(
                 filename,
                 work_item_cfg.convention(),
@@ -1565,8 +2340,6 @@ fn build_entry(
                 None,
             )
         };
-    // Title fallback uses the slug-source stem so nested kinds (where the
-    // manifest filename is just "inventory") get a meaningful default.
     let title_fallback_stem = markdown_stem(&slug_filename);
     let title = frontmatter::title_from(
         &parsed.state,
@@ -1596,6 +2369,21 @@ fn build_entry(
     let rel_path = path
         .strip_prefix(project_root)
         .map_or_else(|_| path.clone(), std::path::Path::to_path_buf);
+    let set = match placement {
+        Placement::Flat => None,
+        Placement::SetRoot(set_directory) => Some(SetDocument::root(
+            Arc::new(SetContext {
+                set_id: set_id_of(&parsed.state, set_directory),
+                set_slug: slug_val.clone(),
+                set_directory: set_directory.to_path_buf(),
+                root_rel_path: rel_path.clone(),
+            }),
+            filename.to_owned(),
+        )),
+        Placement::SetMember(context, set_relative_path) => {
+            Some(SetDocument::member(context, set_relative_path.to_owned()))
+        }
+    };
 
     IndexEntry {
         r#type: kind,
@@ -1623,12 +2411,13 @@ fn build_entry(
         completeness: None,
         linked_count: 0,
         cluster_key: None,
+        set,
     }
 }
 
 fn publish_document_ids(entries: &mut HashMap<PathBuf, IndexEntry>) {
     let mut holders: HashMap<(DocTypeKey, &str), usize> = HashMap::new();
-    for entry in entries.values() {
+    for entry in listed(entries.values()) {
         if let Some(id) = entry.frontmatter_id.as_deref() {
             *holders.entry((entry.r#type, id)).or_insert(0) += 1;
         }
@@ -1639,20 +2428,64 @@ fn publish_document_ids(entries: &mut HashMap<PathBuf, IndexEntry>) {
         .map(|((kind, id), _)| (kind, id.to_owned()))
         .collect();
     for entry in entries.values_mut() {
+        if entry.is_member() {
+            entry.id.clone_from(&entry.frontmatter_id);
+            continue;
+        }
         let unique_frontmatter_id = entry
             .frontmatter_id
             .clone()
             .filter(|id| !shared.contains(&(entry.r#type, id.clone())));
-        entry.id =
-            unique_frontmatter_id.or_else(|| manifest_directory_of(entry));
+        entry.id = unique_frontmatter_id.or_else(|| set_directory_of(entry));
     }
 }
 
-fn manifest_directory_of(entry: &IndexEntry) -> Option<String> {
-    entry.r#type.nested_manifest_filename()?;
+fn give_shared_set_ids_way_to_set_directories(
+    records: &mut [IndexEntry],
+    assets: &mut [AssetRecord],
+) {
+    let mut holders: HashMap<(DocTypeKey, String), usize> = HashMap::new();
+    for root in records.iter().filter(|entry| entry.is_set_root()) {
+        if let Some(id) = &root.frontmatter_id {
+            *holders.entry((root.r#type, id.clone())).or_insert(0) += 1;
+        }
+    }
+    let renamed: HashMap<PathBuf, Arc<SetContext>> = records
+        .iter()
+        .filter(|entry| entry.is_set_root())
+        .filter(|root| {
+            root.frontmatter_id.as_ref().is_some_and(|id| {
+                holders.get(&(root.r#type, id.clone())) > Some(&1)
+            })
+        })
+        .filter_map(|root| {
+            let context = &root.set_placement()?.context;
+            let directory_name = set_directory_of(root)?;
+            Some((
+                context.set_directory.clone(),
+                Arc::new(SetContext {
+                    set_id: directory_name,
+                    ..SetContext::clone(context)
+                }),
+            ))
+        })
+        .collect();
+    let placements = records
+        .iter_mut()
+        .filter_map(|entry| entry.set.as_mut().map(|set| &mut set.placement))
+        .chain(assets.iter_mut().map(|asset| &mut asset.placement));
+    for placement in placements {
+        if let Some(context) = renamed.get(&placement.context.set_directory) {
+            placement.context = context.clone();
+        }
+    }
+}
+
+fn set_directory_of(entry: &IndexEntry) -> Option<String> {
     entry
-        .path
-        .parent()?
+        .set_placement()?
+        .context
+        .set_directory
         .file_name()?
         .to_str()
         .map(str::to_owned)
@@ -1671,39 +2504,20 @@ fn document_id(state: &FrontmatterState) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
-    if entry.r#type != DocTypeKey::Decisions {
-        return None;
-    }
-    let filename = entry.path.file_name()?.to_str()?;
-    parse_adr_id(&entry.frontmatter, filename)
-}
-
 fn identity_key_of_entry(entry: &IndexEntry) -> Option<String> {
     entry.identity_key.clone()
 }
 
-/// Extracts a plan's `id:` value (typically the filename stem). Used to
-/// populate `plans_by_id` for resolving `target: "plan:<id>"`
-/// typed-linkage references per ADR-0034.
-fn plan_id_from_entry(entry: &IndexEntry) -> Option<String> {
-    if entry.r#type != DocTypeKey::Plans {
-        return None;
-    }
-    entry.frontmatter_id.clone()
-}
-
-fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
-    if let Some(s) = fm.get("adr_id").and_then(|v| v.as_str()) {
-        if let Some(rest) = s.strip_prefix("ADR-") {
-            if let Ok(n) = rest.parse::<u32>() {
-                return Some(n);
-            }
-        }
-    }
-    let rest = filename.strip_prefix("ADR-")?;
-    let dash = rest.find('-')?;
-    rest[..dash].parse().ok()
+fn linkage_address_of(
+    entry: &IndexEntry,
+    ids: &dyn corpus::LinkageIds,
+) -> Option<LinkageAddress> {
+    LinkageAddress::of_document(
+        entry.r#type,
+        entry.frontmatter_id.as_deref(),
+        entry.path.to_str()?,
+        ids,
+    )
 }
 
 #[cfg(test)]
@@ -1791,6 +2605,7 @@ mod document_id_tests {
     use super::*;
     use crate::config::WorkItemConfig;
     use crate::file_driver::LocalFileDriver;
+    use crate::test_support::RecordingSink;
     use std::sync::Arc;
 
     const DIRS: [(&str, &str); 4] = [
@@ -1814,10 +2629,21 @@ mod document_id_tests {
         let file = root.join(path);
         std::fs::create_dir_all(file.parent().unwrap()).unwrap();
         std::fs::write(&file, content).unwrap();
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &dirs,
+            vec![],
+            vec![],
+        ));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, root, cfg).await.unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            root,
+            cfg,
+        )
+        .await
+        .unwrap();
         idx.get(&file).await.expect("indexed")
     }
 
@@ -1844,6 +2670,66 @@ mod document_id_tests {
         )
         .await;
         assert_eq!(id.as_deref(), Some("2026-05-06-135214-current-app"));
+    }
+
+    async fn set_wire_fields_of(
+        path: &str,
+        content: &str,
+    ) -> (serde_json::Value, serde_json::Value) {
+        let wire = serde_json::to_value(entry_at(path, content).await).unwrap();
+        (wire["setId"].clone(), wire["setRelativePath"].clone())
+    }
+
+    #[tokio::test]
+    async fn a_set_root_carries_its_set_id_and_set_relative_path() {
+        let fields = set_wire_fields_of(
+            "meta/research/topics/caching-dir/manifest.md",
+            "---\nid: \"prompt-caching\"\n---\n",
+        )
+        .await;
+        assert_eq!(
+            fields,
+            (
+                serde_json::json!("prompt-caching"),
+                serde_json::json!("manifest.md")
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn a_set_root_without_an_id_takes_its_directory_as_set_id() {
+        let fields = set_wire_fields_of(
+            "meta/research/design-inventories/2026-05-06-app/inventory.md",
+            "---\ntitle: \"App\"\n---\n",
+        )
+        .await;
+        assert_eq!(
+            fields,
+            (
+                serde_json::json!("2026-05-06-app"),
+                serde_json::json!("inventory.md")
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn a_malformed_set_root_takes_its_directory_as_set_id() {
+        let (set_id, _) = set_wire_fields_of(
+            "meta/research/topics/caching-dir/manifest.md",
+            "---\nid: [\"unclosed\n---\n",
+        )
+        .await;
+        assert_eq!(set_id, serde_json::json!("caching-dir"));
+    }
+
+    #[tokio::test]
+    async fn a_document_outside_a_set_has_null_set_fields() {
+        let fields = set_wire_fields_of(
+            "meta/plans/2026-01-01-foo.md",
+            "---\nid: \"foo\"\n---\n",
+        )
+        .await;
+        assert_eq!(fields, (serde_json::Value::Null, serde_json::Value::Null));
     }
 
     #[tokio::test]
@@ -1916,11 +2802,21 @@ mod document_id_tests {
                 std::fs::create_dir_all(file.parent().unwrap()).unwrap();
                 std::fs::write(&file, content).unwrap();
             }
-            let driver: Arc<dyn FileDriver> =
-                Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+            let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+                &crate::test_support::assembled_catalogue(),
+                &dirs,
+                vec![],
+                vec![],
+            ));
             let cfg = Arc::new(WorkItemConfig::default_numeric());
-            let indexer =
-                Indexer::build(driver, root.clone(), cfg).await.unwrap();
+            let indexer = Indexer::build(
+                driver,
+                crate::test_support::assembled_catalogue(),
+                root.clone(),
+                cfg,
+            )
+            .await
+            .unwrap();
             Self {
                 _tmp: tmp,
                 root,
@@ -1939,13 +2835,19 @@ mod document_id_tests {
         async fn rewrite(&self, path: &str, content: &str) {
             let file = self.root.join(path);
             std::fs::write(&file, content).unwrap();
-            self.indexer.refresh_one(&file).await.unwrap();
+            self.indexer
+                .refresh_one(&file, &RecordingSink::default())
+                .await
+                .unwrap();
         }
 
         async fn delete(&self, path: &str) {
             let file = self.root.join(path);
             std::fs::remove_file(&file).unwrap();
-            self.indexer.refresh_one(&file).await.unwrap();
+            self.indexer
+                .refresh_one(&file, &RecordingSink::default())
+                .await
+                .unwrap();
         }
     }
 
@@ -2090,6 +2992,7 @@ mod identity_join_tests {
     use crate::clusters::{compute_clusters_with_backfill, ClusterContext};
     use crate::config::{scheme_for_test, WorkItemConfig};
     use crate::file_driver::LocalFileDriver;
+    use crate::test_support::RecordingSink;
     use std::sync::Arc;
 
     const DIRS: [(&str, &str); 3] = [
@@ -2112,12 +3015,21 @@ mod identity_join_tests {
         for (path, content) in files {
             std::fs::write(root.join(path), content).unwrap();
         }
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &dirs,
+            vec![],
+            vec![],
+        ));
         let cfg = WorkItemConfig::new(scheme_for_test(pattern, key));
-        Indexer::build(driver, root.to_path_buf(), Arc::new(cfg))
-            .await
-            .unwrap()
+        Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            root.to_path_buf(),
+            Arc::new(cfg),
+        )
+        .await
+        .unwrap()
     }
 
     async fn entry_at(idx: &Indexer, root: &Path, path: &str) -> IndexEntry {
@@ -2144,7 +3056,9 @@ mod identity_join_tests {
         assert_eq!(snapshot.get("PP-0500"), Some(&root.join(lower)));
 
         std::fs::remove_file(root.join(lower)).unwrap();
-        idx.refresh_one(&root.join(lower)).await.unwrap();
+        idx.refresh_one(&root.join(lower), &RecordingSink::default())
+            .await
+            .unwrap();
 
         let snapshot = idx.work_item_by_identity_key_snapshot().await;
         assert_eq!(snapshot.get("PP-0500"), Some(&root.join(higher)));
@@ -2172,7 +3086,9 @@ mod identity_join_tests {
         .await;
 
         std::fs::remove_file(root.join(lower)).unwrap();
-        idx.refresh_one(&root.join(lower)).await.unwrap();
+        idx.refresh_one(&root.join(lower), &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(idx.reviews_by_target(&root.join(lower)).await.len(), 0);
         assert_eq!(idx.reviews_by_target(&root.join(higher)).await.len(), 1);
@@ -2199,7 +3115,9 @@ mod identity_join_tests {
         .await;
 
         std::fs::write(root.join(lower), "---\nid: PP-0500\n---\n").unwrap();
-        idx.refresh_one(&root.join(lower)).await.unwrap();
+        idx.refresh_one(&root.join(lower), &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(idx.reviews_by_target(&root.join(higher)).await.len(), 0);
         assert_eq!(idx.reviews_by_target(&root.join(lower)).await.len(), 1);
@@ -2212,7 +3130,7 @@ mod identity_join_tests {
     ) -> Vec<Option<String>> {
         let snapshot = idx.all().await;
         let by_id = idx.work_item_by_identity_key_snapshot().await;
-        let plans = idx.plans_by_id_snapshot().await;
+        let plans = idx.documents_by_address_snapshot().await;
         let work_item_cfg = idx.work_item_cfg();
         let ctx = ClusterContext::from_entries(
             &snapshot,
@@ -2348,7 +3266,9 @@ mod identity_join_tests {
 
         std::fs::write(root.join(off_pattern.0), "---\nid: \"0042\"\n---\n")
             .unwrap();
-        idx.refresh_one(&root.join(off_pattern.0)).await.unwrap();
+        idx.refresh_one(&root.join(off_pattern.0), &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(idx.untrusted_corpus_problem(), None);
         assert_eq!(
@@ -2376,7 +3296,9 @@ mod identity_join_tests {
         let slugless = root.join("meta/work/0400.md");
 
         std::fs::write(&slugless, "---\nid: \"0400\"\n---\n").unwrap();
-        idx.refresh_one(&slugless).await.unwrap();
+        idx.refresh_one(&slugless, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert!(
             idx.untrusted_corpus_problem().is_some_and(|problem| problem
@@ -2411,6 +3333,23 @@ mod identity_join_tests {
             >,
         > {
             self.inner.list(kind)
+        }
+
+        fn list_sets(
+            &self,
+            kind: DocTypeKey,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<
+                            Vec<crate::file_driver::SetListing>,
+                            FileDriverError,
+                        >,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.inner.list_sets(kind)
         }
 
         fn read(
@@ -2459,6 +3398,10 @@ mod identity_join_tests {
         fn kind_for_canonical_path(&self, path: &Path) -> Option<DocTypeKey> {
             self.inner.kind_for_canonical_path(path)
         }
+
+        fn lies_in_a_set_doc_root(&self, canonical_path: &Path) -> bool {
+            self.inner.lies_in_a_set_doc_root(canonical_path)
+        }
     }
 
     #[tokio::test]
@@ -2477,19 +3420,34 @@ mod identity_join_tests {
             std::fs::write(root.join(path), content).unwrap();
         }
         let driver = Arc::new(FailingOneRead {
-            inner: LocalFileDriver::new(&dirs, vec![], vec![]),
+            inner: LocalFileDriver::new(
+                &crate::test_support::assembled_catalogue(),
+                &dirs,
+                vec![],
+                vec![],
+            ),
             failing: std::sync::Mutex::new(None),
         });
         let cfg = WorkItemConfig::new(scheme_for_test("{number:04d}", None));
-        let idx = Indexer::build(driver.clone(), root.clone(), Arc::new(cfg))
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver.clone(),
+            crate::test_support::assembled_catalogue(),
+            root.clone(),
+            Arc::new(cfg),
+        )
+        .await
+        .unwrap();
         let slugless = root.join("meta/work/0400.md");
         std::fs::write(&slugless, "---\nid: \"0400\"\n---\n").unwrap();
 
         driver.fail_next_read_of(root.join(plan.0));
-        assert!(idx.refresh_one(&slugless).await.is_err());
-        idx.refresh_one(&slugless).await.unwrap();
+        assert!(idx
+            .refresh_one(&slugless, &RecordingSink::default())
+            .await
+            .is_err());
+        idx.refresh_one(&slugless, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert!(idx.untrusted_corpus_problem().is_some());
         assert_eq!(entry_at(&idx, &root, item.0).await.work_item_id, None);
@@ -2508,7 +3466,9 @@ mod identity_join_tests {
             b"---\nid: \"0400\"\ntitle: Caf\xe9\n---\n",
         )
         .unwrap();
-        idx.refresh_one(&undecodable).await.unwrap();
+        idx.refresh_one(&undecodable, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert_eq!(
             idx.untrusted_corpus_problem().as_deref(),
@@ -2730,7 +3690,7 @@ mod identity_join_tests {
 
         let entry = entry_at(&idx, tmp.path(), item.0).await;
 
-        assert_eq!(entry.r#type, DocTypeKey::WorkItems);
+        assert_eq!(entry.r#type, DocTypeKey::WORK_ITEMS);
         assert_eq!(entry.slug.as_deref(), Some("x"));
         assert_eq!(entry.title, "X");
     }
@@ -2749,7 +3709,9 @@ mod identity_join_tests {
 
         std::fs::write(&path, "---\nid: pp-0500\nparent: PP-500\n---\n")
             .unwrap();
-        idx.refresh_one(&path).await.unwrap();
+        idx.refresh_one(&path, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert!(idx
             .work_item_by_identity_key_snapshot()
@@ -2758,7 +3720,9 @@ mod identity_join_tests {
         assert!(idx.work_item_refs_by_id("PP-0500").await.is_empty());
 
         std::fs::remove_file(&path).unwrap();
-        idx.refresh_one(&path).await.unwrap();
+        idx.refresh_one(&path, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert!(!idx
             .work_item_by_identity_key_snapshot()
@@ -2772,7 +3736,12 @@ mod tests {
     use super::*;
     use crate::config::WorkItemConfig;
     use crate::file_driver::LocalFileDriver;
+    use crate::test_support::RecordingSink;
     use std::sync::Arc;
+
+    fn adr_0001() -> LinkageAddress {
+        LinkageAddress::new("adr", "ADR-0001")
+    }
 
     fn default_work_item_cfg() -> Arc<WorkItemConfig> {
         Arc::new(WorkItemConfig::default_numeric())
@@ -2832,24 +3801,33 @@ mod tests {
 
     async fn build_indexer(tmp: &Path) -> Indexer {
         let (root, map) = seed(tmp);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        Indexer::build(driver, root, default_work_item_cfg())
-            .await
-            .unwrap()
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
+        Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            root,
+            default_work_item_cfg(),
+        )
+        .await
+        .unwrap()
     }
 
     #[tokio::test]
     async fn scan_populates_entries_for_configured_types() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let decisions = idx.all_by_type(DocTypeKey::Decisions).await;
+        let decisions = idx.all_by_type(DocTypeKey::DECISIONS).await;
         assert_eq!(decisions.len(), 1);
-        let plans = idx.all_by_type(DocTypeKey::Plans).await;
+        let plans = idx.all_by_type(DocTypeKey::PLANS).await;
         assert_eq!(plans.len(), 3);
-        let reviews = idx.all_by_type(DocTypeKey::PlanReviews).await;
+        let reviews = idx.all_by_type(DocTypeKey::PLAN_REVIEWS).await;
         assert_eq!(reviews.len(), 2);
-        let notes = idx.all_by_type(DocTypeKey::Notes).await;
+        let notes = idx.all_by_type(DocTypeKey::NOTES).await;
         assert_eq!(notes.len(), 1);
     }
 
@@ -2858,21 +3836,21 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
         let counts = idx.counts_by_type().await;
-        assert_eq!(counts.get(&DocTypeKey::Plans).copied().unwrap_or(0), 3);
-        assert_eq!(counts.get(&DocTypeKey::Decisions).copied().unwrap_or(0), 1);
+        assert_eq!(counts.get(&DocTypeKey::PLANS).copied().unwrap_or(0), 3);
+        assert_eq!(counts.get(&DocTypeKey::DECISIONS).copied().unwrap_or(0), 1);
         assert_eq!(
-            counts.get(&DocTypeKey::PlanReviews).copied().unwrap_or(0),
+            counts.get(&DocTypeKey::PLAN_REVIEWS).copied().unwrap_or(0),
             2
         );
-        assert_eq!(counts.get(&DocTypeKey::Notes).copied().unwrap_or(0), 1);
-        assert!(!counts.contains_key(&DocTypeKey::Templates));
+        assert_eq!(counts.get(&DocTypeKey::NOTES).copied().unwrap_or(0), 1);
+        assert!(!counts.contains_key(&DocTypeKey::TEMPLATES));
     }
 
     #[tokio::test]
     async fn etag_is_content_hash() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let decs = idx.all_by_type(DocTypeKey::Decisions).await;
+        let decs = idx.all_by_type(DocTypeKey::DECISIONS).await;
         let adr = &decs[0];
         let bytes = std::fs::read(&adr.path).unwrap();
         let expected = crate::file_driver::etag_of(&bytes);
@@ -2883,7 +3861,7 @@ mod tests {
     async fn frontmatter_state_distinguishes_absent_malformed_parsed() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let plans = idx.all_by_type(DocTypeKey::Plans).await;
+        let plans = idx.all_by_type(DocTypeKey::PLANS).await;
         let by_name: HashMap<String, IndexEntry> = plans
             .into_iter()
             .map(|e| {
@@ -2902,7 +3880,7 @@ mod tests {
     async fn slug_stripped_per_type_and_review_suffix_edge_case() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let revs = idx.all_by_type(DocTypeKey::PlanReviews).await;
+        let revs = idx.all_by_type(DocTypeKey::PLAN_REVIEWS).await;
         let slugs: Vec<String> =
             revs.iter().filter_map(|e| e.slug.clone()).collect();
         assert!(slugs.contains(&"hello".to_string()));
@@ -2919,31 +3897,33 @@ mod tests {
     async fn title_fallback_to_first_h1_when_fm_absent() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let notes = idx.all_by_type(DocTypeKey::Notes).await;
+        let notes = idx.all_by_type(DocTypeKey::NOTES).await;
         assert_eq!(notes.len(), 1);
         assert_eq!(notes[0].title, "A bare note");
     }
 
     #[tokio::test]
-    async fn adr_by_id_is_populated_from_frontmatter() {
+    async fn a_decision_is_found_at_its_linkage_address() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let adr = idx.adr_by_id(1).await.unwrap();
-        assert_eq!(adr.r#type, DocTypeKey::Decisions);
+        let adr = idx.document_at(&adr_0001()).await.unwrap();
+        assert_eq!(adr.r#type, DocTypeKey::DECISIONS);
     }
 
     #[tokio::test]
     async fn rescan_picks_up_filesystem_mutations() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let before = idx.all_by_type(DocTypeKey::Plans).await.len();
+        let before = idx.all_by_type(DocTypeKey::PLANS).await.len();
         std::fs::write(
             tmp.path().join("meta/plans/2026-05-01-new.md"),
             "---\ntitle: New\n---\n",
         )
         .unwrap();
-        idx.rescan().await.unwrap();
-        let after = idx.all_by_type(DocTypeKey::Plans).await.len();
+        idx.rescan_with_diff(&RecordingSink::default())
+            .await
+            .unwrap();
+        let after = idx.all_by_type(DocTypeKey::PLANS).await.len();
         assert_eq!(after, before + 1);
     }
 
@@ -2971,11 +3951,16 @@ mod tests {
 
         let mut paths = std::collections::HashMap::new();
         paths.insert("plans".to_string(), plans);
-        let driver: Arc<dyn FileDriver> = Arc::new(
-            crate::file_driver::LocalFileDriver::new(&paths, vec![], vec![]),
-        );
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(crate::file_driver::LocalFileDriver::new(
+                &crate::test_support::assembled_catalogue(),
+                &paths,
+                vec![],
+                vec![],
+            ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             default_work_item_cfg(),
         )
@@ -2992,11 +3977,11 @@ mod tests {
         let idx = build_indexer(tmp.path()).await;
         let agg = idx.library_aggregates(&Selection::new()).await;
         let plans =
-            agg.per_type.get(&DocTypeKey::Plans).expect("plans present");
+            agg.per_type.get(&DocTypeKey::PLANS).expect("plans present");
         assert_eq!(plans.count, 3);
         assert_eq!(plans.filtered_count, 3);
         assert!(plans.latest.is_some());
-        let decisions = agg.per_type.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = agg.per_type.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(decisions.count, 1);
         assert!(decisions.latest.is_some());
     }
@@ -3005,10 +3990,15 @@ mod tests {
     async fn library_aggregates_returns_empty_map_for_empty_index() {
         let tmp = tempfile::tempdir().unwrap();
         let map = HashMap::new();
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             default_work_item_cfg(),
         )
@@ -3023,7 +4013,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
         let agg = idx.library_aggregates(&Selection::new()).await;
-        let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
+        let plans = agg.per_type.get(&DocTypeKey::PLANS).unwrap();
         let status_options = plans.facet_options.get("status").unwrap();
         // Only the "draft" plan has parsed frontmatter with a status — the
         // malformed and absent plans contribute nothing.
@@ -3037,11 +4027,11 @@ mod tests {
         let idx = build_indexer(tmp.path()).await;
         let mut sel: Selection = HashMap::new();
         sel.insert(
-            DocTypeKey::Plans,
+            DocTypeKey::PLANS,
             HashMap::from([("status".to_string(), vec!["draft".to_string()])]),
         );
         let agg = idx.library_aggregates(&sel).await;
-        let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
+        let plans = agg.per_type.get(&DocTypeKey::PLANS).unwrap();
         assert_eq!(plans.count, 3);
         assert_eq!(plans.filtered_count, 1);
     }
@@ -3052,25 +4042,54 @@ mod tests {
         let idx = build_indexer(tmp.path()).await;
         let mut sel: Selection = HashMap::new();
         sel.insert(
-            DocTypeKey::Plans,
+            DocTypeKey::PLANS,
             HashMap::from([("status".to_string(), vec![])]),
         );
         let agg = idx.library_aggregates(&sel).await;
-        let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
+        let plans = agg.per_type.get(&DocTypeKey::PLANS).unwrap();
         assert_eq!(plans.filtered_count, plans.count);
     }
 
     #[test]
     fn facets_for_returns_expected_facets() {
         assert_eq!(
-            facets_for(DocTypeKey::Decisions),
+            facets_for(DocTypeKey::DECISIONS),
             &["status", "clusterSlug"]
         );
         assert_eq!(
-            facets_for(DocTypeKey::WorkItems),
+            facets_for(DocTypeKey::WORK_ITEMS),
             &["status", "project", "clusterSlug"]
         );
-        assert!(facets_for(DocTypeKey::Templates).is_empty());
+        assert!(facets_for(DocTypeKey::TEMPLATES).is_empty());
+    }
+
+    #[test]
+    fn every_built_in_doc_type_declares_its_facets() {
+        let declared: Vec<(&str, Vec<&str>)> =
+            crate::test_support::assembled_catalogue()
+                .doc_types()
+                .iter()
+                .map(|kind| (kind.wire_token(), facets_for(*kind)))
+                .collect();
+        let status_and_cluster = vec!["status", "clusterSlug"];
+        let expected: Vec<(&str, Vec<&str>)> = vec![
+            ("decisions", status_and_cluster.clone()),
+            ("work-items", vec!["status", "project", "clusterSlug"]),
+            ("plans", status_and_cluster.clone()),
+            ("codebase-research", status_and_cluster.clone()),
+            ("plan-reviews", status_and_cluster.clone()),
+            ("pr-reviews", status_and_cluster.clone()),
+            ("work-item-reviews", status_and_cluster.clone()),
+            ("validations", status_and_cluster.clone()),
+            ("notes", status_and_cluster.clone()),
+            ("pr-descriptions", status_and_cluster.clone()),
+            ("design-gaps", status_and_cluster.clone()),
+            ("design-inventories", status_and_cluster.clone()),
+            ("topic-research", status_and_cluster.clone()),
+            ("root-cause-analyses", status_and_cluster.clone()),
+            ("templates", vec![]),
+        ];
+        assert_eq!(declared, expected);
     }
 
     fn key_served(
@@ -3080,7 +4099,7 @@ mod tests {
     ) -> Option<String> {
         let text = format!("---\ntitle: T\nid: \"{id}\"\n---\n");
         build_entry(
-            DocTypeKey::WorkItems,
+            DocTypeKey::WORK_ITEMS,
             PathBuf::from(format!("/repo/meta/work/{id}-x.md")),
             &crate::file_driver::FileContent {
                 bytes: text.as_bytes().to_vec(),
@@ -3092,6 +4111,7 @@ mod tests {
             &crate::config::WorkItemConfig::new(
                 crate::config::scheme_for_test(pattern, key),
             ),
+            Placement::Flat,
         )
         .work_item_key
     }
@@ -3193,7 +4213,7 @@ mod tests {
 
     fn sample_entry_with_work_item(work_item_id: &str) -> IndexEntry {
         IndexEntry {
-            r#type: DocTypeKey::WorkItems,
+            r#type: DocTypeKey::WORK_ITEMS,
             path: PathBuf::from("/tmp/x.md"),
             rel_path: PathBuf::from("x.md"),
             slug: None,
@@ -3214,12 +4234,13 @@ mod tests {
             completeness: None,
             linked_count: 0,
             cluster_key: None,
+            set: None,
         }
     }
 
     fn sample_entry_without_work_item() -> IndexEntry {
         IndexEntry {
-            r#type: DocTypeKey::Decisions,
+            r#type: DocTypeKey::DECISIONS,
             path: PathBuf::from("/tmp/x.md"),
             rel_path: PathBuf::from("x.md"),
             slug: None,
@@ -3240,13 +4261,12 @@ mod tests {
             completeness: None,
             linked_count: 0,
             cluster_key: None,
+            set: None,
         }
     }
 
     #[tokio::test]
-    async fn design_inventories_indexed_from_nested_directories() {
-        // Design inventories live as `<root>/YYYY-MM-DD-HHMMSS-{source}/inventory.md`
-        // rather than flat `.md` files. The indexer must descend one level.
+    async fn design_inventories_index_root_and_screenshots() {
         let tmp = tempfile::tempdir().unwrap();
         let inv_root = tmp.path().join("meta/research/design-inventories");
         let inv1 = inv_root.join("2026-05-06-140608-foo");
@@ -3269,20 +4289,28 @@ mod tests {
         std::fs::write(skip_tmp.join("inventory.md"), "---\n---\n").unwrap();
         // A subdirectory missing inventory.md should be ignored.
         std::fs::create_dir_all(inv_root.join("2026-05-06-empty")).unwrap();
+        std::fs::create_dir_all(inv1.join("screenshots")).unwrap();
+        std::fs::write(inv1.join("screenshots/home.png"), "png").unwrap();
+        std::fs::write(inv1.join("notes.txt"), "notes").unwrap();
 
         let mut map = HashMap::new();
         map.insert("research_design_inventories".to_string(), inv_root);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             default_work_item_cfg(),
         )
         .await
         .unwrap();
 
-        let entries = idx.all_by_type(DocTypeKey::DesignInventories).await;
+        let entries = idx.all_by_type(DocTypeKey::DESIGN_INVENTORIES).await;
         let titles: Vec<&str> =
             entries.iter().map(|e| e.title.as_str()).collect();
         assert!(titles.contains(&"Foo Inventory"), "got {titles:?}");
@@ -3300,65 +4328,55 @@ mod tests {
             slugs.iter().any(|s| s == "135214-bar"),
             "expected slug derived from parent dir; got {slugs:?}",
         );
+
+        let directory = inv1.canonicalize().unwrap();
+        let screenshots: Vec<String> = idx
+            .set_assets(&directory)
+            .await
+            .into_iter()
+            .map(|asset| asset.placement.set_relative_path)
+            .collect();
+        assert_eq!(screenshots, vec!["screenshots/home.png"]);
+        assert!(idx.set_members(&directory).await.is_empty());
     }
 
     #[tokio::test]
-    async fn topic_research_indexes_one_entry_per_set_from_its_manifest() {
-        // Point at the committed topic-research fixtures: four real sets, one
-        // manifest-less directory, and one dot-prefixed in-flight directory,
-        // plus sub-documents (findings/, reports/) under the first set.
+    async fn topic_research_indexes_its_root_and_slotted_members() {
         let topics_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/meta/research/topics");
         let project_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/meta");
 
         let mut map = HashMap::new();
-        map.insert("research_topics".to_string(), topics_root);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, project_root, default_work_item_cfg())
-            .await
-            .unwrap();
+        map.insert("research_topics".to_string(), topics_root.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            project_root,
+            default_work_item_cfg(),
+        )
+        .await
+        .unwrap();
 
-        let entries = idx.all_by_type(DocTypeKey::TopicResearch).await;
-
-        // One entry per real set — not per sub-document, and not the skipped
-        // directories.
-        assert_eq!(entries.len(), 4, "one entry per set");
-
-        let titles: Vec<&str> =
+        let entries = idx.all_by_type(DocTypeKey::TOPIC_RESEARCH).await;
+        let mut titles: Vec<&str> =
             entries.iter().map(|e| e.title.as_str()).collect();
-        // Title cascade: frontmatter title → first body H1 → humanise_slug.
-        assert!(titles.contains(&"Prompt caching economics"), "{titles:?}");
-        assert!(titles.contains(&"MCP Transport Layer"), "{titles:?}");
-        assert!(titles.contains(&"Model Context Protocol"), "{titles:?}");
-        assert!(
-            titles.contains(&"AC2 Coverage (topic research)"),
-            "{titles:?}"
+        titles.sort_unstable();
+        assert_eq!(
+            titles,
+            vec![
+                "AC2 Coverage (topic research)",
+                "MCP Transport Layer",
+                "Model Context Protocol",
+                "Prompt caching economics",
+            ]
         );
-
-        // Sub-documents are never separately indexed.
-        assert!(
-            !titles.contains(&"Cost model"),
-            "finding leaked: {titles:?}"
-        );
-        assert!(
-            !titles.contains(&"Summary report"),
-            "report leaked: {titles:?}"
-        );
-        // The dot-prefixed in-flight set is skipped.
-        assert!(
-            !titles.contains(&"Draft Subject"),
-            "dot-dir leaked: {titles:?}"
-        );
-
-        // Every entry keys on manifest.md, and its slug is the directory name.
-        let slugs: Vec<String> =
-            entries.iter().filter_map(|e| e.slug.clone()).collect();
-        assert!(slugs.iter().any(|s| s == "prompt-caching-economics"));
-        assert!(slugs.iter().any(|s| s == "mcp-transport-layer"));
-        assert!(slugs.iter().any(|s| s == "model-context-protocol"));
-        assert!(slugs.iter().any(|s| s == "ac2-coverage"));
         for entry in &entries {
             assert!(
                 entry.rel_path.ends_with("manifest.md"),
@@ -3366,6 +4384,28 @@ mod tests {
                 entry.rel_path.display()
             );
         }
+
+        let caching = topics_root
+            .join("prompt-caching-economics")
+            .canonicalize()
+            .unwrap();
+        let members: Vec<(String, String)> = idx
+            .set_members(&caching)
+            .await
+            .into_iter()
+            .map(|member| {
+                let placement = member.set_placement().unwrap();
+                (placement.set_relative_path.clone(), member.title.clone())
+            })
+            .collect();
+        assert_eq!(
+            members,
+            vec![
+                ("findings/01-cost-model.md".into(), "Cost model".into()),
+                ("reports/summary.md".into(), "Summary report".into()),
+            ]
+        );
+        assert_eq!(idx.documents_including_members().await.len(), 6);
     }
 
     // A tripwire for an algorithmic blowup in the scan, not a latency budget.
@@ -3397,11 +4437,16 @@ mod tests {
             map.insert((*key).to_string(), dir_path);
         }
 
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let start = std::time::Instant::now();
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             default_work_item_cfg(),
         )
@@ -3422,7 +4467,12 @@ mod refresh_tests {
     use super::*;
     use crate::config::WorkItemConfig;
     use crate::file_driver::{etag_of, LocalFileDriver};
+    use crate::test_support::RecordingSink;
     use std::sync::Arc;
+
+    fn adr_0001() -> LinkageAddress {
+        LinkageAddress::new("adr", "ADR-0001")
+    }
 
     async fn build_refresh_indexer(tmp: &Path) -> (Indexer, PathBuf) {
         let work = tmp.join("meta/work");
@@ -3454,12 +4504,21 @@ mod refresh_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         map.insert("decisions".into(), dec);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            tmp.to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         (idx, work)
     }
 
@@ -3476,7 +4535,10 @@ mod refresh_tests {
         )
         .unwrap();
 
-        let entry = idx.refresh_one(&new_path).await.unwrap();
+        let entry = idx
+            .refresh_one(&new_path, &RecordingSink::default())
+            .await
+            .unwrap();
         assert!(
             entry.is_some(),
             "new file should be indexed after refresh_one"
@@ -3487,7 +4549,7 @@ mod refresh_tests {
         let raw = std::fs::read(&new_path).unwrap();
         assert_eq!(entry.etag, etag_of(&raw));
 
-        let work_entries = idx.all_by_type(DocTypeKey::WorkItems).await;
+        let work_entries = idx.all_by_type(DocTypeKey::WORK_ITEMS).await;
         assert!(
             work_entries.iter().any(|e| e.title == "New"),
             "all_by_type should include the new entry"
@@ -3509,7 +4571,9 @@ mod refresh_tests {
         )
         .unwrap();
 
-        idx.refresh_one(&path).await.unwrap();
+        idx.refresh_one(&path, &RecordingSink::default())
+            .await
+            .unwrap();
         let new_entry = idx.get(&path).await.unwrap();
 
         assert_ne!(
@@ -3532,7 +4596,10 @@ mod refresh_tests {
         );
 
         std::fs::remove_file(&path).unwrap();
-        let result = idx.refresh_one(&path).await.unwrap();
+        let result = idx
+            .refresh_one(&path, &RecordingSink::default())
+            .await
+            .unwrap();
 
         assert!(
             result.is_none(),
@@ -3560,7 +4627,9 @@ mod refresh_tests {
         let before2 = idx.get(&path2).await.unwrap();
         let before3 = idx.get(&path3).await.unwrap();
 
-        idx.refresh_one(&path1).await.unwrap();
+        idx.refresh_one(&path1, &RecordingSink::default())
+            .await
+            .unwrap();
 
         let after2 = idx.get(&path2).await.unwrap();
         let after3 = idx.get(&path3).await.unwrap();
@@ -3587,18 +4656,22 @@ mod refresh_tests {
 
         // Refresh work item #1 — work_item_by_identity_key must still work
         let path1 = work.join("0001-foo.md");
-        idx.refresh_one(&path1).await.unwrap();
+        idx.refresh_one(&path1, &RecordingSink::default())
+            .await
+            .unwrap();
         assert!(
             idx.work_item_by_identity_key("0001").await.is_some(),
             "work_item_by_identity_key(\"0001\") must still resolve after refresh_one"
         );
 
-        // Refresh ADR-0001 — adr_by_id must still work
+        // Refresh ADR-0001 — its address must still resolve
         let adr_path = tmp.path().join("meta/decisions/ADR-0001-foo.md");
-        idx.refresh_one(&adr_path).await.unwrap();
+        idx.refresh_one(&adr_path, &RecordingSink::default())
+            .await
+            .unwrap();
         assert!(
-            idx.adr_by_id(1).await.is_some(),
-            "adr_by_id(1) must still resolve after refresh_one"
+            idx.document_at(&adr_0001()).await.is_some(),
+            "ADR-0001 must still resolve after refresh_one"
         );
     }
 
@@ -3623,14 +4696,18 @@ mod refresh_tests {
         let b2 = barrier.clone();
         let rescan_handle = tokio::spawn(async move {
             b2.wait().await;
-            idx2.rescan().await.unwrap();
+            idx2.rescan_with_diff(&RecordingSink::default())
+                .await
+                .unwrap();
         });
 
         let b3 = barrier.clone();
         let idx3 = idx.clone();
         let refresh_handle = tokio::spawn(async move {
             b3.wait().await;
-            idx3.refresh_one(&path2).await.unwrap();
+            idx3.refresh_one(&path2, &RecordingSink::default())
+                .await
+                .unwrap();
         });
 
         rescan_handle.await.unwrap();
@@ -3655,7 +4732,62 @@ mod reverse_index_tests {
     use super::*;
     use crate::config::WorkItemConfig;
     use crate::file_driver::LocalFileDriver;
+    use crate::test_support::RecordingSink;
     use std::sync::Arc;
+
+    fn plan_at(id: &str) -> LinkageAddress {
+        LinkageAddress::new("plan", id)
+    }
+
+    async fn index_plans(tmp: &Path, plans: &[(&str, &str)]) -> Indexer {
+        let directory = tmp.join("meta/plans");
+        std::fs::create_dir_all(&directory).unwrap();
+        for (filename, content) in plans {
+            std::fs::write(directory.join(filename), content).unwrap();
+        }
+        let mut map = HashMap::new();
+        map.insert("plans".into(), directory);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
+        Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            tmp.to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_plan_answers_to_its_frontmatter_id_and_not_its_stem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = index_plans(
+            tmp.path(),
+            &[(
+                "2026-04-18-foo.md",
+                "---\nid: \"the-foo-plan\"\ntitle: Foo\n---\nbody\n",
+            )],
+        )
+        .await;
+        assert!(idx.document_at(&plan_at("the-foo-plan")).await.is_some());
+        assert!(idx.document_at(&plan_at("2026-04-18-foo")).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_plan_without_a_frontmatter_id_answers_to_its_stem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = index_plans(
+            tmp.path(),
+            &[("2026-04-18-foo.md", "---\ntitle: Foo\n---\nbody\n")],
+        )
+        .await;
+        assert!(idx.document_at(&plan_at("2026-04-18-foo")).await.is_some());
+    }
 
     /// Seed a tempdir with one plan and one review whose `target:`
     /// points at the plan. Returns (idx, `plan_path`, `review_path`), with
@@ -3679,12 +4811,21 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            tmp.to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         // Canonicalise the paths so callers compare against the
         // indexer's primary key form.
         let plan = std::fs::canonicalize(&plan).unwrap();
@@ -3752,10 +4893,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -3792,10 +4938,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -3825,10 +4976,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -3872,10 +5028,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -3907,8 +5068,12 @@ mod reverse_index_tests {
         let (idx, plan_path, review_path) =
             build_with_plan_and_review(tmp.path()).await;
         // Refresh the review twice without touching its content.
-        idx.refresh_one(&review_path).await.unwrap();
-        idx.refresh_one(&review_path).await.unwrap();
+        idx.refresh_one(&review_path, &RecordingSink::default())
+            .await
+            .unwrap();
+        idx.refresh_one(&review_path, &RecordingSink::default())
+            .await
+            .unwrap();
         let inbound = idx.reviews_by_target(&plan_path).await;
         assert_eq!(inbound.len(), 1, "BTreeSet dedup-by-construction holds");
     }
@@ -3923,8 +5088,12 @@ mod reverse_index_tests {
         let review_b = review_a.with_file_name("2026-04-18-foo-review-2.md");
         std::fs::rename(&review_a, &review_b).unwrap();
         // Watcher's typical sequence: refresh_one on new path then on old.
-        idx.refresh_one(&review_b).await.unwrap();
-        idx.refresh_one(&review_a).await.unwrap();
+        idx.refresh_one(&review_b, &RecordingSink::default())
+            .await
+            .unwrap();
+        idx.refresh_one(&review_a, &RecordingSink::default())
+            .await
+            .unwrap();
 
         let inbound = idx.reviews_by_target(&plan_path).await;
         let paths: Vec<&Path> =
@@ -3953,10 +5122,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -3970,7 +5144,9 @@ mod reverse_index_tests {
             "---\ntarget: \"meta/plans/2026-04-18-foo.md\"\n---\n",
         )
         .unwrap();
-        idx.refresh_one(&new_review).await.unwrap();
+        idx.refresh_one(&new_review, &RecordingSink::default())
+            .await
+            .unwrap();
 
         let plan_canon =
             std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
@@ -3994,10 +5170,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4010,7 +5191,9 @@ mod reverse_index_tests {
         // Migrate target from A to B.
         std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n")
             .unwrap();
-        idx.refresh_one(&review).await.unwrap();
+        idx.refresh_one(&review, &RecordingSink::default())
+            .await
+            .unwrap();
 
         let inbound_a = idx.reviews_by_target(&plan_a).await;
         let inbound_b = idx.reviews_by_target(&plan_b).await;
@@ -4033,11 +5216,16 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Arc::new(
             Indexer::build(
                 driver,
+                crate::test_support::assembled_catalogue(),
                 tmp.path().to_path_buf(),
                 Arc::new(WorkItemConfig::default_numeric()),
             )
@@ -4063,7 +5251,10 @@ mod reverse_index_tests {
         let writer_idx = idx.clone();
         let writer_review = review.clone();
         let writer = tokio::spawn(async move {
-            writer_idx.refresh_one(&writer_review).await.unwrap();
+            writer_idx
+                .refresh_one(&writer_review, &RecordingSink::default())
+                .await
+                .unwrap();
         });
 
         // Wait for the writer to reach the post-secondary-update barrier.
@@ -4106,7 +5297,9 @@ mod reverse_index_tests {
         let (idx, plan_path, review_path) =
             build_with_plan_and_review(tmp.path()).await;
         std::fs::remove_file(&review_path).unwrap();
-        idx.refresh_one(&review_path).await.unwrap();
+        idx.refresh_one(&review_path, &RecordingSink::default())
+            .await
+            .unwrap();
         let inbound = idx.reviews_by_target(&plan_path).await;
         assert!(
             inbound.is_empty(),
@@ -4135,10 +5328,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4148,7 +5346,9 @@ mod reverse_index_tests {
         let plan_a = plans.join("a.md");
         let plan_a_canon = std::fs::canonicalize(&plan_a).unwrap();
         std::fs::remove_file(&plan_a).unwrap();
-        idx.refresh_one(&plan_a).await.unwrap();
+        idx.refresh_one(&plan_a, &RecordingSink::default())
+            .await
+            .unwrap();
 
         // Reviews must still be addressable via the (now-non-existent)
         // canonical plan path — deferred materialisation contract.
@@ -4169,7 +5369,9 @@ mod reverse_index_tests {
         let tmp = tempfile::tempdir().unwrap();
         let (idx, plan_path, _review_path) =
             build_with_plan_and_review(tmp.path()).await;
-        idx.rescan().await.unwrap();
+        idx.rescan_with_diff(&RecordingSink::default())
+            .await
+            .unwrap();
         let inbound = idx.reviews_by_target(&plan_path).await;
         assert_eq!(inbound.len(), 1, "rescan re-populates the reverse index");
     }
@@ -4194,10 +5396,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_prs".into(), pr_reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4235,10 +5442,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         map.insert("review_work".into(), wi_reviews.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4256,7 +5468,9 @@ mod reverse_index_tests {
         let rev_path =
             std::fs::canonicalize(wi_reviews.join("0042-foo-review-1.md"))
                 .unwrap();
-        idx.refresh_one(&rev_path).await.unwrap();
+        idx.refresh_one(&rev_path, &RecordingSink::default())
+            .await
+            .unwrap();
         assert_eq!(
             idx.reviews_by_target(&wi_path).await.len(),
             1,
@@ -4294,10 +5508,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4321,15 +5540,15 @@ mod reverse_index_tests {
     }
 
     #[tokio::test]
-    async fn rescan_clears_all_three_secondary_maps_before_repopulating() {
+    async fn rescan_clears_the_secondary_maps_before_repopulating() {
         let tmp = tempfile::tempdir().unwrap();
         let (idx, _plan_path, _review_path) =
             build_with_plan_and_review(tmp.path()).await;
-        // Inject stale data into each of the three secondary maps.
-        idx.adr_by_id
-            .write()
-            .await
-            .insert(99, PathBuf::from("/nonexistent/ADR-9999.md"));
+        // Inject stale data into three of the secondary maps.
+        idx.documents_by_address.write().await.insert(
+            LinkageAddress::new("adr", "ADR-9999"),
+            PathBuf::from("/nonexistent/ADR-9999.md"),
+        );
         idx.work_item_by_identity_key.write().await.insert(
             "99".to_string(),
             PathBuf::from("/nonexistent/9999-work-item.md"),
@@ -4339,12 +5558,17 @@ mod reverse_index_tests {
             BTreeSet::from([PathBuf::from("/nonexistent/review.md")]),
         );
 
-        idx.rescan().await.unwrap();
+        idx.rescan_with_diff(&RecordingSink::default())
+            .await
+            .unwrap();
 
-        let adr_map = idx.adr_by_id.read().await;
+        let address_map = idx.documents_by_address.read().await;
         let work_item_map = idx.work_item_by_identity_key.read().await;
         let reviews_map = idx.reviews_by_target.read().await;
-        assert!(!adr_map.contains_key(&99u32), "stale ADR cleared on rescan");
+        assert!(
+            !address_map.contains_key(&LinkageAddress::new("adr", "ADR-9999")),
+            "stale address cleared on rescan"
+        );
         assert!(
             !work_item_map.contains_key("99"),
             "stale work item cleared on rescan"
@@ -4370,11 +5594,16 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Arc::new(
             Indexer::build(
                 driver,
+                crate::test_support::assembled_catalogue(),
                 tmp.path().to_path_buf(),
                 Arc::new(WorkItemConfig::default_numeric()),
             )
@@ -4397,7 +5626,10 @@ mod reverse_index_tests {
         let writer_idx = idx.clone();
         let writer_review = review.clone();
         let writer = tokio::spawn(async move {
-            writer_idx.refresh_one(&writer_review).await.unwrap();
+            writer_idx
+                .refresh_one(&writer_review, &RecordingSink::default())
+                .await
+                .unwrap();
         });
 
         reached_rx.await.expect("writer reached barrier");
@@ -4412,8 +5644,12 @@ mod reverse_index_tests {
 
         // Schedule a rescan; it must wait for the writer to release.
         let rescan_idx = idx.clone();
-        let rescan =
-            tokio::spawn(async move { rescan_idx.rescan().await.unwrap() });
+        let rescan = tokio::spawn(async move {
+            rescan_idx
+                .rescan_with_diff(&RecordingSink::default())
+                .await
+                .unwrap();
+        });
 
         // Release the writer.
         proceed_tx.send(()).expect("writer awaiting proceed");
@@ -4454,12 +5690,21 @@ mod reverse_index_tests {
         let mut dir_map = HashMap::new();
         dir_map.insert("work".into(), work_dir);
         dir_map.insert("plans".into(), plan_dir);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&dir_map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &dir_map,
+            vec![],
+            vec![],
+        ));
         let work_item_cfg = Arc::new(WorkItemConfig::default_numeric());
-        Indexer::build(driver, tmp.to_path_buf(), work_item_cfg)
-            .await
-            .unwrap()
+        Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            tmp.to_path_buf(),
+            work_item_cfg,
+        )
+        .await
+        .unwrap()
     }
 
     #[tokio::test]
@@ -4609,13 +5854,21 @@ mod reverse_index_tests {
         dir_map.insert("work".into(), work_dir.clone());
         dir_map.insert("plans".into(), plan_dir);
         dir_map.insert("review_plans".into(), review_dir);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&dir_map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &dir_map,
+            vec![],
+            vec![],
+        ));
         let work_item_cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx =
-            Indexer::build(driver, tmp.path().to_path_buf(), work_item_cfg)
-                .await
-                .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            tmp.path().to_path_buf(),
+            work_item_cfg,
+        )
+        .await
+        .unwrap();
 
         let work_item_path =
             std::fs::canonicalize(work_dir.join("0001-epic.md")).unwrap();
@@ -4656,16 +5909,25 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg =
             Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
                 "{project}-{number:04d}",
                 Some("ENG"),
             )));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            tmp.path().to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         let entry = idx
             .get(&work_dir.join("ENG-0042-foo.md"))
             .await
@@ -4688,11 +5950,12 @@ mod reverse_index_tests {
         // displayed_id — no legacy `work_item_id:` present.
         let cfg = crate::config::WorkItemConfig::default_numeric();
         let entry = build_entry(
-            DocTypeKey::WorkItems,
+            DocTypeKey::WORK_ITEMS,
             PathBuf::from("/repo/meta/work/9999-x.md"),
             &fc_for("---\ntitle: T\nid: \"0042\"\n---\nbody\n"),
             Path::new("/repo"),
             &cfg,
+            Placement::Flat,
         );
         assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
     }
@@ -4709,16 +5972,25 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg =
             Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
                 "{project}-{number:04d}",
                 Some("ENG"),
             )));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            tmp.path().to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         let entry = idx
             .get(&work_dir.join("0001-foo.md"))
             .await
@@ -4741,16 +6013,25 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg =
             Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
                 "{project}-{number:04d}",
                 Some("ENG"),
             )));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            tmp.path().to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         let entry = idx
             .get(&work_dir.join("OPS-0007-foo.md"))
             .await
@@ -4770,12 +6051,21 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            tmp.path().to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         let entry = idx
             .get(&work_dir.join("0001-foo.md"))
             .await
@@ -4798,12 +6088,21 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::assembled_catalogue(),
+            tmp.path().to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         let entry = idx
             .get(&work_dir.join("foo-without-number.md"))
             .await
@@ -4831,10 +6130,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4847,7 +6151,7 @@ mod reverse_index_tests {
         assert_eq!(
             inbound.len(),
             1,
-            "typed-linkage target should resolve via plans_by_id"
+            "typed-linkage target should resolve via documents_by_address"
         );
     }
 
@@ -4874,10 +6178,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4906,10 +6215,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4928,7 +6242,7 @@ mod reverse_index_tests {
     {
         // Validates the two-pass build approach: a plan-review whose
         // source plan happens to be enumerated after it must still
-        // resolve once Pass A has populated plans_by_id.
+        // resolve once Pass A has populated documents_by_address.
         let tmp = tempfile::tempdir().unwrap();
         let plans = tmp.path().join("meta/plans");
         let reviews = tmp.path().join("meta/reviews/plans");
@@ -4950,10 +6264,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4971,7 +6290,7 @@ mod reverse_index_tests {
     }
 
     #[tokio::test]
-    async fn plans_by_id_lifecycle_on_refresh_one() {
+    async fn a_plan_s_address_follows_it_through_refresh_one() {
         let tmp = tempfile::tempdir().unwrap();
         let plans = tmp.path().join("meta/plans");
         let reviews = tmp.path().join("meta/reviews/plans");
@@ -4986,20 +6305,28 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::assembled_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
         .await
         .unwrap();
 
-        // After initial build, plans_by_id contains the plan.
+        // After initial build, documents_by_address contains the plan.
         {
-            let m = idx.plans_by_id.read().await;
-            assert!(m.contains_key("2026-04-18-foo"), "plan should be indexed");
+            let m = idx.documents_by_address.read().await;
+            assert!(
+                m.contains_key(&plan_at("2026-04-18-foo")),
+                "plan should be indexed"
+            );
         }
 
         // Mutate the plan's id and refresh.
@@ -5008,27 +6335,32 @@ mod reverse_index_tests {
             "---\nid: \"2026-04-18-foo-renamed\"\ntitle: Foo\n---\nbody\n",
         )
         .unwrap();
-        idx.refresh_one(&plan).await.unwrap();
+        idx.refresh_one(&plan, &RecordingSink::default())
+            .await
+            .unwrap();
         {
-            let m = idx.plans_by_id.read().await;
+            let m = idx.documents_by_address.read().await;
             assert!(
-                !m.contains_key("2026-04-18-foo"),
+                !m.contains_key(&plan_at("2026-04-18-foo")),
                 "old id should be removed after refresh"
             );
             assert!(
-                m.contains_key("2026-04-18-foo-renamed"),
+                m.contains_key(&plan_at("2026-04-18-foo-renamed")),
                 "new id should be inserted after refresh"
             );
         }
 
-        // Delete the plan and confirm plans_by_id no longer contains it.
+        // Delete the plan and confirm documents_by_address no longer
+        // contains it.
         std::fs::remove_file(&plan).unwrap();
-        idx.refresh_one(&plan).await.unwrap();
+        idx.refresh_one(&plan, &RecordingSink::default())
+            .await
+            .unwrap();
         {
-            let m = idx.plans_by_id.read().await;
+            let m = idx.documents_by_address.read().await;
             assert!(
-                !m.contains_key("2026-04-18-foo-renamed"),
-                "deleted plan should be removed from plans_by_id"
+                !m.contains_key(&plan_at("2026-04-18-foo-renamed")),
+                "deleted plan should be removed from documents_by_address"
             );
         }
     }
@@ -5039,23 +6371,24 @@ mod target_path_resolution_tests {
     use super::*;
     use crate::test_support::entry_for_test;
 
-    fn plans_by_id_with(id: &str, path: PathBuf) -> HashMap<String, PathBuf> {
-        let mut m = HashMap::new();
-        m.insert(id.to_string(), path);
-        m
+    fn addresses_with_plan(
+        id: &str,
+        path: PathBuf,
+    ) -> HashMap<LinkageAddress, PathBuf> {
+        HashMap::from([(LinkageAddress::new("plan", id), path)])
     }
 
     #[test]
     fn work_item_review_with_path_target_resolves_to_work_item_path() {
         let mut entry =
-            entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
+            entry_for_test(DocTypeKey::WORK_ITEM_REVIEWS, "x", 0, "R");
         entry.frontmatter = serde_json::json!({
             "target": "meta/work/0033-design-token-system.md"
         });
         let root = PathBuf::from("/repo");
         let resolved = target_path_from_entry(
             &entry,
-            &plans_by_id_with(
+            &addresses_with_plan(
                 "ignored",
                 PathBuf::from("/repo/meta/plans/x.md"),
             ),
@@ -5071,7 +6404,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn validation_with_path_target_resolves_to_plan_path() {
-        let mut entry = entry_for_test(DocTypeKey::Validations, "x", 0, "V");
+        let mut entry = entry_for_test(DocTypeKey::VALIDATIONS, "x", 0, "V");
         entry.frontmatter = serde_json::json!({
             "target": "meta/plans/2026-04-21-foo.md"
         });
@@ -5090,12 +6423,12 @@ mod target_path_resolution_tests {
     }
 
     #[test]
-    fn plan_review_with_typed_plan_id_resolves_via_plans_by_id() {
-        let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+    fn plan_review_with_typed_plan_id_resolves_via_its_address() {
+        let mut entry = entry_for_test(DocTypeKey::PLAN_REVIEWS, "x", 0, "R");
         entry.frontmatter = serde_json::json!({
             "target": "plan:2026-05-31-0040-pipeline"
         });
-        let plans = plans_by_id_with(
+        let plans = addresses_with_plan(
             "2026-05-31-0040-pipeline",
             PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md"),
         );
@@ -5116,7 +6449,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn pr_review_with_path_target_resolves_to_target_path() {
-        let mut entry = entry_for_test(DocTypeKey::PrReviews, "x", 0, "PRR");
+        let mut entry = entry_for_test(DocTypeKey::PR_REVIEWS, "x", 0, "PRR");
         entry.frontmatter = serde_json::json!({
             "target": "meta/prs/42-foo.md"
         });
@@ -5132,7 +6465,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn entry_without_target_field_resolves_to_none() {
-        let entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        let entry = entry_for_test(DocTypeKey::PLAN_REVIEWS, "x", 0, "R");
         let resolved = target_path_from_entry(
             &entry,
             &HashMap::new(),
@@ -5146,9 +6479,9 @@ mod target_path_resolution_tests {
     #[test]
     fn non_target_carrying_doc_types_return_none() {
         for kind in [
-            DocTypeKey::Plans,
-            DocTypeKey::Research,
-            DocTypeKey::WorkItems,
+            DocTypeKey::PLANS,
+            DocTypeKey::RESEARCH,
+            DocTypeKey::WORK_ITEMS,
         ] {
             let mut entry = entry_for_test(kind, "x", 0, "T");
             entry.frontmatter =
@@ -5176,7 +6509,7 @@ mod target_path_resolution_tests {
         // reviews_by_target reverse index stays populated. (Was previously
         // pinned to return None and resolved only by the cluster-key resolver.)
         let mut entry =
-            entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
+            entry_for_test(DocTypeKey::WORK_ITEM_REVIEWS, "x", 0, "R");
         entry.frontmatter = serde_json::json!({ "target": "work-item:0042" });
         let mut work_item_by_identity_key = HashMap::new();
         work_item_by_identity_key.insert(
@@ -5200,7 +6533,7 @@ mod target_path_resolution_tests {
     fn typed_adr_and_pr_targets_return_none() {
         for raw in ["adr:0034", "pr:42"] {
             let mut entry =
-                entry_for_test(DocTypeKey::PrReviews, "x", 0, "PRR");
+                entry_for_test(DocTypeKey::PR_REVIEWS, "x", 0, "PRR");
             entry.frontmatter = serde_json::json!({ "target": raw });
             assert_eq!(
                 target_path_from_entry(
@@ -5218,7 +6551,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn path_target_with_traversal_is_rejected_by_normalize_target_key() {
-        let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        let mut entry = entry_for_test(DocTypeKey::PLAN_REVIEWS, "x", 0, "R");
         entry.frontmatter = serde_json::json!({ "target": "../../etc/passwd" });
         assert_eq!(
             target_path_from_entry(
@@ -5234,7 +6567,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn path_target_resolves_against_supplied_project_root() {
-        let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        let mut entry = entry_for_test(DocTypeKey::PLAN_REVIEWS, "x", 0, "R");
         entry.frontmatter =
             serde_json::json!({ "target": "meta/plans/foo.md" });
         let resolved = target_path_from_entry(
@@ -5247,6 +6580,1383 @@ mod target_path_resolution_tests {
         assert_eq!(
             resolved,
             Some(PathBuf::from("/repo/alt/meta/plans/foo.md"))
+        );
+    }
+}
+
+#[cfg(test)]
+mod set_enumeration_tests {
+    use super::*;
+    use crate::config::WorkItemConfig;
+    use crate::file_driver::LocalFileDriver;
+    use crate::test_support::RecordingSink;
+
+    const TOPICS: &str = "meta/research/topics";
+    const INVENTORIES: &str = "meta/research/design-inventories";
+    const PLANS: &str = "meta/plans";
+    const ROOT: &str = "---\nid: \"the-set\"\ntitle: The set\n---\n";
+    const DOC: &str = "---\ntitle: A member\n---\nbody\n";
+
+    pub(super) fn write(root: &Path, files: &[(&str, &str)]) {
+        for (file, content) in files {
+            let path = root.join(file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, content).unwrap();
+        }
+    }
+
+    pub(super) fn set_mtime_ms(path: &Path, ms: u64) {
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(
+                std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms),
+            )
+            .unwrap();
+    }
+
+    pub(super) async fn index_of(root: &Path) -> Indexer {
+        let catalogue = crate::test_support::assembled_catalogue();
+        let paths = HashMap::from([
+            ("research_topics".to_string(), root.join(TOPICS)),
+            (
+                "research_design_inventories".to_string(),
+                root.join(INVENTORIES),
+            ),
+            ("plans".to_string(), root.join(PLANS)),
+        ]);
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&catalogue, &paths, vec![], vec![]));
+        Indexer::build(
+            driver,
+            catalogue,
+            root.to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap()
+    }
+
+    async fn layout(
+        files: &[(&str, &str)],
+    ) -> (tempfile::TempDir, PathBuf, Indexer) {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        write(&root, files);
+        let indexer = index_of(&root).await;
+        (tmp, root, indexer)
+    }
+
+    async fn member_paths(indexer: &Indexer, directory: &Path) -> Vec<String> {
+        indexer
+            .set_members(directory)
+            .await
+            .iter()
+            .filter_map(|member| member.set_placement())
+            .map(|placement| placement.set_relative_path.clone())
+            .collect()
+    }
+
+    async fn asset_paths(indexer: &Indexer, directory: &Path) -> Vec<String> {
+        indexer
+            .set_assets(directory)
+            .await
+            .into_iter()
+            .map(|asset| asset.placement.set_relative_path)
+            .collect()
+    }
+
+    async fn indexed_paths(indexer: &Indexer, root: &Path) -> Vec<String> {
+        let mut paths: Vec<String> = indexer
+            .documents_including_members()
+            .await
+            .iter()
+            .map(|entry| {
+                entry
+                    .path
+                    .strip_prefix(root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        paths.sort();
+        paths
+    }
+
+    fn serialised(entry: Option<IndexEntry>) -> serde_json::Value {
+        serde_json::to_value(entry.expect("an indexed entry")).unwrap()
+    }
+
+    #[tokio::test]
+    async fn each_set_is_indexed_with_exactly_its_shapes_members() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+            ("meta/research/topics/s/outline.md", DOC),
+            ("meta/research/topics/s/synthesis.md", DOC),
+            ("meta/research/topics/s/findings/01-a.md", DOC),
+            ("meta/research/topics/s/findings/01-a.levels/1.md", DOC),
+            ("meta/research/topics/s/reports/r.md", DOC),
+            ("meta/research/topics/s/notes.txt", DOC),
+            ("meta/research/topics/s/findings/sub/x.md", DOC),
+            ("meta/research/design-inventories/i/inventory.md", ROOT),
+            (
+                "meta/research/design-inventories/i/screenshots/a.png",
+                "png",
+            ),
+            (
+                "meta/research/design-inventories/i/prototype-full/x.html",
+                "x",
+            ),
+            ("meta/research/design-inventories/i/assets/y.svg", "svg"),
+            ("meta/research/design-inventories/i/notes.txt", "notes"),
+        ])
+        .await;
+        let topic = root.join(TOPICS).join("s");
+        let inventory = root.join(INVENTORIES).join("i");
+
+        assert_eq!(
+            member_paths(&indexer, &topic).await,
+            vec![
+                "brief.md",
+                "findings/01-a.levels/1.md",
+                "findings/01-a.md",
+                "outline.md",
+                "reports/r.md",
+                "synthesis.md",
+            ]
+        );
+        assert!(asset_paths(&indexer, &topic).await.is_empty());
+        assert!(member_paths(&indexer, &inventory).await.is_empty());
+        assert_eq!(
+            asset_paths(&indexer, &inventory).await,
+            vec!["screenshots/a.png"]
+        );
+        assert_eq!(indexer.documents_including_members().await.len(), 8);
+    }
+
+    #[tokio::test]
+    async fn a_set_is_read_whole_by_its_type_and_id() {
+        let (_tmp, _root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+            ("meta/research/design-inventories/i/inventory.md", ROOT),
+            ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+        ])
+        .await;
+        let relative_paths = |set: &IndexedSet| {
+            let members = set.members.iter().filter_map(|member| {
+                Some(member.set_placement()?.set_relative_path.clone())
+            });
+            let assets = set
+                .assets
+                .iter()
+                .map(|asset| asset.placement.set_relative_path.clone());
+            members.chain(assets).collect::<Vec<_>>()
+        };
+
+        let topic = indexer
+            .set(DocTypeKey::TOPIC_RESEARCH, "the-set")
+            .await
+            .unwrap();
+        let inventory = indexer
+            .set(DocTypeKey::DESIGN_INVENTORIES, "the-set")
+            .await
+            .unwrap();
+
+        assert_eq!(
+            topic.root.rel_path,
+            Path::new("meta/research/topics/s/manifest.md")
+        );
+        assert_eq!(relative_paths(&topic), ["brief.md"]);
+        assert_eq!(
+            inventory.root.rel_path,
+            Path::new("meta/research/design-inventories/i/inventory.md")
+        );
+        assert_eq!(relative_paths(&inventory), ["screenshots/a.png"]);
+        assert!(indexer
+            .set(DocTypeKey::TOPIC_RESEARCH, "no-such-set")
+            .await
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn a_set_of_ten_members_lists_as_one_entry() {
+        let mut files: Vec<(String, &str)> =
+            vec![("meta/research/topics/s/manifest.md".into(), ROOT)];
+        files.extend((1..=10).map(|n| {
+            (format!("meta/research/topics/s/findings/{n:02}-f.md"), DOC)
+        }));
+        let files: Vec<(&str, &str)> = files
+            .iter()
+            .map(|(file, content)| (file.as_str(), *content))
+            .collect();
+        let (_tmp, root, indexer) = layout(&files).await;
+
+        assert_eq!(
+            indexer.all_by_type(DocTypeKey::TOPIC_RESEARCH).await.len(),
+            1
+        );
+        assert_eq!(
+            indexer
+                .set_members(&root.join(TOPICS).join("s"))
+                .await
+                .len(),
+            10
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_set_whose_root_escapes_the_doc_roots_is_left_out_alone() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        write(
+            &root,
+            &[
+                ("outside/manifest.md", ROOT),
+                ("meta/research/topics/escaping/brief.md", DOC),
+                ("meta/research/topics/kept/manifest.md", ROOT),
+                ("meta/research/topics/kept/brief.md", DOC),
+            ],
+        );
+        std::os::unix::fs::symlink(
+            root.join("outside/manifest.md"),
+            root.join(TOPICS).join("escaping/manifest.md"),
+        )
+        .unwrap();
+
+        let indexer = index_of(&root).await;
+
+        assert_eq!(
+            indexed_paths(&indexer, &root).await,
+            vec![
+                "meta/research/topics/kept/brief.md",
+                "meta/research/topics/kept/manifest.md",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_member_too_large_to_read_is_left_out_of_its_set_alone() {
+        let (_tmp, root, _) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+        ])
+        .await;
+        let oversized =
+            std::fs::File::create(root.join(TOPICS).join("s/outline.md"))
+                .unwrap();
+        oversized.set_len(10 * 1024 * 1024 + 1).unwrap();
+
+        let indexer = index_of(&root).await;
+
+        assert_eq!(
+            member_paths(&indexer, &root.join(TOPICS).join("s")).await,
+            vec!["brief.md"]
+        );
+    }
+
+    #[tokio::test]
+    async fn members_are_indexed_at_their_set_relative_paths() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+            ("meta/research/topics/s/findings/01-a.md", DOC),
+            ("meta/research/topics/s/findings/01-a.levels/2-1.md", DOC),
+            ("meta/research/topics/s/reports/r.md", DOC),
+        ])
+        .await;
+
+        assert_eq!(
+            member_paths(&indexer, &root.join(TOPICS).join("s")).await,
+            vec![
+                "brief.md",
+                "findings/01-a.levels/2-1.md",
+                "findings/01-a.md",
+                "reports/r.md",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_malformed_root_still_has_its_members_indexed() {
+        let (_tmp, root, indexer) = layout(&[
+            (
+                "meta/research/topics/s/manifest.md",
+                "---\ntitle: \"unclosed\n---\n",
+            ),
+            ("meta/research/topics/s/brief.md", DOC),
+        ])
+        .await;
+        let directory = root.join(TOPICS).join("s");
+
+        let set_root = indexer.get(&directory.join("manifest.md")).await;
+        assert_eq!(set_root.unwrap().frontmatter_state, "malformed");
+        let members = indexer.set_members(&directory).await;
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].set_placement().unwrap().context.set_id, "s");
+    }
+
+    #[tokio::test]
+    async fn a_directory_without_its_root_indexes_nothing() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/brief.md", DOC),
+            ("meta/research/topics/s/findings/01-a.md", DOC),
+            (
+                "meta/research/design-inventories/i/screenshots/a.png",
+                "png",
+            ),
+        ])
+        .await;
+
+        assert!(indexer.documents_including_members().await.is_empty());
+        assert!(asset_paths(&indexer, &root.join(INVENTORIES).join("i"))
+            .await
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn members_carry_their_own_frontmatter_marks() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+            (
+                "meta/research/topics/s/findings/01-a.md",
+                "---\ntitle: \"unclosed\n---\n",
+            ),
+            ("meta/research/topics/s/findings/02-b.md", "# B\n"),
+        ])
+        .await;
+
+        let marks: Vec<(String, String)> = indexer
+            .set_members(&root.join(TOPICS).join("s"))
+            .await
+            .into_iter()
+            .map(|member| {
+                (
+                    member.set_placement().unwrap().set_relative_path.clone(),
+                    member.frontmatter_state,
+                )
+            })
+            .collect();
+        assert_eq!(
+            marks,
+            vec![
+                ("brief.md".into(), "parsed".into()),
+                ("findings/01-a.md".into(), "malformed".into()),
+                ("findings/02-b.md".into(), "absent".into()),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn every_record_of_a_set_carries_the_sets_id() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+            (
+                "meta/research/topics/s/findings/01-cost-model.md",
+                "plain\n",
+            ),
+        ])
+        .await;
+        let directory = root.join(TOPICS).join("s");
+
+        for member in indexer.set_members(&directory).await {
+            let context = &member.set_placement().unwrap().context;
+            assert_eq!(context.set_id, "the-set");
+            assert_eq!(context.set_slug.as_deref(), Some("s"));
+            assert_eq!(context.set_directory, directory);
+            assert_eq!(member.slug, None);
+        }
+        let finding = indexer
+            .get(&directory.join("findings/01-cost-model.md"))
+            .await
+            .unwrap();
+        assert_eq!(
+            finding.title,
+            frontmatter::title_from(
+                &FrontmatterState::Absent,
+                "",
+                "01-cost-model"
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn an_asset_record_carries_its_place_size_and_mtime() {
+        let mut files =
+            vec![("meta/research/design-inventories/i/inventory.md", ROOT)];
+        let screenshots = [
+            "meta/research/design-inventories/i/screenshots/a.png",
+            "meta/research/design-inventories/i/screenshots/b.png",
+            "meta/research/design-inventories/i/screenshots/c.png",
+            "meta/research/design-inventories/i/screenshots/d.png",
+            "meta/research/design-inventories/i/screenshots/e.png",
+        ];
+        files.extend(screenshots.iter().map(|file| (*file, "png")));
+        files.push((
+            "meta/research/design-inventories/i/screenshots/Some File (v2).png",
+            "seven b",
+        ));
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        write(&root, &files);
+        let directory = root.join(INVENTORIES).join("i");
+        let spaced = directory.join("screenshots/Some File (v2).png");
+        set_mtime_ms(&spaced, 1_700_000_000_000);
+        let indexer = index_of(&root).await;
+
+        let assets = indexer.set_assets(&directory).await;
+
+        assert_eq!(assets.len(), 6);
+        let asset = &assets[0];
+        assert_eq!(
+            asset.placement.set_relative_path,
+            "screenshots/Some File (v2).png"
+        );
+        assert_eq!(asset.doc_type, DocTypeKey::DESIGN_INVENTORIES);
+        assert_eq!(asset.path, spaced);
+        assert_eq!(
+            asset.rel_path,
+            PathBuf::from(INVENTORIES).join("i/screenshots/Some File (v2).png")
+        );
+        assert_eq!(asset.placement.context.set_id, "the-set");
+        assert_eq!(asset.size, 7);
+        assert_eq!(asset.mtime_ms, 1_700_000_000_000);
+    }
+
+    #[tokio::test]
+    async fn dot_prefixed_paths_in_a_set_doc_root_are_not_indexed() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/findings/01-a.md", DOC),
+            ("meta/research/topics/s/findings/.01-x-web.md.invalid", DOC),
+            ("meta/research/topics/s/.conduct-run.json", "{}"),
+            ("meta/research/topics/s/.scratch/x.md", DOC),
+            ("meta/research/topics/s/findings/.tmp-AbC123", DOC),
+            ("meta/research/topics/.draft.tmp/manifest.md", ROOT),
+            ("meta/research/topics/.draft.tmp/brief.md", DOC),
+        ])
+        .await;
+
+        assert_eq!(
+            indexed_paths(&indexer, &root).await,
+            vec![
+                "meta/research/topics/s/findings/01-a.md",
+                "meta/research/topics/s/manifest.md",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_dot_prefixed_document_of_a_flat_type_is_indexed() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/plans/.hidden.md", "---\ntitle: Hidden\n---\n"),
+            ("meta/plans/2026-01-01-a.md", DOC),
+        ])
+        .await;
+
+        assert_eq!(
+            indexed_paths(&indexer, &root).await,
+            vec!["meta/plans/.hidden.md", "meta/plans/2026-01-01-a.md"]
+        );
+    }
+
+    #[tokio::test]
+    async fn an_inventory_lists_as_its_inventory_document() {
+        let (_tmp, _root, indexer) = layout(&[
+            (
+                "meta/research/design-inventories/i/inventory.md",
+                "---\ntitle: Inv\nstatus: accepted\n\
+                 date: \"2026-05-06\"\n---\n",
+            ),
+            (
+                "meta/research/design-inventories/i/screenshots/a.png",
+                "png",
+            ),
+        ])
+        .await;
+
+        let listing = indexer.all_by_type(DocTypeKey::DESIGN_INVENTORIES).await;
+        assert_eq!(listing.len(), 1);
+        assert_eq!(listing[0].title, "Inv");
+        assert_eq!(listing[0].frontmatter["status"], "accepted");
+        assert_eq!(listing[0].frontmatter["date"], "2026-05-06");
+    }
+
+    #[tokio::test]
+    async fn a_sets_latest_change_follows_its_assets() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        write(
+            &root,
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                (
+                    "meta/research/design-inventories/i/screenshots/a.png",
+                    "png",
+                ),
+            ],
+        );
+        let directory = root.join(INVENTORIES).join("i");
+        set_mtime_ms(&directory.join("inventory.md"), 1_000);
+        set_mtime_ms(&directory.join("screenshots/a.png"), 9_000);
+        let indexer = index_of(&root).await;
+
+        let aggregates = indexer.library_aggregates(&Selection::new()).await;
+
+        let latest = aggregates.per_type[&DocTypeKey::DESIGN_INVENTORIES]
+            .latest
+            .clone()
+            .unwrap();
+        assert_eq!(latest.modified_at, 9_000);
+    }
+
+    #[tokio::test]
+    async fn refreshing_a_member_indexes_it_as_a_full_rescan_does() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+        ])
+        .await;
+        let finding = root.join(TOPICS).join("s/findings/01-a.md");
+        write(&root, &[("meta/research/topics/s/findings/01-a.md", DOC)]);
+        let counts = indexer.counts_by_type().await;
+
+        indexer
+            .refresh_one(&finding, &RecordingSink::default())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            serialised(indexer.get(&finding).await),
+            serialised(index_of(&root).await.get(&finding).await)
+        );
+        assert_eq!(
+            indexer.all_by_type(DocTypeKey::TOPIC_RESEARCH).await.len(),
+            1
+        );
+        assert_eq!(indexer.counts_by_type().await, counts);
+    }
+
+    #[tokio::test]
+    async fn refreshing_a_file_the_shape_does_not_hold_leaves_it_unindexed() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+        ])
+        .await;
+        write(
+            &root,
+            &[
+                ("meta/research/topics/s/notes.md", DOC),
+                ("meta/research/topics/s/.scratch.md", DOC),
+            ],
+        );
+
+        for file in ["notes.md", ".scratch.md"] {
+            let path = root.join(TOPICS).join("s").join(file);
+            indexer
+                .refresh_one(&path, &RecordingSink::default())
+                .await
+                .unwrap();
+            assert!(indexer.get(&path).await.is_none(), "{file}");
+        }
+        assert_eq!(
+            indexed_paths(&indexer, &root).await,
+            vec![
+                "meta/research/topics/s/brief.md",
+                "meta/research/topics/s/manifest.md",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn refreshing_a_deleted_member_removes_only_that_member() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+            ("meta/research/topics/s/findings/01-a.md", DOC),
+        ])
+        .await;
+        let finding = root.join(TOPICS).join("s/findings/01-a.md");
+        std::fs::remove_file(&finding).unwrap();
+
+        indexer
+            .refresh_one(&finding, &RecordingSink::default())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            indexed_paths(&indexer, &root).await,
+            vec![
+                "meta/research/topics/s/brief.md",
+                "meta/research/topics/s/manifest.md",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn refreshing_a_root_whose_id_changed_moves_every_members_set_id() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+            ("meta/research/topics/s/findings/01-a.md", DOC),
+        ])
+        .await;
+        let directory = root.join(TOPICS).join("s");
+        let manifest = directory.join("manifest.md");
+        std::fs::write(&manifest, "---\nid: \"renamed\"\n---\n").unwrap();
+
+        indexer
+            .refresh_one(&manifest, &RecordingSink::default())
+            .await
+            .unwrap();
+
+        let set_ids: Vec<String> = indexer
+            .set_members(&directory)
+            .await
+            .iter()
+            .map(|m| m.set_placement().unwrap().context.set_id.clone())
+            .collect();
+        assert_eq!(set_ids, vec!["renamed", "renamed"]);
+    }
+
+    #[tokio::test]
+    async fn refreshing_a_member_edited_on_disk_keeps_it_in_its_set() {
+        let (_tmp, root, indexer) = layout(&[
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+        ])
+        .await;
+        let brief = root.join(TOPICS).join("s/brief.md");
+        std::fs::write(&brief, "---\ntitle: Brief\nstatus: done\n---\n")
+            .unwrap();
+
+        indexer
+            .refresh_one(&brief, &RecordingSink::default())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            indexer.all_by_type(DocTypeKey::TOPIC_RESEARCH).await.len(),
+            1
+        );
+        let member = indexer.get(&brief).await.unwrap();
+        assert!(member.is_member());
+        assert_eq!(member.set_placement().unwrap().context.set_id, "the-set");
+        assert_eq!(member.frontmatter["status"], "done");
+    }
+}
+
+#[cfg(test)]
+mod set_membership_tests {
+    use super::*;
+    use crate::test_support::RecordingSink;
+    use crate::test_support::{
+        dossier, dossiers, entry_for_test, set_member_for_test,
+        set_root_for_test,
+    };
+
+    async fn indexed(records: Vec<IndexEntry>) -> Indexer {
+        Indexer::from_records(PathBuf::from("/x"), records).await
+    }
+
+    fn paths_of(entries: &[IndexEntry]) -> Vec<PathBuf> {
+        let mut paths: Vec<PathBuf> =
+            entries.iter().map(|e| e.path.clone()).collect();
+        paths.sort();
+        paths
+    }
+
+    #[tokio::test]
+    async fn the_listing_accessors_hold_the_root_and_no_member() {
+        let root = dossier("dossier-a");
+        let member = set_member_for_test(&root, "notes/a.md");
+        let indexer = indexed(vec![root.clone(), member]).await;
+
+        assert_eq!(paths_of(&indexer.all().await), vec![root.path.clone()]);
+        assert_eq!(
+            paths_of(&indexer.all_by_type(dossiers()).await),
+            vec![root.path.clone()]
+        );
+        assert_eq!(indexer.counts_by_type().await.get(&dossiers()), Some(&1));
+    }
+
+    #[tokio::test]
+    async fn the_explicit_accessors_reach_members() {
+        let root = dossier("dossier-a");
+        let report = set_member_for_test(&root, "reports/r.md");
+        let brief = set_member_for_test(&root, "brief.md");
+        let finding = set_member_for_test(&root, "findings/01-a.md");
+        let other = dossier("dossier-b");
+        let stranger = set_member_for_test(&other, "brief.md");
+        let indexer = indexed(vec![
+            root.clone(),
+            report.clone(),
+            brief.clone(),
+            finding.clone(),
+            other.clone(),
+            stranger.clone(),
+        ])
+        .await;
+
+        let members: Vec<PathBuf> = indexer
+            .set_members(Path::new("/x/dossier-a"))
+            .await
+            .into_iter()
+            .map(|e| e.path)
+            .collect();
+        assert_eq!(
+            members,
+            vec![
+                brief.path.clone(),
+                finding.path.clone(),
+                report.path.clone()
+            ]
+        );
+        assert_eq!(
+            paths_of(&indexer.documents_including_members().await),
+            paths_of(&[root, report, brief, finding.clone(), other, stranger])
+        );
+        assert_eq!(
+            indexer.get(&finding.path).await.map(|e| e.path),
+            Some(finding.path)
+        );
+    }
+
+    #[tokio::test]
+    async fn library_aggregates_count_and_facet_the_root_alone() {
+        let mut root = dossier("dossier-a");
+        root.frontmatter = serde_json::json!({ "status": "draft" });
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.frontmatter = serde_json::json!({ "status": "final" });
+        member.slug = Some("another-slug".into());
+        let indexer = indexed(vec![root, member]).await;
+
+        let aggregates = indexer.library_aggregates(&Selection::new()).await;
+        let per = &aggregates.per_type[&dossiers()];
+        assert_eq!(per.count, 1);
+        assert_eq!(
+            per.facet_options["status"],
+            BTreeMap::from([("draft".to_string(), 1)])
+        );
+        assert_eq!(
+            per.facet_options["clusterSlug"],
+            BTreeMap::from([("dossier-a".to_string(), 1)])
+        );
+    }
+
+    #[tokio::test]
+    async fn a_sets_latest_change_is_its_newest_document() {
+        let mut root = dossier("dossier-a");
+        root.mtime_ms = 10;
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.mtime_ms = 50;
+        let mut other = dossier("dossier-b");
+        other.mtime_ms = 30;
+        let indexer = indexed(vec![root.clone(), member, other]).await;
+
+        let aggregates = indexer.library_aggregates(&Selection::new()).await;
+        let latest = aggregates.per_type[&dossiers()].latest.clone().unwrap();
+        assert_eq!(latest.rel_path, root.served_rel_path());
+        assert_eq!(latest.modified_at, 50);
+    }
+
+    fn set_mtime_ms(path: &Path, ms: u64) {
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(
+                std::time::SystemTime::UNIX_EPOCH
+                    + std::time::Duration::from_millis(ms),
+            )
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn refreshing_a_set_root_moves_its_sets_latest_change() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let topics = root.join("meta/research/topics");
+        let manifest = topics.join("caching/manifest.md");
+        std::fs::create_dir_all(manifest.parent().unwrap()).unwrap();
+        std::fs::write(&manifest, "---\nid: \"caching\"\n---\n").unwrap();
+        set_mtime_ms(&manifest, 1_000);
+        let catalogue = crate::test_support::assembled_catalogue();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(crate::file_driver::LocalFileDriver::new(
+                &catalogue,
+                &HashMap::from([("research_topics".to_string(), topics)]),
+                vec![],
+                vec![],
+            ));
+        let indexer = Indexer::build(
+            driver,
+            catalogue,
+            root,
+            Arc::new(crate::config::WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
+
+        set_mtime_ms(&manifest, 9_000);
+        indexer
+            .refresh_one(&manifest, &RecordingSink::default())
+            .await
+            .unwrap();
+
+        let aggregates = indexer.library_aggregates(&Selection::new()).await;
+        let latest = aggregates.per_type[&DocTypeKey::TOPIC_RESEARCH]
+            .latest
+            .clone()
+            .unwrap();
+        assert_eq!(latest.modified_at, 9_000);
+    }
+
+    #[tokio::test]
+    async fn a_member_sharing_its_roots_id_leaves_the_root_its_id() {
+        let root = set_root_for_test(dossiers(), "dir-a", "cover.md", "set-x");
+        let member = set_member_for_test(&root, "notes/a.md");
+        let indexer = indexed(vec![root.clone(), member.clone()]).await;
+
+        let id_of = |entry: Option<IndexEntry>| entry.and_then(|e| e.id);
+        assert_eq!(
+            id_of(indexer.get(&root.path).await).as_deref(),
+            Some("set-x")
+        );
+        assert_eq!(
+            id_of(indexer.get(&member.path).await).as_deref(),
+            Some("set-x")
+        );
+    }
+
+    #[tokio::test]
+    async fn documents_by_address_holds_no_member() {
+        let root = dossier("dossier-a");
+        let sharing = set_member_for_test(&root, "notes/a.md");
+        let mut own = set_member_for_test(&root, "notes/b.md");
+        own.frontmatter_id = Some("member-only".into());
+        let indexer = indexed(vec![root.clone(), sharing, own]).await;
+
+        let at = |id: &str| LinkageAddress::new("dossier", id);
+        assert_eq!(
+            indexer.document_at(&at("dossier-a")).await.map(|e| e.path),
+            Some(root.path)
+        );
+        assert!(indexer.document_at(&at("member-only")).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn work_item_by_identity_key_holds_no_member() {
+        let root = dossier("dossier-a");
+        let mut sharing = set_member_for_test(&root, "notes/a.md");
+        sharing.identity_key = Some("0007".into());
+        let mut alone = set_member_for_test(&root, "notes/b.md");
+        alone.identity_key = Some("0008".into());
+        let mut item = entry_for_test(DocTypeKey::WORK_ITEMS, "w", 0, "W");
+        item.path = PathBuf::from("/x/work/0007-w.md");
+        item.identity_key = Some("0007".into());
+        let indexer = indexed(vec![root, sharing, alone, item.clone()]).await;
+
+        let holders = indexer.work_item_by_identity_key_snapshot().await;
+        assert_eq!(holders.get("0007"), Some(&item.path));
+        assert_eq!(holders.get("0008"), None);
+    }
+
+    #[tokio::test]
+    async fn reviews_by_target_holds_no_member() {
+        let mut root = dossier("dossier-a");
+        root.frontmatter = serde_json::json!({ "target": "meta/plans/p.md" });
+        let member = set_member_for_test(&root, "notes/a.md");
+        let indexer = indexed(vec![root.clone(), member]).await;
+
+        let reviews = indexer
+            .reviews_by_target(Path::new("/x/meta/plans/p.md"))
+            .await;
+        assert_eq!(paths_of(&reviews), vec![root.path]);
+    }
+
+    #[tokio::test]
+    async fn work_item_refs_by_target_holds_members() {
+        let root = dossier("dossier-a");
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.work_item_refs = vec!["0042".into()];
+        let indexer = indexed(vec![root, member.clone()]).await;
+
+        assert_eq!(
+            paths_of(&indexer.work_item_refs_by_id("0042").await),
+            vec![member.path]
+        );
+    }
+
+    #[test]
+    fn a_members_link_keys_are_its_sets() {
+        let root = set_root_for_test(dossiers(), "dossier-a", "cover.md", "s");
+        let mut member = set_member_for_test(&root, "notes/a.md");
+        member.slug = None;
+        member.id = Some("own".into());
+
+        let keys = link_keys_of(&member);
+
+        assert_eq!(
+            (keys.slug.as_deref(), keys.id.as_deref()),
+            (Some("dossier-a"), Some("s"))
+        );
+    }
+
+    #[test]
+    fn a_roots_link_keys_are_its_own() {
+        let mut root = dossier("dossier-a");
+        root.slug = Some("root-slug".into());
+        root.id = Some("root-id".into());
+
+        let keys = link_keys_of(&root);
+
+        assert_eq!(
+            (keys.slug.as_deref(), keys.id.as_deref()),
+            (Some("root-slug"), Some("root-id"))
+        );
+    }
+
+    #[test]
+    fn a_documents_link_keys_outside_a_set_are_its_own() {
+        let mut plan = entry_for_test(DocTypeKey::PLANS, "foo", 0, "Foo");
+        plan.id = Some("plan-id".into());
+
+        let keys = link_keys_of(&plan);
+
+        assert_eq!(
+            (keys.slug.as_deref(), keys.id.as_deref()),
+            (Some("foo"), Some("plan-id"))
+        );
+    }
+
+    #[test]
+    fn a_members_search_key_is_its_stem_and_anything_elses_its_slug() {
+        let root = dossier("dossier-a");
+        let member = set_member_for_test(&root, "findings/01-cost.md");
+
+        assert_eq!(member.search_key(), Some("01-cost"));
+        assert_eq!(root.search_key(), Some("dossier-a"));
+    }
+}
+
+#[cfg(test)]
+mod change_tests {
+    use super::set_enumeration_tests::{index_of, set_mtime_ms, write};
+    use super::*;
+    use crate::test_support::RecordingSink;
+
+    const TOPICS: &str = "meta/research/topics";
+    const INVENTORIES: &str = "meta/research/design-inventories";
+    const ROOT: &str = "---\nid: \"the-set\"\ntitle: The set\n---\n";
+    const DOC: &str = "---\ntitle: A member\n---\nbody\n";
+
+    struct Layout {
+        _tmp: tempfile::TempDir,
+        root: PathBuf,
+        indexer: Indexer,
+    }
+
+    async fn layout(files: &[(&str, &str)], mtime_ms: u64) -> Layout {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        write(&root, files);
+        for (file, _) in files {
+            set_mtime_ms(&root.join(file), mtime_ms);
+        }
+        let indexer = index_of(&root).await;
+        Layout {
+            _tmp: tmp,
+            root,
+            indexer,
+        }
+    }
+
+    impl Layout {
+        async fn latest_change(&self, kind: DocTypeKey) -> i64 {
+            self.indexer
+                .library_aggregates(&Selection::new())
+                .await
+                .per_type[&kind]
+                .latest
+                .clone()
+                .expect("a listed entry")
+                .modified_at
+        }
+
+        async fn rescan(&self) -> RecordingSink {
+            let sink = RecordingSink::default();
+            self.indexer.rescan_with_diff(&sink).await.unwrap();
+            sink
+        }
+
+        async fn rescan_observed(&self) -> (i64, i64) {
+            let before = chrono::Utc::now().timestamp_millis();
+            self.rescan().await;
+            (before, chrono::Utc::now().timestamp_millis())
+        }
+    }
+
+    fn changed_paths(
+        sink: &RecordingSink,
+    ) -> Vec<(Option<String>, Option<String>)> {
+        let name = |path: &Path| path.to_string_lossy().into_owned();
+        sink.diffs()
+            .iter()
+            .flat_map(|diff| {
+                diff.documents
+                    .iter()
+                    .map(|change| {
+                        (
+                            change.before.as_ref().map(|e| name(&e.rel_path)),
+                            change.after.as_ref().map(|e| name(&e.rel_path)),
+                        )
+                    })
+                    .chain(diff.assets.iter().map(|change| {
+                        (
+                            change.before.as_ref().map(|a| name(&a.rel_path)),
+                            change.after.as_ref().map(|a| name(&a.rel_path)),
+                        )
+                    }))
+            })
+            .collect()
+    }
+
+    fn path(rel_path: &str) -> Option<String> {
+        rel_path.to_owned().into()
+    }
+
+    #[tokio::test]
+    async fn a_rescan_hands_the_sink_each_change_it_applied() {
+        let set = layout(
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+                ("meta/research/topics/s/outline.md", DOC),
+            ],
+            1_000,
+        )
+        .await;
+        write(
+            &set.root,
+            &[
+                ("meta/research/topics/s/brief.md", "---\ntitle: New\n---\n"),
+                ("meta/research/topics/s/findings/01-a.md", DOC),
+            ],
+        );
+        std::fs::remove_file(set.root.join(TOPICS).join("s/outline.md"))
+            .unwrap();
+
+        let sink = set.rescan().await;
+
+        let mut changes = changed_paths(&sink);
+        changes.sort();
+        assert_eq!(
+            changes,
+            [
+                (None, path("meta/research/topics/s/findings/01-a.md")),
+                (
+                    path("meta/research/topics/s/brief.md"),
+                    path("meta/research/topics/s/brief.md")
+                ),
+                (path("meta/research/topics/s/outline.md"), None),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_rescan_hands_the_sink_each_asset_change() {
+        let set = layout(
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+                ("meta/research/design-inventories/i/screenshots/b.png", "b"),
+            ],
+            1_000,
+        )
+        .await;
+        write(
+            &set.root,
+            &[
+                ("meta/research/design-inventories/i/screenshots/a.png", "a2"),
+                ("meta/research/design-inventories/i/screenshots/c.png", "c"),
+            ],
+        );
+        std::fs::remove_file(
+            set.root.join(INVENTORIES).join("i/screenshots/b.png"),
+        )
+        .unwrap();
+
+        let sink = set.rescan().await;
+
+        let shot =
+            |name: &str| path(&format!("{INVENTORIES}/i/screenshots/{name}"));
+        let mut changes = changed_paths(&sink);
+        changes.sort();
+        assert_eq!(
+            changes,
+            [
+                (None, shot("c.png")),
+                (shot("a.png"), shot("a.png")),
+                (shot("b.png"), None),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_rescan_that_changes_nothing_hands_the_sink_an_empty_diff() {
+        let set = layout(
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+            ],
+            1_000,
+        )
+        .await;
+
+        let sink = set.rescan().await;
+
+        assert_eq!(sink.diffs().len(), 1);
+        assert!(sink.diffs()[0].is_empty());
+    }
+
+    #[tokio::test]
+    async fn rescans_released_together_hand_on_each_change_once() {
+        let set = layout(
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+            ],
+            1_000,
+        )
+        .await;
+        write(
+            &set.root,
+            &[("meta/research/topics/s/brief.md", "---\ntitle: New\n---\n")],
+        );
+        let sink = RecordingSink::default();
+
+        let (first, second) = tokio::join!(
+            set.indexer.rescan_with_diff(&sink),
+            set.indexer.rescan_with_diff(&sink),
+        );
+        first.unwrap();
+        second.unwrap();
+
+        assert_eq!(changed_paths(&sink).len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_removed_member_dates_its_set_to_when_it_was_seen_gone() {
+        let set = layout(
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+                ("meta/research/topics/s/outline.md", DOC),
+            ],
+            1_000,
+        )
+        .await;
+        std::fs::remove_file(set.root.join(TOPICS).join("s/outline.md"))
+            .unwrap();
+
+        let (before, after) = set.rescan_observed().await;
+
+        let latest = set.latest_change(DocTypeKey::TOPIC_RESEARCH).await;
+        assert!(
+            (before..=after).contains(&latest),
+            "{latest} not within [{before}, {after}]"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_removed_asset_dates_its_set_to_when_it_was_seen_gone() {
+        let set = layout(
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+                ("meta/research/design-inventories/i/screenshots/b.png", "b"),
+            ],
+            1_000,
+        )
+        .await;
+        std::fs::remove_file(
+            set.root.join(INVENTORIES).join("i/screenshots/b.png"),
+        )
+        .unwrap();
+
+        let (before, after) = set.rescan_observed().await;
+
+        let latest = set.latest_change(DocTypeKey::DESIGN_INVENTORIES).await;
+        assert!(
+            (before..=after).contains(&latest),
+            "{latest} not within [{before}, {after}]"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_changed_screenshot_moves_its_sets_latest_change() {
+        let set = layout(
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+            ],
+            1_000,
+        )
+        .await;
+        let shot = set.root.join(INVENTORIES).join("i/screenshots/a.png");
+        std::fs::write(&shot, "a2").unwrap();
+        set_mtime_ms(&shot, 9_000);
+
+        set.rescan().await;
+
+        assert_eq!(
+            set.latest_change(DocTypeKey::DESIGN_INVENTORIES).await,
+            9_000
+        );
+    }
+
+    #[tokio::test]
+    async fn a_recreated_set_forgets_a_removal_from_before_it_was_deleted() {
+        let files = [
+            ("meta/research/topics/s/manifest.md", ROOT),
+            ("meta/research/topics/s/brief.md", DOC),
+            ("meta/research/topics/s/outline.md", DOC),
+        ];
+        let set = layout(&files, 1_000).await;
+        let directory = set.root.join(TOPICS).join("s");
+        std::fs::remove_file(directory.join("outline.md")).unwrap();
+        set.rescan().await;
+        std::fs::remove_dir_all(&directory).unwrap();
+        set.rescan().await;
+        write(&set.root, &files[..2]);
+        for (file, _) in &files[..2] {
+            set_mtime_ms(&set.root.join(file), 1_000);
+        }
+
+        set.rescan().await;
+
+        assert_eq!(set.latest_change(DocTypeKey::TOPIC_RESEARCH).await, 1_000);
+    }
+
+    #[tokio::test]
+    async fn a_case_only_rename_is_one_change_and_no_removal() {
+        let set = layout(
+            &[
+                ("meta/research/design-inventories/i/inventory.md", ROOT),
+                ("meta/research/design-inventories/i/screenshots/a.png", "a"),
+            ],
+            1_000,
+        )
+        .await;
+        let screenshots = set.root.join(INVENTORIES).join("i/screenshots");
+        set_mtime_ms(&screenshots.join("a.png"), 5_000);
+        set.rescan().await;
+        std::fs::rename(screenshots.join("a.png"), screenshots.join("a.PNG"))
+            .unwrap();
+
+        let sink = set.rescan().await;
+
+        assert_eq!(
+            changed_paths(&sink),
+            [(
+                path(&format!("{INVENTORIES}/i/screenshots/a.png")),
+                path(&format!("{INVENTORIES}/i/screenshots/a.PNG")),
+            )]
+        );
+        assert_eq!(
+            set.latest_change(DocTypeKey::DESIGN_INVENTORIES).await,
+            5_000
+        );
+    }
+
+    #[tokio::test]
+    async fn a_set_directory_renamed_only_in_case_is_one_change_a_document() {
+        let set = layout(
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+            ],
+            1_000,
+        )
+        .await;
+        let topics = set.root.join(TOPICS);
+        std::fs::rename(topics.join("s"), topics.join("S")).unwrap();
+
+        let sink = set.rescan().await;
+
+        let topic = |file: &str| path(&format!("{TOPICS}/{file}"));
+        assert_eq!(
+            changed_paths(&sink),
+            [
+                (topic("s/brief.md"), topic("S/brief.md")),
+                (topic("s/manifest.md"), topic("S/manifest.md")),
+            ]
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_set_doc_root_that_stops_being_a_symlink_still_refreshes_cleanly()
+    {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let topics = root.join(TOPICS);
+        std::fs::create_dir_all(root.join("elsewhere")).unwrap();
+        std::fs::create_dir_all(topics.parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink(root.join("elsewhere"), &topics).unwrap();
+        let indexer = index_of(&root).await;
+        std::fs::remove_file(&topics).unwrap();
+        write(
+            &root,
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+            ],
+        );
+
+        indexer
+            .refresh_one(&topics.join("s/brief.md"), &RecordingSink::default())
+            .await
+            .unwrap();
+
+        assert!(indexer
+            .all_by_type(DocTypeKey::TOPIC_RESEARCH)
+            .await
+            .is_empty());
+        assert!(indexer.set_members(&topics.join("s")).await.is_empty());
+        assert_eq!(indexer.documents_including_members().await.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn refreshing_a_set_path_hands_the_sink_its_change() {
+        let set = layout(
+            &[
+                ("meta/research/topics/s/manifest.md", ROOT),
+                ("meta/research/topics/s/brief.md", DOC),
+            ],
+            1_000,
+        )
+        .await;
+        let brief = set.root.join(TOPICS).join("s/brief.md");
+        std::fs::write(&brief, "---\ntitle: New\n---\n").unwrap();
+        let sink = RecordingSink::default();
+
+        set.indexer.refresh_one(&brief, &sink).await.unwrap();
+
+        assert_eq!(
+            changed_paths(&sink),
+            [(
+                path("meta/research/topics/s/brief.md"),
+                path("meta/research/topics/s/brief.md")
+            )]
         );
     }
 }

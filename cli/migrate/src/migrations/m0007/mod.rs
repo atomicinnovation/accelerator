@@ -28,6 +28,7 @@ mod status_map;
 
 use std::path::PathBuf;
 
+use corpus::doc_type::DocTypeCatalogue;
 use corpus::doc_type::DocTypeKey;
 use corpus::linkage::Band;
 use corpus::LinkageIds;
@@ -64,12 +65,13 @@ impl MigrationMeta for Migration0007 {
 /// `ctx.list_md_files` needs for real filesystem walking), so this strips
 /// that root back off before the dirs reach any text-matching call.
 fn linkage_table(
+    doc_types: &DocTypeCatalogue,
     dirs: &[DocTypeDir],
     root: &std::path::Path,
 ) -> Vec<(DocTypeKey, PathBuf)> {
     dirs.iter()
         .filter_map(|dir| {
-            DocTypeKey::from_linkage_type_name(&dir.doc_type).map(|key| {
+            doc_types.from_linkage_type_name(&dir.doc_type).map(|key| {
                 let relative = dir.dir.strip_prefix(root).unwrap_or(&dir.dir);
                 (key, relative.to_path_buf())
             })
@@ -123,7 +125,8 @@ fn mechanical_fail(message: impl Into<String>) -> Vec<Transformation> {
 fn run_mechanical(
     ctx: &dyn MigrationContext,
 ) -> Result<Vec<Transformation>, String> {
-    let table = linkage_table(&ctx.doc_type_dirs(), ctx.root());
+    let dirs = ctx.doc_type_dirs().map_err(|error| error.to_string())?;
+    let table = linkage_table(ctx.doc_types(), &dirs, ctx.root());
     let ids = &crate::legacy_ids::LegacyNumericIds;
     let files = corpus_files(ctx, &table)?;
 
@@ -198,9 +201,7 @@ fn run_mechanical(
             .to_owned()
     })?;
 
-    let transformations =
-        emit_linkage_transformations(ctx, &files, &table, ids);
-    Ok(transformations)
+    emit_linkage_transformations(ctx, &files, &table, ids)
 }
 
 fn emit_linkage_transformations(
@@ -208,8 +209,8 @@ fn emit_linkage_transformations(
     files: &[(String, String)],
     table: &[(DocTypeKey, PathBuf)],
     ids: &dyn LinkageIds,
-) -> Vec<Transformation> {
-    let index = ctx.corpus_index();
+) -> Result<Vec<Transformation>, String> {
+    let index = ctx.corpus_index().map_err(|error| error.to_string())?;
     let mut transformations = Vec::new();
 
     for (relpath, content) in files {
@@ -258,7 +259,7 @@ fn emit_linkage_transformations(
             });
         }
     }
-    transformations
+    Ok(transformations)
 }
 
 fn referential_error() -> String {

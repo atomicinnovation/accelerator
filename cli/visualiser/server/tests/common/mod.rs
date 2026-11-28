@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
 
 use accelerator_visualiser::config::{Config, TemplateTiers};
+use corpus::doc_type::{built_in, DeclaredSet, DocType};
+use corpus::{DocTypeCatalogue, DocTypeKey};
 
 // Shared helper compiled into every integration test binary; only some use
 // it, so binaries that don't would otherwise flag it as dead code.
@@ -20,6 +23,30 @@ pub fn set_mtime_ms(path: &Path, ms: i64) -> std::io::Result<()> {
     use std::time::{Duration, SystemTime};
     let f = OpenOptions::new().write(true).open(path)?;
     f.set_modified(SystemTime::UNIX_EPOCH + Duration::from_millis(ms as u64))
+}
+
+// Shared helper compiled into every integration test binary; only the suites
+// that declare a doc type of their own call it.
+#[allow(dead_code)]
+pub fn catalogue_with(
+    extra_types: &[&'static DocType],
+    extra_sets: &[DeclaredSet],
+) -> Arc<DocTypeCatalogue> {
+    let doc_types: Vec<DocTypeKey> = built_in::doc_types()
+        .iter()
+        .copied()
+        .chain(
+            extra_types
+                .iter()
+                .map(|declared| DocTypeKey::declared(declared)),
+        )
+        .collect();
+    let set_declarations: Vec<DeclaredSet> = declarations::set_declarations()
+        .iter()
+        .chain(extra_sets)
+        .copied()
+        .collect();
+    Arc::new(DocTypeCatalogue::new(&doc_types, &set_declarations).unwrap())
 }
 
 pub fn seeded_cfg(tmp: &Path) -> Config {
@@ -114,6 +141,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
         owner_start_time: None,
         log_path: tmp.join("server.log"),
         doc_paths,
+        doc_types: Some(declarations::catalogue().unwrap()),
         templates,
         work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,

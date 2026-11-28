@@ -68,6 +68,7 @@ mod tests {
             owner_start_time: None,
             log_path: tmp.path().join("server.log"),
             doc_paths: std::collections::HashMap::default(),
+            doc_types: Some(crate::test_support::assembled_catalogue()),
             templates: std::collections::HashMap::default(),
             work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,
@@ -82,7 +83,7 @@ mod tests {
     fn ev(seconds: i64) -> ActivityEvent {
         ActivityEvent {
             action: ActionKind::Edited,
-            doc_type: DocTypeKey::Plans,
+            doc_type: DocTypeKey::PLANS,
             path: format!("meta/plans/t{seconds}.md"),
             timestamp: Utc.timestamp_opt(seconds, 0).unwrap(),
         }

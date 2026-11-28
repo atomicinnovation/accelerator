@@ -4,7 +4,9 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use corpus::DocTypeCatalogue;
 use serde::Deserialize;
 use work::id_scheme::IdScheme;
 
@@ -24,6 +26,8 @@ pub struct Config {
     pub owner_start_time: Option<u64>,
     pub log_path: PathBuf,
     pub doc_paths: HashMap<String, PathBuf>,
+    #[serde(skip)]
+    pub doc_types: Option<Arc<DocTypeCatalogue>>,
     pub templates: HashMap<String, TemplateTiers>,
     /// The work-item ID scheme composed in-process; never deserialised.
     #[serde(skip)]
@@ -117,6 +121,16 @@ impl corpus::IdConvention for NoWorkItemIds {
     }
 }
 
+impl corpus::LinkageIds for NoWorkItemIds {
+    fn id_in_filename(&self, _filename: &str) -> Option<String> {
+        None
+    }
+
+    fn bare_ids_in(&self, _line: &str) -> Vec<String> {
+        Vec::new()
+    }
+}
+
 impl Default for WorkItemConfig {
     fn default() -> Self {
         Self::default_numeric()
@@ -162,6 +176,15 @@ impl WorkItemConfig {
     /// The convention files and references are read through.
     #[must_use]
     pub fn convention(&self) -> &dyn corpus::IdConvention {
+        match &self.scheme {
+            Some(scheme) => scheme,
+            None => &NoWorkItemIds,
+        }
+    }
+
+    /// The reading typed-linkage ids are taken through.
+    #[must_use]
+    pub fn linkage_ids(&self) -> &dyn corpus::LinkageIds {
         match &self.scheme {
             Some(scheme) => scheme,
             None => &NoWorkItemIds,

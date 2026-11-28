@@ -99,7 +99,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
-        vec![(DocTypeKey::WorkItems, PathBuf::from("meta/work"))]
+        vec![(DocTypeKey::WORK_ITEMS, PathBuf::from("meta/work"))]
     }
 
     fn work_item(body: &str) -> String {
@@ -153,7 +153,7 @@ mod tests {
              last_updated_by: a\nschema_version: 1\n---\nbody\n";
         let files =
             vec![("meta/decisions/x.md".to_owned(), content.to_owned())];
-        let table = vec![(DocTypeKey::Plans, PathBuf::from("meta/decisions"))];
+        let table = vec![(DocTypeKey::PLANS, PathBuf::from("meta/decisions"))];
         let refusals = precondition_prepass(&files, &table);
         assert!(refusals.iter().any(|r| r.contains("unquoted")));
     }
@@ -166,7 +166,7 @@ mod tests {
              last_updated_by: a\nschema_version: 1\n---\nbody\n";
         let files =
             vec![("meta/decisions/x.md".to_owned(), content.to_owned())];
-        let table = vec![(DocTypeKey::Plans, PathBuf::from("meta/decisions"))];
+        let table = vec![(DocTypeKey::PLANS, PathBuf::from("meta/decisions"))];
         assert!(precondition_prepass(&files, &table).is_empty());
     }
 
@@ -186,8 +186,8 @@ mod tests {
             ("meta/plans/0099-foo.md".to_owned(), plan.to_owned()),
         ];
         let table = vec![
-            (DocTypeKey::WorkItems, PathBuf::from("meta/work")),
-            (DocTypeKey::Plans, PathBuf::from("meta/plans")),
+            (DocTypeKey::WORK_ITEMS, PathBuf::from("meta/work")),
+            (DocTypeKey::PLANS, PathBuf::from("meta/plans")),
         ];
         assert!(precondition_prepass(&files, &table).is_empty());
     }

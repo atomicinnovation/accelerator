@@ -4,6 +4,7 @@
 use crate::topic::layout::lineage::Lineage;
 use crate::topic::layout::stem::Stem;
 use crate::topic::layout::FINDINGS;
+use crate::topic::layout::LEVELS_SUFFIX;
 
 /// Whether `relative`, a `/`-separated path below the topics directory, is
 /// exactly `<set>/findings/<stem>.md` with a visible set.
@@ -23,7 +24,7 @@ pub fn is_level_note_path(relative: &str) -> bool {
         return false;
     };
     is_visible(set)
-        && levels.strip_suffix(".levels").is_some_and(is_stem)
+        && levels.strip_suffix(LEVELS_SUFFIX).is_some_and(is_stem)
         && name
             .strip_suffix(".md")
             .is_some_and(|lineage| Lineage::parse(lineage).is_some())

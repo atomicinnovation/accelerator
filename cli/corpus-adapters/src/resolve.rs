@@ -1,6 +1,6 @@
 //! Resolving a slug or a path to a document's root on disk.
 //!
-//! The `Path` class (canonicalise, containment, nested set-root walk) is
+//! The `Path` class (canonicalise, containment, the set a path lies in) is
 //! handled directly, and the `Slug` class routed through
 //! [`corpus::resolve::resolve`].
 
@@ -9,10 +9,14 @@ use std::path::PathBuf;
 
 use corpus::resolve::classify_input;
 use corpus::resolve::resolve as domain_resolve;
+use corpus::resolve::set_directory_of;
+use corpus::resolve::EntryKind;
 use corpus::resolve::InputClass;
 use corpus::resolve::ResolveOutcome;
 use corpus::resolve::TaggedCandidate;
 use corpus::resolve::TypeShape;
+use corpus::set::SetMatcher;
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
 use crate::fs::TypeDirectoryLister;
@@ -27,27 +31,26 @@ pub enum Resolution {
 }
 
 /// Resolves `slug` for `doc_type`, relative to `start`, to the document root
-/// — a file for a flat type, the set directory for a nested-manifest type.
+/// — a file for a flat type, the set directory for a set type.
 ///
 /// `type_dir` is asked for the type's configured directory only once `slug`
 /// is known to be a slug or a path, so an invalid input never depends on the
 /// configuration or the filesystem.
 pub fn resolve_document(
+    catalogue: &DocTypeCatalogue,
     start: &Path,
     doc_type: &str,
     slug: &str,
     type_dir: impl FnOnce(DocTypeKey) -> Result<PathBuf, String>,
 ) -> Resolution {
-    let Some(key) = DocTypeKey::from_linkage_type_name(doc_type) else {
+    let Some(key) = catalogue.from_linkage_type_name(doc_type) else {
         return Resolution::UnknownType(format!(
             "'{doc_type}' is not a registered document type"
         ));
     };
-    let shape = if key.nested_manifest_filename().is_some() {
-        TypeShape::NestedManifest
-    } else {
-        TypeShape::Flat
-    };
+    let shape = catalogue
+        .set_matcher(key)
+        .map_or(TypeShape::Flat, TypeShape::Set);
 
     let class = classify_input(slug);
     if class == InputClass::Invalid {
@@ -94,7 +97,7 @@ fn resolve_path_class(
     root: &Path,
     start: &Path,
     input: &str,
-    shape: TypeShape,
+    shape: TypeShape<'_>,
     doc_type: &str,
 ) -> Resolution {
     let candidate = start.join(input);
@@ -119,30 +122,42 @@ fn resolve_path_class(
                 ))
             }
         }
-        TypeShape::NestedManifest => set_root_under(root, &resolved)
-            .map_or_else(
+        TypeShape::Set(matcher) => {
+            set_directory_holding(root, &resolved, matcher).map_or_else(
                 || {
                     Resolution::NotFound(format!(
                         "no '{doc_type}' set at path '{input}'"
                     ))
                 },
                 Resolution::Resolved,
-            ),
+            )
+        }
     }
 }
 
-/// The set root for a target somewhere under `root`: the first path segment
-/// directly under the type directory. A sub-document lives in a subdirectory
-/// (`findings/`, `screenshots/`) whose immediate parent is not the set root, so
-/// this walks up until the parent is exactly `root` rather than taking the
-/// immediate parent.
-fn set_root_under(root: &Path, target: &Path) -> Option<PathBuf> {
-    let mut current = target;
-    loop {
-        let parent = current.parent()?;
-        if parent == root {
-            return Some(current.to_path_buf());
-        }
-        current = parent;
-    }
+fn set_directory_holding(
+    root: &Path,
+    target: &Path,
+    matcher: &SetMatcher,
+) -> Option<PathBuf> {
+    let type_relative = target
+        .strip_prefix(root)
+        .ok()?
+        .components()
+        .map(|component| component.as_os_str().to_str())
+        .collect::<Option<Vec<&str>>>()?
+        .join("/");
+    let entry = if target.is_dir() {
+        EntryKind::Directory
+    } else if target.is_file() {
+        EntryKind::File
+    } else {
+        return None;
+    };
+    let set_directory =
+        root.join(set_directory_of(&type_relative, entry, matcher)?);
+    set_directory
+        .join(matcher.root())
+        .is_file()
+        .then_some(set_directory)
 }

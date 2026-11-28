@@ -120,6 +120,16 @@ export interface DocType {
   // document types set `virtual: false`. Sidebar partitions on this flag.
   virtual: boolean;
   count?: number;
+  set: DocTypeSet | null;
+}
+
+/** A set type's shape: its root file and its member slots, as patterns
+ *  relative to the set directory, and how a set is presented. */
+export interface DocTypeSet {
+  root: string;
+  documentSlots: string[];
+  assetSlots: string[];
+  presentation: "set-page" | "entry-point";
 }
 
 export interface IndexEntry {
@@ -167,10 +177,44 @@ export interface IndexEntry {
    *  `null` for entries that fall back to slug-bucket clustering or to
    *  per-path orphan buckets. */
   clusterKey: string | null;
+  /** Both null outside a set. Older servers omit both, and the API client
+   *  normalises them to null. */
+  setId: string | null;
+  setRelativePath: string | null;
 }
 
 export interface DocsListResponse {
   docs: IndexEntry[];
+}
+
+export interface SetResponse {
+  set: {
+    type: DocTypeKey;
+    id: string;
+    directory: string;
+    presentation: DocTypeSet["presentation"];
+  };
+  root: SetDocumentMember;
+  members: Array<SetDocumentMember | SetAssetMember>;
+}
+
+/** `setRelativePath` is never percent-encoded; a consumer building a
+ *  `/api/docs` URL from it encodes each segment. */
+export interface SetDocumentMember {
+  kind: "document";
+  setRelativePath: string;
+  title: string;
+  frontmatter: Record<string, unknown>;
+  frontmatterState: IndexEntry["frontmatterState"];
+  mtimeMs: number;
+  etag: string;
+}
+
+export interface SetAssetMember {
+  kind: "asset";
+  setRelativePath: string;
+  size: number;
+  mtimeMs: number;
 }
 
 export type TemplateTierSource =

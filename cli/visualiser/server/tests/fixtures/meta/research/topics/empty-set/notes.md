@@ -1,2 +1,1 @@
-A set directory with no `manifest.md`. The nested-manifest walk keys on
-`manifest.md`, so this directory must be skipped entirely.
+A set directory with no `manifest.md`, so nothing in it is indexed.

@@ -149,8 +149,8 @@ fn a_repo_with_no_research_codebase_directory_still_records_applied(
 }
 
 #[test]
-fn a_dangerous_research_codebase_value_is_refused_not_walked(
-) -> Result<(), TestError> {
+fn a_dangerous_research_codebase_value_refuses_the_run() -> Result<(), TestError>
+{
     let dir = TempDir::new()?;
     let root = dir.path();
     write(
@@ -161,15 +161,15 @@ fn a_dangerous_research_codebase_value_is_refused_not_walked(
     already_applied_except_0010(root)?;
 
     let output = run(root)?;
-    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_ne!(output.status.code(), Some(0), "{output:?}");
     let stderr = String::from_utf8(output.stderr)?;
     assert!(
         stderr.contains(
-            "refusing dangerous paths.research_codebase value: ../escape"
+            "paths.research_codebase resolves to an unsafe path: ../escape"
         ),
         "{stderr}"
     );
-    assert!(applied(root)?.contains("0010-strip-research-title-prefix"));
+    assert!(!applied(root)?.contains("0010-strip-research-title-prefix"));
     Ok(())
 }
 

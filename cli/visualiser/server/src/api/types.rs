@@ -8,13 +8,13 @@ use crate::server::AppState;
 
 #[derive(Serialize)]
 pub(crate) struct TypesResponse {
-    types: Vec<crate::doc_type_view::DocType>,
+    types: Vec<crate::doc_type_view::DocTypeView>,
 }
 
 pub(crate) async fn types(
     State(state): State<Arc<AppState>>,
 ) -> Json<TypesResponse> {
-    let mut types = describe_types(&state.cfg);
+    let mut types = describe_types(&state.doc_types, &state.cfg);
     let counts = state.indexer.counts_by_type().await;
     for t in &mut types {
         t.count = counts.get(&t.key).copied().unwrap_or(0);

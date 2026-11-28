@@ -4,9 +4,10 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::config::WorkItemConfig;
-use crate::indexer::IndexEntry;
+use crate::indexer::{IndexEntry, Indexer};
 use corpus::cluster::ClusterEntry;
 use corpus::DocTypeKey;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -88,11 +89,17 @@ pub struct LifecycleCluster {
     pub cluster_key: Option<String>,
 }
 
+impl LifecycleCluster {
+    pub fn holds(&self, path: &Path) -> bool {
+        self.entries.iter().any(|entry| entry.path == path)
+    }
+}
+
 /// Snapshots and conventions the cluster-key resolver needs, threaded from the
 /// indexer caller into `corpus::cluster`.
 pub struct ClusterContext<'a> {
     pub work_item_by_identity_key: &'a HashMap<String, PathBuf>,
-    pub plans_by_id: &'a HashMap<String, PathBuf>,
+    pub documents_by_address: &'a HashMap<corpus::LinkageAddress, PathBuf>,
     pub project_root: &'a Path,
     pub work_item_cfg: &'a WorkItemConfig,
 }
@@ -101,13 +108,13 @@ impl<'a> ClusterContext<'a> {
     pub fn from_entries(
         _entries: &'a [IndexEntry],
         work_item_by_identity_key: &'a HashMap<String, PathBuf>,
-        plans_by_id: &'a HashMap<String, PathBuf>,
+        documents_by_address: &'a HashMap<corpus::LinkageAddress, PathBuf>,
         project_root: &'a Path,
         work_item_cfg: &'a WorkItemConfig,
     ) -> Self {
         Self {
             work_item_by_identity_key,
-            plans_by_id,
+            documents_by_address,
             project_root,
             work_item_cfg,
         }
@@ -120,7 +127,7 @@ impl<'a> ClusterContext<'a> {
 #[cfg(test)]
 pub struct EmptyClusterFixture {
     pub wi: HashMap<String, PathBuf>,
-    pub pl: HashMap<String, PathBuf>,
+    pub pl: HashMap<corpus::LinkageAddress, PathBuf>,
     pub root: PathBuf,
     pub cfg: WorkItemConfig,
 }
@@ -145,11 +152,45 @@ impl EmptyClusterFixture {
     pub fn ctx(&self) -> ClusterContext<'_> {
         ClusterContext {
             work_item_by_identity_key: &self.wi,
-            plans_by_id: &self.pl,
+            documents_by_address: &self.pl,
             project_root: &self.root,
             work_item_cfg: &self.cfg,
         }
     }
+}
+
+pub async fn recompute_clusters(
+    indexer: &Indexer,
+    clusters: &RwLock<Vec<LifecycleCluster>>,
+) {
+    let snapshot = indexer.all().await;
+    let work_item_by_identity_key =
+        indexer.work_item_by_identity_key_snapshot().await;
+    let documents_by_address = indexer.documents_by_address_snapshot().await;
+    let work_item_cfg = indexer.work_item_cfg();
+    let cluster_ctx = ClusterContext::from_entries(
+        &snapshot,
+        &work_item_by_identity_key,
+        &documents_by_address,
+        indexer.project_root(),
+        &work_item_cfg,
+    );
+    let (new_clusters, completeness_backfill, cluster_key_backfill) =
+        compute_clusters_with_backfill(&snapshot, &cluster_ctx);
+    let linked_counts = crate::related::collect_linked_counts(
+        indexer,
+        &new_clusters,
+        &snapshot,
+    )
+    .await;
+    indexer
+        .apply_completeness_backfill(completeness_backfill)
+        .await;
+    indexer
+        .apply_cluster_key_backfill(cluster_key_backfill)
+        .await;
+    indexer.apply_linked_count_backfill(linked_counts).await;
+    *clusters.write().await = new_clusters;
 }
 
 pub fn compute_clusters(
@@ -184,7 +225,7 @@ pub fn compute_clusters_with_backfill(
     let corpus_ctx = corpus::cluster::ClusterContext::from_entries(
         entries,
         ctx.work_item_by_identity_key,
-        ctx.plans_by_id,
+        ctx.documents_by_address,
         ctx.project_root,
         identity,
     );
@@ -259,9 +300,6 @@ mod tests {
         compute_clusters_with_backfill(entries, &fx.ctx())
     }
 
-    /// Run clustering with snapshot maps derived from the entries
-    /// themselves — `work_item_by_identity_key` from `WorkItems` entries, `plans_by_id`
-    /// from Plans entries (by file stem).
     fn run_clusters(
         entries: &[IndexEntry],
         cfg: &WorkItemConfig,
@@ -272,25 +310,31 @@ mod tests {
     ) {
         let work_item_by_identity_key: HashMap<String, PathBuf> = entries
             .iter()
-            .filter(|e| e.r#type == DocTypeKey::WorkItems)
+            .filter(|e| e.r#type == DocTypeKey::WORK_ITEMS)
             .filter_map(|e| {
                 e.identity_key.clone().map(|id| (id, e.path.clone()))
             })
             .collect();
-        let plans_by_id: HashMap<String, PathBuf> = entries
-            .iter()
-            .filter(|e| e.r#type == DocTypeKey::Plans)
-            .filter_map(|e| {
-                e.path.file_stem().and_then(|s| {
-                    s.to_str().map(|s| (s.to_string(), e.path.clone()))
+        let documents_by_address: HashMap<corpus::LinkageAddress, PathBuf> =
+            entries
+                .iter()
+                .filter(|e| e.r#type == DocTypeKey::PLANS)
+                .filter_map(|e| {
+                    e.path.file_stem().and_then(|s| {
+                        s.to_str().map(|s| {
+                            (
+                                corpus::LinkageAddress::new("plan", s),
+                                e.path.clone(),
+                            )
+                        })
+                    })
                 })
-            })
-            .collect();
+                .collect();
         let project_root = PathBuf::from("/repo");
         let ctx = ClusterContext::from_entries(
             entries,
             &work_item_by_identity_key,
-            &plans_by_id,
+            &documents_by_address,
             &project_root,
             cfg,
         );
@@ -300,9 +344,9 @@ mod tests {
     #[test]
     fn same_slug_clusters_into_one_entry() {
         let entries = vec![
-            entry(DocTypeKey::Plans, "foo", 10, "Plan for Foo"),
-            entry(DocTypeKey::PlanReviews, "foo", 20, "Review"),
-            entry(DocTypeKey::WorkItems, "foo", 5, "Work Item"),
+            entry(DocTypeKey::PLANS, "foo", 10, "Plan for Foo"),
+            entry(DocTypeKey::PLAN_REVIEWS, "foo", 20, "Review"),
+            entry(DocTypeKey::WORK_ITEMS, "foo", 5, "Work Item"),
         ];
         let clusters = compute(&entries);
         assert_eq!(clusters.len(), 1);
@@ -314,9 +358,9 @@ mod tests {
     #[test]
     fn canonical_ordering_is_work_item_then_plan_then_review() {
         let entries = vec![
-            entry(DocTypeKey::PlanReviews, "foo", 30, "Review"),
-            entry(DocTypeKey::Plans, "foo", 20, "Plan"),
-            entry(DocTypeKey::WorkItems, "foo", 10, "Work Item"),
+            entry(DocTypeKey::PLAN_REVIEWS, "foo", 30, "Review"),
+            entry(DocTypeKey::PLANS, "foo", 20, "Plan"),
+            entry(DocTypeKey::WORK_ITEMS, "foo", 10, "Work Item"),
         ];
         let clusters = compute(&entries);
         let kinds: Vec<DocTypeKey> =
@@ -324,9 +368,9 @@ mod tests {
         assert_eq!(
             kinds,
             vec![
-                DocTypeKey::WorkItems,
-                DocTypeKey::Plans,
-                DocTypeKey::PlanReviews,
+                DocTypeKey::WORK_ITEMS,
+                DocTypeKey::PLANS,
+                DocTypeKey::PLAN_REVIEWS,
             ]
         );
     }
@@ -334,9 +378,9 @@ mod tests {
     #[test]
     fn mtime_breaks_ties_within_a_type() {
         let entries = vec![
-            entry(DocTypeKey::PlanReviews, "foo", 300, "Review 3"),
-            entry(DocTypeKey::PlanReviews, "foo", 100, "Review 1"),
-            entry(DocTypeKey::PlanReviews, "foo", 200, "Review 2"),
+            entry(DocTypeKey::PLAN_REVIEWS, "foo", 300, "Review 3"),
+            entry(DocTypeKey::PLAN_REVIEWS, "foo", 100, "Review 1"),
+            entry(DocTypeKey::PLAN_REVIEWS, "foo", 200, "Review 2"),
         ];
         let clusters = compute(&entries);
         let titles: Vec<String> = clusters[0]
@@ -350,9 +394,9 @@ mod tests {
     #[test]
     fn completeness_flags_track_present_types() {
         let entries = vec![
-            entry(DocTypeKey::WorkItems, "foo", 10, "T"),
-            entry(DocTypeKey::Plans, "foo", 20, "P"),
-            entry(DocTypeKey::Decisions, "foo", 30, "D"),
+            entry(DocTypeKey::WORK_ITEMS, "foo", 10, "T"),
+            entry(DocTypeKey::PLANS, "foo", 20, "P"),
+            entry(DocTypeKey::DECISIONS, "foo", 30, "D"),
         ];
         let clusters = compute(&entries);
         // Decisions is orphan-by-design, so it forms its own per-path
@@ -361,7 +405,7 @@ mod tests {
         let lifecycle = clusters
             .iter()
             .find(|c| {
-                c.entries.iter().any(|e| e.r#type == DocTypeKey::WorkItems)
+                c.entries.iter().any(|e| e.r#type == DocTypeKey::WORK_ITEMS)
             })
             .expect("lifecycle cluster present");
         let c = &lifecycle.completeness;
@@ -381,8 +425,8 @@ mod tests {
     #[test]
     fn present_contains_workflow_keys_in_canonical_order() {
         let entries = vec![
-            entry(DocTypeKey::Plans, "foo", 10, "P"),
-            entry(DocTypeKey::WorkItems, "foo", 5, "T"),
+            entry(DocTypeKey::PLANS, "foo", 10, "P"),
+            entry(DocTypeKey::WORK_ITEMS, "foo", 5, "T"),
         ];
         let clusters = compute(&entries);
         assert_eq!(
@@ -393,7 +437,7 @@ mod tests {
 
     #[test]
     fn present_for_solitary_work_item_is_single_entry() {
-        let entries = vec![entry(DocTypeKey::WorkItems, "foo", 5, "T")];
+        let entries = vec![entry(DocTypeKey::WORK_ITEMS, "foo", 5, "T")];
         let clusters = compute(&entries);
         assert_eq!(
             clusters[0].completeness.present,
@@ -404,8 +448,8 @@ mod tests {
     #[test]
     fn backfill_map_carries_cluster_completeness_for_every_clustered_entry() {
         let entries = vec![
-            entry(DocTypeKey::WorkItems, "foo", 10, "T"),
-            entry(DocTypeKey::Plans, "foo", 20, "P"),
+            entry(DocTypeKey::WORK_ITEMS, "foo", 10, "T"),
+            entry(DocTypeKey::PLANS, "foo", 20, "P"),
         ];
         let (clusters, backfill, _) = compute_with_backfill(&entries);
         assert_eq!(clusters.len(), 1);
@@ -427,7 +471,7 @@ mod tests {
 
     #[test]
     fn orphan_entries_are_absent_from_backfill_map() {
-        let mut orphan = entry(DocTypeKey::Plans, "x", 10, "P");
+        let mut orphan = entry(DocTypeKey::PLANS, "x", 10, "P");
         orphan.slug = None;
         let (clusters, backfill, _) = compute_with_backfill(&[orphan]);
         assert!(clusters.is_empty());
@@ -437,9 +481,9 @@ mod tests {
     #[test]
     fn entries_in_distinct_clusters_get_distinct_completeness() {
         let entries = vec![
-            entry(DocTypeKey::WorkItems, "foo", 10, "WI-foo"),
-            entry(DocTypeKey::Plans, "foo", 20, "P-foo"),
-            entry(DocTypeKey::WorkItems, "bar", 30, "WI-bar"),
+            entry(DocTypeKey::WORK_ITEMS, "foo", 10, "WI-foo"),
+            entry(DocTypeKey::PLANS, "foo", 20, "P-foo"),
+            entry(DocTypeKey::WORK_ITEMS, "bar", 30, "WI-bar"),
         ];
         let (clusters, backfill, _) = compute_with_backfill(&entries);
         assert_eq!(clusters.len(), 2);
@@ -458,8 +502,8 @@ mod tests {
     #[test]
     fn cluster_entries_completeness_matches_backfill_for_same_path() {
         let entries = vec![
-            entry(DocTypeKey::WorkItems, "foo", 10, "T"),
-            entry(DocTypeKey::Plans, "foo", 20, "P"),
+            entry(DocTypeKey::WORK_ITEMS, "foo", 10, "T"),
+            entry(DocTypeKey::PLANS, "foo", 20, "P"),
         ];
         let (clusters, backfill, _) = compute_with_backfill(&entries);
         for cluster in &clusters {
@@ -485,13 +529,13 @@ mod tests {
         // orphan-by-design, so they form their own per-path buckets and
         // don't merge with the lifecycle cluster.
         let entries = vec![
-            entry(DocTypeKey::WorkItems, "foo", 1, "T"),
-            entry(DocTypeKey::Research, "foo", 2, "R"),
-            entry(DocTypeKey::Plans, "foo", 3, "P"),
-            entry(DocTypeKey::PlanReviews, "foo", 4, "PR"),
-            entry(DocTypeKey::Validations, "foo", 5, "V"),
-            entry(DocTypeKey::PrDescriptions, "foo", 6, "PD"),
-            entry(DocTypeKey::PrReviews, "foo", 7, "PrR"),
+            entry(DocTypeKey::WORK_ITEMS, "foo", 1, "T"),
+            entry(DocTypeKey::RESEARCH, "foo", 2, "R"),
+            entry(DocTypeKey::PLANS, "foo", 3, "P"),
+            entry(DocTypeKey::PLAN_REVIEWS, "foo", 4, "PR"),
+            entry(DocTypeKey::VALIDATIONS, "foo", 5, "V"),
+            entry(DocTypeKey::PR_DESCRIPTIONS, "foo", 6, "PD"),
+            entry(DocTypeKey::PR_REVIEWS, "foo", 7, "PrR"),
         ];
         let clusters = compute(&entries);
         let foo = clusters.iter().find(|c| c.slug == "foo").unwrap();
@@ -512,8 +556,8 @@ mod tests {
     #[test]
     fn completeness_camelcase_field_names_match_typescript_interface() {
         let entries = vec![
-            entry(DocTypeKey::DesignGaps, "foo", 10, "Gap"),
-            entry(DocTypeKey::DesignInventories, "foo", 20, "Inventory"),
+            entry(DocTypeKey::DESIGN_GAPS, "foo", 10, "Gap"),
+            entry(DocTypeKey::DESIGN_INVENTORIES, "foo", 20, "Inventory"),
         ];
         let clusters = compute(&entries);
         // Orphan-by-design types each get their own per-path bucket.
@@ -527,19 +571,19 @@ mod tests {
 
     #[test]
     fn templates_are_excluded_from_clusters() {
-        let mut t = entry(DocTypeKey::Plans, "shared", 10, "Plan");
-        let mut tmpl = entry(DocTypeKey::Templates, "shared", 20, "Template");
+        let mut t = entry(DocTypeKey::PLANS, "shared", 10, "Plan");
+        let mut tmpl = entry(DocTypeKey::TEMPLATES, "shared", 20, "Template");
         tmpl.slug = Some("shared".to_string());
         t.slug = Some("shared".to_string());
         let clusters = compute(&[t, tmpl]);
         assert_eq!(clusters.len(), 1);
         assert_eq!(clusters[0].entries.len(), 1);
-        assert_eq!(clusters[0].entries[0].r#type, DocTypeKey::Plans);
+        assert_eq!(clusters[0].entries[0].r#type, DocTypeKey::PLANS);
     }
 
     #[test]
     fn entries_without_slug_are_excluded() {
-        let mut e = entry(DocTypeKey::Plans, "x", 10, "P");
+        let mut e = entry(DocTypeKey::PLANS, "x", 10, "P");
         e.slug = None;
         let clusters = compute(&[e]);
         assert!(clusters.is_empty());
@@ -548,9 +592,9 @@ mod tests {
     #[test]
     fn last_changed_ms_is_max_mtime_across_entries() {
         let entries = vec![
-            entry(DocTypeKey::WorkItems, "foo", 100, "T"),
-            entry(DocTypeKey::Plans, "foo", 500, "P"),
-            entry(DocTypeKey::PlanReviews, "foo", 300, "R"),
+            entry(DocTypeKey::WORK_ITEMS, "foo", 100, "T"),
+            entry(DocTypeKey::PLANS, "foo", 500, "P"),
+            entry(DocTypeKey::PLAN_REVIEWS, "foo", 300, "R"),
         ];
         let clusters = compute(&entries);
         assert_eq!(clusters.len(), 1);
@@ -559,7 +603,7 @@ mod tests {
 
     #[test]
     fn last_changed_ms_for_single_entry_is_that_entry_mtime() {
-        let entries = vec![entry(DocTypeKey::Plans, "solo", 42, "P")];
+        let entries = vec![entry(DocTypeKey::PLANS, "solo", 42, "P")];
         let clusters = compute(&entries);
         assert_eq!(clusters[0].last_changed_ms, 42);
     }
@@ -567,10 +611,10 @@ mod tests {
     #[test]
     fn last_changed_ms_is_per_cluster_and_survives_slug_sort() {
         let entries = vec![
-            entry(DocTypeKey::Plans, "foo", 100, "P-foo"),
-            entry(DocTypeKey::WorkItems, "foo", 500, "T-foo"),
-            entry(DocTypeKey::Plans, "bar", 900, "P-bar"),
-            entry(DocTypeKey::WorkItems, "bar", 200, "T-bar"),
+            entry(DocTypeKey::PLANS, "foo", 100, "P-foo"),
+            entry(DocTypeKey::WORK_ITEMS, "foo", 500, "T-foo"),
+            entry(DocTypeKey::PLANS, "bar", 900, "P-bar"),
+            entry(DocTypeKey::WORK_ITEMS, "bar", 200, "T-bar"),
         ];
         let clusters = compute(&entries);
         assert_eq!(clusters.len(), 2);
@@ -583,9 +627,9 @@ mod tests {
     #[test]
     fn clusters_are_sorted_by_slug_alphabetically() {
         let entries = vec![
-            entry(DocTypeKey::Plans, "bravo", 10, "B"),
-            entry(DocTypeKey::Plans, "alpha", 20, "A"),
-            entry(DocTypeKey::Plans, "charlie", 30, "C"),
+            entry(DocTypeKey::PLANS, "bravo", 10, "B"),
+            entry(DocTypeKey::PLANS, "alpha", 20, "A"),
+            entry(DocTypeKey::PLANS, "charlie", 30, "C"),
         ];
         let clusters = compute(&entries);
         let slugs: Vec<String> =
@@ -597,12 +641,12 @@ mod tests {
     fn phase_1_id_prefixed_and_bare_slugs_now_cluster_into_one_bucket() {
         let cfg = WorkItemConfig::default();
         let plan = entry_for_test_with_filename(
-            DocTypeKey::Plans,
+            DocTypeKey::PLANS,
             "2026-05-31-0040-pipeline-visualisation-overhaul.md",
             &cfg,
         );
         let wi = entry_for_test_with_filename(
-            DocTypeKey::WorkItems,
+            DocTypeKey::WORK_ITEMS,
             "0040-pipeline-visualisation-overhaul.md",
             &cfg,
         );
@@ -615,11 +659,12 @@ mod tests {
     #[test]
     fn plan_with_parent_work_item_id_clusters_with_the_work_item() {
         let cfg = WorkItemConfig::default();
-        let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
+        let mut wi =
+            entry_for_test(DocTypeKey::WORK_ITEMS, "pipeline", 1, "WI");
         wi.work_item_id = Some("0040".into());
         wi.identity_key = Some("0040".into());
         wi.path = PathBuf::from("/repo/meta/work/0040-pipeline.md");
-        let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
+        let mut plan = entry_for_test(DocTypeKey::PLANS, "pipeline", 2, "Plan");
         plan.path =
             PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
         plan.frontmatter = json!({ "parent": "work-item:0040" });
@@ -631,11 +676,11 @@ mod tests {
         assert!(clusters[0]
             .entries
             .iter()
-            .any(|e| e.r#type == DocTypeKey::Plans));
+            .any(|e| e.r#type == DocTypeKey::PLANS));
         assert!(clusters[0]
             .entries
             .iter()
-            .any(|e| e.r#type == DocTypeKey::WorkItems));
+            .any(|e| e.r#type == DocTypeKey::WORK_ITEMS));
         assert_eq!(cluster_key_by_path[&wi.path], Some("0040".into()));
         assert_eq!(cluster_key_by_path[&plan.path], Some("0040".into()));
     }
@@ -643,17 +688,18 @@ mod tests {
     #[test]
     fn validation_with_target_path_clusters_via_plan_parent() {
         let cfg = WorkItemConfig::default();
-        let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
+        let mut wi =
+            entry_for_test(DocTypeKey::WORK_ITEMS, "pipeline", 1, "WI");
         wi.work_item_id = Some("0040".into());
         wi.identity_key = Some("0040".into());
         wi.path = PathBuf::from("/repo/meta/work/0040-pipeline.md");
         let plan_path =
             PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
-        let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
+        let mut plan = entry_for_test(DocTypeKey::PLANS, "pipeline", 2, "Plan");
         plan.path = plan_path.clone();
         plan.frontmatter = json!({ "parent": "work-item:0040" });
         let mut val =
-            entry_for_test(DocTypeKey::Validations, "pipeline", 3, "Val");
+            entry_for_test(DocTypeKey::VALIDATIONS, "pipeline", 3, "Val");
         val.path = PathBuf::from(
             "/repo/meta/validations/2026-05-31-pipeline-validation.md",
         );
@@ -669,7 +715,7 @@ mod tests {
     fn work_item_review_no_date_filename_clusters_via_target() {
         let cfg = WorkItemConfig::default();
         let mut wi = entry_for_test(
-            DocTypeKey::WorkItems,
+            DocTypeKey::WORK_ITEMS,
             "design-token-system",
             1,
             "WI",
@@ -678,7 +724,7 @@ mod tests {
         wi.identity_key = Some("0033".into());
         wi.path = PathBuf::from("/repo/meta/work/0033-design-token-system.md");
         let mut review = entry_for_test(
-            DocTypeKey::WorkItemReviews,
+            DocTypeKey::WORK_ITEM_REVIEWS,
             "design-token-system",
             2,
             "R",
@@ -698,7 +744,7 @@ mod tests {
     #[test]
     fn plan_without_typed_linkage_falls_back_to_slug_bucket() {
         let cfg = WorkItemConfig::default();
-        let plan = entry_for_test(DocTypeKey::Plans, "orphan-plan", 1, "Plan");
+        let plan = entry_for_test(DocTypeKey::PLANS, "orphan-plan", 1, "Plan");
         let (clusters, _, cluster_key_by_path) =
             run_clusters(std::slice::from_ref(&plan), &cfg);
         assert_eq!(clusters.len(), 1);
@@ -711,7 +757,7 @@ mod tests {
     fn path_shape_parent_resolves_to_work_item_cluster() {
         let cfg = WorkItemConfig::default();
         let mut wi = entry_for_test(
-            DocTypeKey::WorkItems,
+            DocTypeKey::WORK_ITEMS,
             "design-token-system",
             1,
             "WI",
@@ -719,7 +765,7 @@ mod tests {
         wi.work_item_id = Some("0033".into());
         wi.identity_key = Some("0033".into());
         wi.path = PathBuf::from("/repo/meta/work/0033-design-token-system.md");
-        let mut plan = entry_for_test(DocTypeKey::Plans, "tokens", 2, "Plan");
+        let mut plan = entry_for_test(DocTypeKey::PLANS, "tokens", 2, "Plan");
         plan.frontmatter =
             json!({ "parent": "meta/work/0033-design-token-system.md" });
         let (clusters, _, _) = run_clusters(&[wi, plan], &cfg);
@@ -730,10 +776,11 @@ mod tests {
     #[test]
     fn project_prefixed_workspace_clusters_correctly() {
         let cfg = WorkItemConfig::with_pattern_for_test("PROJ", 4);
-        let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
+        let mut wi =
+            entry_for_test(DocTypeKey::WORK_ITEMS, "pipeline", 1, "WI");
         wi.work_item_id = Some("PROJ-0040".into());
         wi.identity_key = Some("PROJ-0040".into());
-        let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
+        let mut plan = entry_for_test(DocTypeKey::PLANS, "pipeline", 2, "Plan");
         plan.frontmatter = json!({ "parent": "work-item:PROJ-0040" });
         let (clusters, _, _) = run_clusters(&[wi, plan], &cfg);
         assert_eq!(clusters.len(), 1);
@@ -743,7 +790,7 @@ mod tests {
     #[test]
     fn notes_remain_orphaned_when_they_carry_no_linkage() {
         let cfg = WorkItemConfig::default();
-        let note = entry_for_test(DocTypeKey::Notes, "random-thought", 1, "N");
+        let note = entry_for_test(DocTypeKey::NOTES, "random-thought", 1, "N");
         let (clusters, _, _) = run_clusters(&[note], &cfg);
         assert_eq!(clusters.len(), 1);
         assert_eq!(clusters[0].cluster_key, None);
@@ -753,9 +800,9 @@ mod tests {
     #[test]
     fn orphan_types_with_colliding_slugs_do_not_merge() {
         let cfg = WorkItemConfig::default();
-        let mut note_a = entry_for_test(DocTypeKey::Notes, "shared", 1, "A");
+        let mut note_a = entry_for_test(DocTypeKey::NOTES, "shared", 1, "A");
         note_a.path = PathBuf::from("/repo/meta/notes/a.md");
-        let mut note_b = entry_for_test(DocTypeKey::Notes, "shared", 2, "B");
+        let mut note_b = entry_for_test(DocTypeKey::NOTES, "shared", 2, "B");
         note_b.path = PathBuf::from("/repo/meta/notes/b.md");
         let (clusters, _, _) = run_clusters(&[note_a, note_b], &cfg);
         assert_eq!(clusters.len(), 2, "orphan-type notes must not slug-merge");
@@ -772,7 +819,7 @@ mod tests {
         // smaller, research-only one.
         let cfg = WorkItemConfig::default();
         let mut wi = entry_for_test(
-            DocTypeKey::WorkItems,
+            DocTypeKey::WORK_ITEMS,
             "templates-view-redesign",
             1,
             "WI",
@@ -782,7 +829,7 @@ mod tests {
         wi.path =
             PathBuf::from("/repo/meta/work/0042-templates-view-redesign.md");
         let mut plan = entry_for_test(
-            DocTypeKey::Plans,
+            DocTypeKey::PLANS,
             "templates-view-redesign",
             2,
             "Plan",
@@ -792,7 +839,7 @@ mod tests {
         );
         plan.frontmatter = json!({ "parent": "work-item:0042" });
         let mut research = entry_for_test(
-            DocTypeKey::Research,
+            DocTypeKey::RESEARCH,
             "templates-view-redesign",
             3,
             "Research",
@@ -808,7 +855,7 @@ mod tests {
         assert!(clusters[0]
             .entries
             .iter()
-            .any(|e| e.r#type == DocTypeKey::Research));
+            .any(|e| e.r#type == DocTypeKey::RESEARCH));
         // The research's cluster_key is back-filled with the merged key
         // so /api/related and the wire shape agree.
         assert_eq!(
@@ -822,10 +869,10 @@ mod tests {
     fn lifecycle_type_with_no_linkage_still_slug_merges_with_work_item() {
         let cfg = WorkItemConfig::default();
         let mut wi =
-            entry_for_test(DocTypeKey::WorkItems, "shared-slug", 1, "WI");
+            entry_for_test(DocTypeKey::WORK_ITEMS, "shared-slug", 1, "WI");
         wi.work_item_id = Some("0040".into());
         wi.identity_key = Some("0040".into());
-        let plan = entry_for_test(DocTypeKey::Plans, "shared-slug", 2, "Plan");
+        let plan = entry_for_test(DocTypeKey::PLANS, "shared-slug", 2, "Plan");
         let (clusters, _, _) = run_clusters(&[wi, plan], &cfg);
         assert_eq!(clusters.len(), 1);
     }
@@ -833,10 +880,11 @@ mod tests {
     #[test]
     fn cluster_key_is_backfilled_onto_every_clustered_entry() {
         let cfg = WorkItemConfig::default();
-        let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
+        let mut wi =
+            entry_for_test(DocTypeKey::WORK_ITEMS, "pipeline", 1, "WI");
         wi.work_item_id = Some("0040".into());
         wi.identity_key = Some("0040".into());
-        let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
+        let mut plan = entry_for_test(DocTypeKey::PLANS, "pipeline", 2, "Plan");
         plan.frontmatter = json!({ "parent": "work-item:0040" });
         let (_, _, cluster_key_by_path) =
             run_clusters(&[wi.clone(), plan.clone()], &cfg);
@@ -854,15 +902,15 @@ mod tests {
         // `orphan_types_with_colliding_slugs_do_not_merge`).
         let cfg = WorkItemConfig::default();
         let mut wi =
-            entry_for_test(DocTypeKey::WorkItems, "ac2-coverage", 1, "WI");
+            entry_for_test(DocTypeKey::WORK_ITEMS, "ac2-coverage", 1, "WI");
         wi.work_item_id = Some("0099".into());
         wi.identity_key = Some("0099".into());
         wi.path = PathBuf::from("/repo/meta/work/0099-ac2-coverage.md");
         for orphan_kind in [
-            DocTypeKey::Decisions,
-            DocTypeKey::Notes,
-            DocTypeKey::DesignGaps,
-            DocTypeKey::DesignInventories,
+            DocTypeKey::DECISIONS,
+            DocTypeKey::NOTES,
+            DocTypeKey::DESIGN_GAPS,
+            DocTypeKey::DESIGN_INVENTORIES,
         ] {
             let mut orphan =
                 entry_for_test(orphan_kind, "ac2-coverage", 2, "O");
@@ -892,10 +940,11 @@ mod tests {
     #[test]
     fn cluster_key_field_serialises_as_camelcase_on_wire() {
         let cfg = WorkItemConfig::default();
-        let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
+        let mut wi =
+            entry_for_test(DocTypeKey::WORK_ITEMS, "pipeline", 1, "WI");
         wi.work_item_id = Some("0042".into());
         wi.identity_key = Some("0042".into());
-        let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
+        let mut plan = entry_for_test(DocTypeKey::PLANS, "pipeline", 2, "Plan");
         plan.frontmatter = json!({ "parent": "work-item:0042" });
         let (clusters, _, _) = run_clusters(&[wi, plan], &cfg);
         let cluster = clusters.into_iter().next().expect("one cluster");
@@ -909,7 +958,7 @@ mod tests {
     #[test]
     fn cluster_key_serialises_as_null_when_absent() {
         let cfg = WorkItemConfig::default();
-        let plan = entry_for_test(DocTypeKey::Plans, "orphan-plan", 1, "Plan");
+        let plan = entry_for_test(DocTypeKey::PLANS, "orphan-plan", 1, "Plan");
         let (clusters, _, _) = run_clusters(&[plan], &cfg);
         let cluster = clusters.into_iter().next().expect("one cluster");
         let json = serde_json::to_value(&cluster).unwrap();
@@ -920,14 +969,53 @@ mod tests {
     #[test]
     fn cluster_without_work_item_uses_alphabetically_first_slug() {
         let cfg = WorkItemConfig::default();
-        let mut a = entry_for_test(DocTypeKey::Plans, "beta-slug", 1, "A");
+        let mut a = entry_for_test(DocTypeKey::PLANS, "beta-slug", 1, "A");
         a.path = PathBuf::from("/repo/meta/plans/a.md");
-        let mut b = entry_for_test(DocTypeKey::Research, "alpha-slug", 2, "B");
+        let mut b = entry_for_test(DocTypeKey::RESEARCH, "alpha-slug", 2, "B");
         b.path = PathBuf::from("/repo/meta/research/b.md");
         a.frontmatter = json!({ "parent": "work-item:0040" });
         b.frontmatter = json!({ "parent": "work-item:0040" });
         let (clusters, _, _) = run_clusters(&[a, b], &cfg);
         assert_eq!(clusters.len(), 1);
         assert_eq!(clusters[0].slug, "beta-slug");
+    }
+
+    fn work_item(id: &str) -> IndexEntry {
+        let mut item = entry_for_test(DocTypeKey::WORK_ITEMS, "item", 0, "I");
+        item.path = PathBuf::from(format!("/x/work/{id}-item.md"));
+        item.identity_key = Some(id.to_string());
+        item
+    }
+
+    async fn recomputed(
+        records: Vec<IndexEntry>,
+    ) -> Vec<(String, Vec<PathBuf>)> {
+        let indexer = Indexer::from_records(PathBuf::from("/x"), records).await;
+        let clusters = RwLock::new(Vec::new());
+        recompute_clusters(&indexer, &clusters).await;
+        clusters
+            .into_inner()
+            .iter()
+            .map(|c| {
+                (
+                    c.slug.clone(),
+                    c.entries.iter().map(|e| e.path.clone()).collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn a_roots_cluster_is_the_same_with_its_members_present() {
+        let item = work_item("0001");
+        let mut root = crate::test_support::dossier("dossier-a");
+        root.frontmatter = json!({ "parent": "0001" });
+        let member = crate::test_support::set_member_for_test(&root, "a.md");
+
+        let without = recomputed(vec![item.clone(), root.clone()]).await;
+        let with = recomputed(vec![item.clone(), root.clone(), member]).await;
+
+        assert_eq!(without, vec![("item".into(), vec![item.path, root.path])]);
+        assert_eq!(with, without);
     }
 }

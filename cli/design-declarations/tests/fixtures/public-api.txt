@@ -1,0 +1,5 @@
+pub mod design_declarations
+pub mod design_declarations::inventory
+pub const design_declarations::inventory::INVENTORY: &str
+pub const design_declarations::inventory::SCREENSHOTS: &str
+pub static design_declarations::inventory::SET: corpus::set::SetDeclaration

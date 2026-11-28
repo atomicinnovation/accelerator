@@ -38,14 +38,15 @@ pub enum Command {
         action: FrontmatterAction,
     },
     /// Resolve a slug (or a path) to a document's root for a registered doc
-    /// type — a file for a flat type, the set directory for a nested-manifest
-    /// type. See `exit_codes` for the outcome-to-exit-code taxonomy.
+    /// type — a file for a flat type, the set directory for a set type. See
+    /// `exit_codes` for the outcome-to-exit-code taxonomy.
     Resolve {
         /// The document type's typed-linkage name (e.g. `design-inventory`,
         /// `codebase-research`).
         #[arg(long = "type")]
         doc_type: String,
-        /// The slug, set directory, or sub-document path to resolve.
+        /// The slug, the set directory, or a path to its root, a member or a
+        /// slot directory.
         slug: String,
     },
 }

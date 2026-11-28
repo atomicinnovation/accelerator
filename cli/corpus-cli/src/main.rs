@@ -16,6 +16,7 @@ use std::process::ExitCode;
 
 use clap::Parser as _;
 use corpus::frontmatter_validation::pipeline::Checks;
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 use corpus::FilenameTimestampFormat;
 use corpus_adapters::resolve::Resolution;
@@ -41,7 +42,7 @@ fn current_dir() -> Result<PathBuf, kernel::Error> {
 fn next_number(count: &str) -> Result<Outcome, kernel::Error> {
     let composed = config::compose(&current_dir()?)?;
     let decisions_dir =
-        config::resolve_type_dir(&composed, DocTypeKey::Decisions)?;
+        config::resolve_type_dir(&composed, DocTypeKey::DECISIONS)?;
     adr::run_next_number(count, &decisions_dir, &RealFs)
 }
 
@@ -93,11 +94,15 @@ fn run_metadata(action: &MetadataAction) -> Result<Outcome, kernel::Error> {
     }
 }
 
-fn run_linkage(action: LinkageAction) -> Result<Outcome, kernel::Error> {
+fn run_linkage(
+    catalogue: &DocTypeCatalogue,
+    action: LinkageAction,
+) -> Result<Outcome, kernel::Error> {
     match action {
         LinkageAction::Extract { file, source_type } => {
             let composed = config::compose(&current_dir()?)?;
-            let table = config::table_from_config(&composed.service)?;
+            let table =
+                config::table_from_config(catalogue, &composed.service)?;
             let scheme = work_adapters::config::read_scheme(&composed.service)
                 .map_err(kernel::Error::from)?
                 .announced();
@@ -121,15 +126,17 @@ fn resolve_checks(kinds: &[CheckKind]) -> Checks {
 }
 
 fn run_frontmatter(
+    catalogue: &DocTypeCatalogue,
     action: FrontmatterAction,
 ) -> Result<Outcome, kernel::Error> {
     match action {
         FrontmatterAction::Validate { dir, file, checks } => {
             let composed = config::compose(&current_dir()?)?;
-            let table: Vec<_> = config::table_from_config(&composed.service)?
-                .into_iter()
-                .map(|(kind, dir)| (kind, composed.project_root.join(dir)))
-                .collect();
+            let table: Vec<_> =
+                config::table_from_config(catalogue, &composed.service)?
+                    .into_iter()
+                    .map(|(kind, dir)| (kind, composed.project_root.join(dir)))
+                    .collect();
             frontmatter::run_validate(
                 &dir,
                 &file,
@@ -153,7 +160,11 @@ fn report(error: &kernel::Error) -> ExitCode {
     }
 }
 
-fn run_resolve(doc_type: &str, slug: &str) -> ExitCode {
+fn run_resolve(
+    catalogue: &DocTypeCatalogue,
+    doc_type: &str,
+    slug: &str,
+) -> ExitCode {
     let cwd = match current_dir() {
         Ok(dir) => dir,
         Err(error) => return report(&error),
@@ -162,7 +173,7 @@ fn run_resolve(doc_type: &str, slug: &str) -> ExitCode {
         Ok(composed) => composed,
         Err(error) => return report(&error),
     };
-    match resolve::run(&cwd, &composed, doc_type, slug) {
+    match resolve::run(catalogue, &cwd, &composed, doc_type, slug) {
         Resolution::Resolved(path) => {
             println!("{}", path.display());
             ExitCode::from(exit_codes::RESOLVED)
@@ -202,13 +213,20 @@ fn run_resolve(doc_type: &str, slug: &str) -> ExitCode {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    let catalogue = match declarations::catalogue() {
+        Ok(catalogue) => catalogue,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::INVALID);
+        }
+    };
     let result = match cli.command {
         Command::Adr { action } => run_adr(action),
         Command::Metadata { action } => run_metadata(&action),
-        Command::Linkage { action } => run_linkage(action),
-        Command::Frontmatter { action } => run_frontmatter(action),
+        Command::Linkage { action } => run_linkage(&catalogue, action),
+        Command::Frontmatter { action } => run_frontmatter(&catalogue, action),
         Command::Resolve { doc_type, slug } => {
-            return run_resolve(&doc_type, &slug)
+            return run_resolve(&catalogue, &doc_type, &slug)
         }
     };
     match result {

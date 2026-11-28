@@ -493,6 +493,9 @@ pub config::error::ConfigError::MalformedFrontmatter::path: alloc::string::Strin
 pub config::error::ConfigError::NotFound
 pub config::error::ConfigError::NotFound::key: config::key::Key
 pub config::error::ConfigError::NotFound::level: core::option::Option<config::level::Level>
+pub config::error::ConfigError::OverlappingDocRoots
+pub config::error::ConfigError::OverlappingDocRoots::contained: alloc::boxed::Box<config::paths::DocTypeDir>
+pub config::error::ConfigError::OverlappingDocRoots::container: alloc::boxed::Box<config::paths::DocTypeDir>
 pub config::error::ConfigError::PathConflict
 pub config::error::ConfigError::PathConflict::at: alloc::string::String
 pub config::error::ConfigError::PathConflict::existing: config::error::Existing
@@ -624,7 +627,29 @@ pub config::paths::DocTypeDir::blank_fallback: bool
 pub config::paths::DocTypeDir::dir: alloc::string::String
 pub config::paths::DocTypeDir::doc_type: &'static str
 pub config::paths::DocTypeDir::path_key: &'static str
+impl core::clone::Clone for config::paths::DocTypeDir
+pub fn config::paths::DocTypeDir::clone(&self) -> config::paths::DocTypeDir
+impl core::cmp::Eq for config::paths::DocTypeDir
+impl core::cmp::PartialEq for config::paths::DocTypeDir
+pub fn config::paths::DocTypeDir::eq(&self, other: &config::paths::DocTypeDir) -> bool
+impl core::fmt::Debug for config::paths::DocTypeDir
+pub fn config::paths::DocTypeDir::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::paths::DocTypeDir
+pub struct config::paths::Overlap
+pub config::paths::Overlap::contained: usize
+pub config::paths::Overlap::container: usize
+impl core::clone::Clone for config::paths::Overlap
+pub fn config::paths::Overlap::clone(&self) -> config::paths::Overlap
+impl core::cmp::Eq for config::paths::Overlap
+impl core::cmp::PartialEq for config::paths::Overlap
+pub fn config::paths::Overlap::eq(&self, other: &config::paths::Overlap) -> bool
+impl core::fmt::Debug for config::paths::Overlap
+pub fn config::paths::Overlap::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::paths::Overlap
+impl core::marker::StructuralPartialEq for config::paths::Overlap
 pub fn config::paths::doc_type_dirs(config: &dyn config::service::ConfigAccess) -> core::result::Result<alloc::vec::Vec<config::paths::DocTypeDir>, config::error::ConfigError>
+pub fn config::paths::doc_type_dirs_at(config: &dyn config::service::ConfigAccess, level: core::option::Option<config::level::Level>) -> core::result::Result<alloc::vec::Vec<config::paths::DocTypeDir>, config::error::ConfigError>
+pub fn config::paths::first_overlap(roots: &[&std::path::Path]) -> core::option::Option<config::paths::Overlap>
 pub fn config::paths::is_unsafe(dir: &str) -> bool
 pub fn config::paths::normalise(dir: &str) -> alloc::string::String
 pub fn config::paths::resolve_with_fallback(config: &dyn config::service::ConfigAccess, path_key: &str, level: core::option::Option<config::level::Level>) -> core::result::Result<alloc::string::String, config::error::ConfigError>
@@ -953,6 +978,9 @@ pub config::ConfigError::MalformedFrontmatter::path: alloc::string::String
 pub config::ConfigError::NotFound
 pub config::ConfigError::NotFound::key: config::key::Key
 pub config::ConfigError::NotFound::level: core::option::Option<config::level::Level>
+pub config::ConfigError::OverlappingDocRoots
+pub config::ConfigError::OverlappingDocRoots::contained: alloc::boxed::Box<config::paths::DocTypeDir>
+pub config::ConfigError::OverlappingDocRoots::container: alloc::boxed::Box<config::paths::DocTypeDir>
 pub config::ConfigError::PathConflict
 pub config::ConfigError::PathConflict::at: alloc::string::String
 pub config::ConfigError::PathConflict::existing: config::error::Existing

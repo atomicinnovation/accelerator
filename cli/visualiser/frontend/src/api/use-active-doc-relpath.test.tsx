@@ -35,6 +35,8 @@ function entry(overrides: Partial<IndexEntry>): IndexEntry {
     completeness: null,
     linkedCount: 0,
     clusterKey: null,
+    setId: null,
+    setRelativePath: null,
     ...overrides,
   };
 }

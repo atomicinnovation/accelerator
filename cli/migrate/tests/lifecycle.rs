@@ -1,6 +1,7 @@
 //! `run_pending` exercised end to end against in-memory test doubles: no
 //! filesystem, no adapters — just the domain's own ports.
 
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::path::Path;
 use std::time::Duration;
@@ -55,12 +56,21 @@ impl CorpusIndex for NoIndex {
 }
 
 impl MigrationContext for StubContext {
-    fn doc_type_dirs(&self) -> Vec<DocTypeDir> {
-        Vec::new()
+    #[allow(clippy::expect_used)]
+    fn doc_types(&self) -> &corpus::DocTypeCatalogue {
+        static ASSEMBLED: std::sync::LazyLock<
+            std::sync::Arc<corpus::DocTypeCatalogue>,
+        > = std::sync::LazyLock::new(|| {
+            declarations::catalogue().expect("the assembled catalogue builds")
+        });
+        &ASSEMBLED
+    }
+    fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError> {
+        Ok(Vec::new())
     }
 
-    fn corpus_index(&self) -> &dyn CorpusIndex {
-        &NoIndex
+    fn corpus_index(&self) -> Result<&dyn CorpusIndex, MigrationError> {
+        Ok(&NoIndex)
     }
 
     fn write(
@@ -463,5 +473,145 @@ fn an_id_already_applied_is_not_re_run() -> Result<(), TestError> {
         reporter.events.borrow().as_slice(),
         ["no_pending".to_owned()]
     );
+    Ok(())
+}
+
+const OVERLAP_REFUSAL: &str = "paths.research_codebase (meta/research) \
+                               overlaps paths.research_issues \
+                               (meta/research/issues)";
+
+/// A context whose doc roots overlap once any write lands, as when a
+/// migration rewrites the configuration into an overlap.
+#[derive(Default)]
+struct OverlapAfterWriteContext {
+    overlapping: Cell<bool>,
+}
+
+impl OverlapAfterWriteContext {
+    const fn overlapping() -> Self {
+        Self {
+            overlapping: Cell::new(true),
+        }
+    }
+}
+
+impl MigrationContext for OverlapAfterWriteContext {
+    #[allow(clippy::expect_used)]
+    fn doc_types(&self) -> &corpus::DocTypeCatalogue {
+        static ASSEMBLED: std::sync::LazyLock<
+            std::sync::Arc<corpus::DocTypeCatalogue>,
+        > = std::sync::LazyLock::new(|| {
+            declarations::catalogue().expect("the assembled catalogue builds")
+        });
+        &ASSEMBLED
+    }
+    fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError> {
+        if self.overlapping.get() {
+            Err(MigrationError::new(OVERLAP_REFUSAL))
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    fn corpus_index(&self) -> Result<&dyn CorpusIndex, MigrationError> {
+        Ok(&NoIndex)
+    }
+
+    fn write(
+        &self,
+        _path: &Path,
+        _content: &str,
+    ) -> Result<(), MigrationError> {
+        self.overlapping.set(true);
+        Ok(())
+    }
+}
+
+struct WritesAnOverlap(&'static str);
+
+impl MigrationMeta for WritesAnOverlap {
+    fn id(&self) -> &'static str {
+        self.0
+    }
+
+    fn description(&self) -> &'static str {
+        "rewrites the configuration into an overlap"
+    }
+}
+
+impl Migration for WritesAnOverlap {
+    fn apply(
+        &self,
+        ctx: &dyn MigrationContext,
+    ) -> Result<ApplyOutcome, MigrationError> {
+        ctx.write(
+            Path::new(".accelerator/config.md"),
+            "---\npaths:\n  research_codebase: meta/research\n---\n",
+        )?;
+        Ok(ApplyOutcome::Applied)
+    }
+}
+
+fn run_over(
+    entries: &[MigrationEntry],
+    ctx: &dyn MigrationContext,
+    ledger: &InMemoryLedgerStore,
+) -> Result<(), MigrationError> {
+    run_pending(
+        entries,
+        ctx,
+        ledger,
+        &SpyReporter::default(),
+        &NeverDecides,
+        &NoSessionLogs,
+        Duration::from_secs(30),
+        None,
+    )
+}
+
+#[test]
+fn overlapping_doc_roots_stop_the_run_before_any_migration_applies(
+) -> Result<(), TestError> {
+    let entries =
+        vec![MigrationEntry::Mechanical(Box::new(AlwaysApplies("0001")))];
+    let ledger = InMemoryLedgerStore::default();
+
+    let refused =
+        run_over(&entries, &OverlapAfterWriteContext::overlapping(), &ledger);
+
+    assert_eq!(refused, Err(MigrationError::new(OVERLAP_REFUSAL)));
+    assert!(ledger.applied()?.is_empty());
+    Ok(())
+}
+
+#[test]
+fn overlapping_doc_roots_stop_a_run_with_nothing_pending(
+) -> Result<(), TestError> {
+    let entries =
+        vec![MigrationEntry::Mechanical(Box::new(AlwaysApplies("0001")))];
+    let ledger = InMemoryLedgerStore::default();
+    ledger.write_applied(&["0001".to_owned()])?;
+
+    let refused =
+        run_over(&entries, &OverlapAfterWriteContext::overlapping(), &ledger);
+
+    assert_eq!(refused, Err(MigrationError::new(OVERLAP_REFUSAL)));
+    Ok(())
+}
+
+#[test]
+fn a_migration_that_writes_overlapping_doc_roots_is_not_recorded(
+) -> Result<(), TestError> {
+    let entries = vec![
+        MigrationEntry::Mechanical(Box::new(WritesAnOverlap("0001"))),
+        MigrationEntry::Mechanical(Box::new(AlwaysApplies("0002"))),
+    ];
+    let ledger = InMemoryLedgerStore::default();
+
+    let refused =
+        run_over(&entries, &OverlapAfterWriteContext::default(), &ledger);
+
+    assert_eq!(refused, Err(MigrationError::new(OVERLAP_REFUSAL)));
+    assert!(ledger.applied()?.is_empty());
     Ok(())
 }

@@ -283,3 +283,261 @@ async fn docs_list_serialises_each_entry_id() {
         Some(serde_json::Value::Null)
     );
 }
+
+const TOPICS: &str = "meta/research/topics";
+
+fn write_files(root: &std::path::Path, files: &[(&str, &str)]) {
+    for (file, content) in files {
+        let path = root.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
+    }
+}
+
+fn set_cfg(tmp: &std::path::Path) -> accelerator_visualiser::config::Config {
+    let mut cfg = common::seeded_cfg(tmp);
+    cfg.doc_paths
+        .insert("research_topics".into(), tmp.join(TOPICS));
+    write_files(
+        tmp,
+        &[
+            (
+                "meta/research/topics/s/manifest.md",
+                "---\nid: \"s\"\ntitle: S\n---\n",
+            ),
+            (
+                "meta/research/topics/s/findings/01-a.md",
+                "---\ntitle: A\n---\nThe finding body.\n",
+            ),
+            ("meta/research/topics/s/notes.txt", "notes"),
+            ("meta/research/topics/s/.conduct-run.json", "{}"),
+            (
+                "meta/research/topics/rootless/findings/01-a.md",
+                "---\ntitle: Orphan\n---\n",
+            ),
+            (
+                "meta/research/design-inventories/i/inventory.md",
+                "---\nid: \"i\"\ntitle: Inv\nstatus: accepted\n---\nBody.\n",
+            ),
+            (
+                "meta/research/design-inventories/i/screenshots/a.png",
+                "png",
+            ),
+            (
+                "meta/research/design-inventories/i/prototype-full/x.html",
+                "<html></html>",
+            ),
+            ("meta/research/design-inventories/i/assets/y.svg", "<svg/>"),
+            ("meta/research/design-inventories/i/notes.txt", "notes"),
+        ],
+    );
+    cfg
+}
+
+async fn fetch_status_and_body(
+    cfg: accelerator_visualiser::config::Config,
+    rel: &str,
+) -> (StatusCode, Vec<u8>) {
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+    fetch_from(state, rel).await
+}
+
+async fn fetch_from(state: Arc<AppState>, rel: &str) -> (StatusCode, Vec<u8>) {
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/docs/{rel}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let status = res.status();
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    (status, bytes.to_vec())
+}
+
+#[tokio::test]
+async fn a_member_document_is_served() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (status, body) = fetch_status_and_body(
+        set_cfg(tmp.path()),
+        "meta/research/topics/s/findings/01-a.md",
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, b"---\ntitle: A\n---\nThe finding body.\n");
+}
+
+#[tokio::test]
+async fn an_inventory_root_is_served_unchanged() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (status, body) = fetch_status_and_body(
+        set_cfg(tmp.path()),
+        "meta/research/design-inventories/i/inventory.md",
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body,
+        b"---\nid: \"i\"\ntitle: Inv\nstatus: accepted\n---\nBody.\n"
+    );
+}
+
+#[tokio::test]
+async fn what_a_set_directory_holds_beyond_its_documents_is_not_found() {
+    for rel in [
+        "meta/research/design-inventories/i/screenshots/a.png",
+        "meta/research/design-inventories/i/prototype-full/x.html",
+        "meta/research/design-inventories/i/assets/y.svg",
+        "meta/research/design-inventories/i/notes.txt",
+        "meta/research/topics/s/notes.txt",
+        "meta/research/topics/s/.conduct-run.json",
+        "meta/research/topics/rootless/findings/01-a.md",
+        "meta/research/topics/s/findings",
+        "meta/research/topics/s",
+    ] {
+        let tmp = tempfile::tempdir().unwrap();
+        let (status, _) = fetch_status_and_body(set_cfg(tmp.path()), rel).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{rel}");
+    }
+}
+
+#[tokio::test]
+async fn a_directory_under_a_flat_doc_root_is_not_found() {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(tmp.path().join("meta/plans/sub")).unwrap();
+
+    let (status, _) =
+        fetch_status_and_body(common::seeded_cfg(tmp.path()), "meta/plans/sub")
+            .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn an_unslotted_file_reached_through_a_symlinked_ancestor_is_not_found() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = set_cfg(tmp.path());
+    std::os::unix::fs::symlink(
+        tmp.path().join(TOPICS),
+        tmp.path().join("meta/topics-alias"),
+    )
+    .unwrap();
+
+    let (status, _) =
+        fetch_status_and_body(cfg, "meta/topics-alias/s/notes.txt").await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_case_variant_path_to_a_working_file_is_not_found() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = set_cfg(tmp.path());
+    let variant = "meta/Research/Topics/s/.conduct-run.json";
+    if !tmp.path().join(variant).exists() {
+        eprintln!("skipped: the temporary directory is case-sensitive");
+        return;
+    }
+
+    let (status, _) = fetch_status_and_body(cfg, variant).await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn an_unslotted_file_under_a_set_root_created_after_startup_is_not_found()
+{
+    let tmp = tempfile::tempdir().unwrap();
+    let mut cfg = common::seeded_cfg(tmp.path());
+    cfg.doc_paths
+        .insert("research_topics".into(), tmp.path().join(TOPICS));
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+    write_files(
+        tmp.path(),
+        &[
+            ("meta/research/topics/s/manifest.md", "---\ntitle: S\n---\n"),
+            ("meta/research/topics/s/notes.txt", "notes"),
+        ],
+    );
+
+    let (status, _) =
+        fetch_from(state, "meta/research/topics/s/notes.txt").await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_set_member_cannot_be_written() {
+    let tmp = tempfile::tempdir().unwrap();
+    let state = AppState::build(set_cfg(tmp.path()), Arc::new(Activity::new()))
+        .await
+        .unwrap();
+    let rel = "meta/research/topics/s/findings/01-a.md";
+    let etag = format!(
+        "\"{}\"",
+        accelerator_visualiser::file_driver::etag_of(
+            &std::fs::read(tmp.path().join(rel)).unwrap()
+        )
+    );
+
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/docs/{rel}/frontmatter"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::IF_MATCH, etag)
+                .body(Body::from(r#"{"patch":{"status":"done"}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(body["error"], "only kanban items are writable");
+}
+
+#[tokio::test]
+async fn a_dot_prefixed_document_of_a_flat_type_is_listed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    std::fs::write(
+        tmp.path().join("meta/plans/.hidden.md"),
+        "---\ntitle: Hidden\n---\n",
+    )
+    .unwrap();
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=plans")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let paths: Vec<&str> = v["docs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|doc| doc["relPath"].as_str())
+        .collect();
+    assert!(paths.contains(&"meta/plans/.hidden.md"), "{paths:?}");
+}

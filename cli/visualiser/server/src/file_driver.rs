@@ -8,7 +8,9 @@ use sha2::{Digest, Sha256};
 
 use corpus_adapters::{patch_status, FileCorpusStore, PatchError};
 
-use corpus::{AtomicWrite, DocTypeKey, StoreError};
+use corpus::doc_type::{FilenameFilter, Listing};
+use corpus::set::{MemberKind, SetMatcher, SetPlace};
+use corpus::{AtomicWrite, DocTypeCatalogue, DocTypeKey, StoreError};
 
 /// A frontmatter mutation applied through the file driver.
 #[derive(Debug, Clone)]
@@ -56,6 +58,23 @@ pub enum FileDriverError {
     PathNotWritable { path: PathBuf },
     #[error("cross-filesystem rename not supported for {path}")]
     CrossFilesystem { path: PathBuf },
+    #[error("{kind:?} is a set type; list its sets instead")]
+    SetType { kind: DocTypeKey },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetListing {
+    pub directory: PathBuf,
+    pub root: PathBuf,
+    pub documents: Vec<String>,
+    pub assets: Vec<AssetListing>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssetListing {
+    pub set_relative_path: String,
+    pub size: u64,
+    pub mtime_ms: i64,
 }
 
 pub trait FileDriver: Send + Sync {
@@ -66,6 +85,18 @@ pub trait FileDriver: Send + Sync {
         Box<
             dyn std::future::Future<
                     Output = Result<Vec<PathBuf>, FileDriverError>,
+                > + Send
+                + '_,
+        >,
+    >;
+
+    fn list_sets(
+        &self,
+        kind: DocTypeKey,
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<Vec<SetListing>, FileDriverError>,
                 > + Send
                 + '_,
         >,
@@ -99,33 +130,93 @@ pub trait FileDriver: Send + Sync {
     >;
 
     fn kind_for_canonical_path(&self, path: &Path) -> Option<DocTypeKey>;
+
+    fn lies_in_a_set_doc_root(&self, canonical_path: &Path) -> bool;
 }
 
 pub struct LocalFileDriver {
+    doc_types: Arc<DocTypeCatalogue>,
     roots: HashMap<DocTypeKey, PathBuf>,
+    /// Each set type's doc root as configured and as resolved, so a path
+    /// matching either counts as inside it.
+    set_roots: Vec<PathBuf>,
     extra_roots: Vec<PathBuf>,
     writable_roots: Vec<PathBuf>,
     path_locks:
         Arc<std::sync::Mutex<HashMap<PathBuf, Arc<tokio::sync::Mutex<()>>>>>,
 }
 
+/// A doc root as the filesystem resolves it: canonical when it exists, else
+/// its nearest existing ancestor canonicalised with the rest appended, so a
+/// root that does not exist yet still resolves through any symlink above it.
+#[must_use]
+pub fn resolved_root(raw: &Path) -> PathBuf {
+    raw.ancestors()
+        .find_map(|ancestor| {
+            let canonical = std::fs::canonicalize(ancestor).ok()?;
+            let rest = raw.strip_prefix(ancestor).ok()?;
+            Some(canonical.join(rest))
+        })
+        .unwrap_or_else(|| raw.to_path_buf())
+}
+
+/// Refuses doc roots of which one equals or contains another once each is
+/// resolved through the filesystem, so a symlink cannot alias one root into
+/// another.
+///
+/// # Errors
+///
+/// [`config::ConfigError::OverlappingDocRoots`] naming the first overlapping
+/// pair.
+pub fn refuse_overlapping_doc_roots(
+    doc_types: &DocTypeCatalogue,
+    doc_paths: &HashMap<String, PathBuf>,
+) -> Result<(), config::ConfigError> {
+    let roots: Vec<config::paths::DocTypeDir> = doc_types
+        .doc_types()
+        .iter()
+        .filter_map(|&kind| {
+            let path_key = kind.config_path_key()?;
+            let raw = doc_paths.get(path_key)?;
+            Some(config::paths::DocTypeDir {
+                doc_type: kind.linkage_type_name().unwrap_or(kind.wire_token()),
+                path_key,
+                dir: resolved_root(raw).display().to_string(),
+                blank_fallback: false,
+            })
+        })
+        .collect();
+    let paths: Vec<&Path> =
+        roots.iter().map(|root| Path::new(&root.dir)).collect();
+    config::paths::first_overlap(&paths).map_or(Ok(()), |overlap| {
+        Err(config::ConfigError::OverlappingDocRoots {
+            container: Box::new(roots[overlap.container].clone()),
+            contained: Box::new(roots[overlap.contained].clone()),
+        })
+    })
+}
+
 impl LocalFileDriver {
     pub fn new(
+        doc_types: &Arc<DocTypeCatalogue>,
         doc_paths: &HashMap<String, PathBuf>,
         extra_roots: Vec<PathBuf>,
         writable_roots: Vec<PathBuf>,
     ) -> Self {
         let mut roots = HashMap::new();
-        for kind in DocTypeKey::all() {
+        let mut set_roots = Vec::new();
+        for &kind in doc_types.doc_types() {
             let Some(cfg_key) = kind.config_path_key() else {
                 continue;
             };
             let Some(raw) = doc_paths.get(cfg_key) else {
                 continue;
             };
-            let canonical =
-                std::fs::canonicalize(raw).unwrap_or_else(|_| raw.clone());
-            roots.insert(kind, canonical);
+            let resolved = resolved_root(raw);
+            if kind.is_set() {
+                set_roots.extend([raw.clone(), resolved.clone()]);
+            }
+            roots.insert(kind, resolved);
         }
         let extra_roots = extra_roots
             .into_iter()
@@ -136,7 +227,9 @@ impl LocalFileDriver {
             .map(|p| std::fs::canonicalize(&p).unwrap_or(p))
             .collect();
         Self {
+            doc_types: Arc::clone(doc_types),
             roots,
+            set_roots,
             extra_roots,
             writable_roots,
             path_locks: Arc::new(std::sync::Mutex::new(HashMap::new())),
@@ -220,6 +313,131 @@ impl LocalFileDriver {
     }
 }
 
+impl LocalFileDriver {
+    async fn set_listing(
+        &self,
+        matcher: &SetMatcher,
+        directory: PathBuf,
+    ) -> Result<SetListing, FileDriverError> {
+        let mut listing = SetListing {
+            root: directory.join(matcher.root()),
+            directory,
+            documents: Vec::new(),
+            assets: Vec::new(),
+        };
+        let mut pending = vec![String::new()];
+        while let Some(set_relative_dir) = pending.pop() {
+            let dir = listing.directory.join(&set_relative_dir);
+            for (name, metadata) in undotted_entries_of(&dir).await? {
+                let set_relative = if set_relative_dir.is_empty() {
+                    name
+                } else {
+                    format!("{set_relative_dir}/{name}")
+                };
+                if metadata.is_dir() {
+                    if matcher.may_contain_members(&set_relative) {
+                        pending.push(set_relative);
+                    }
+                    continue;
+                }
+                let Some(SetPlace::Member(kind)) =
+                    matcher.classify(&set_relative)
+                else {
+                    continue;
+                };
+                let path = listing.directory.join(&set_relative);
+                let Ok(canonical) = tokio::fs::canonicalize(&path).await else {
+                    continue;
+                };
+                if !self.path_is_allowed(&canonical) {
+                    continue;
+                }
+                let metadata = if metadata.is_symlink() {
+                    match tokio::fs::metadata(&canonical).await {
+                        Ok(target) if target.is_file() => target,
+                        _ => continue,
+                    }
+                } else {
+                    metadata
+                };
+                match kind {
+                    MemberKind::Document => {
+                        listing.documents.push(set_relative);
+                    }
+                    MemberKind::Asset => listing.assets.push(AssetListing {
+                        set_relative_path: set_relative,
+                        size: metadata.len(),
+                        mtime_ms: mtime_ms_of(&metadata),
+                    }),
+                }
+            }
+        }
+        listing.documents.sort();
+        listing
+            .assets
+            .sort_by(|a, b| a.set_relative_path.cmp(&b.set_relative_path));
+        Ok(listing)
+    }
+}
+
+async fn set_directories_in(
+    root: &Path,
+    set_root: &str,
+) -> Result<Vec<PathBuf>, FileDriverError> {
+    let mut directories = Vec::new();
+    for (name, metadata) in undotted_entries_of(root).await? {
+        if !metadata.is_dir() {
+            continue;
+        }
+        let directory = root.join(name);
+        match tokio::fs::metadata(directory.join(set_root)).await {
+            Ok(meta) if meta.is_file() => directories.push(directory),
+            _ => {}
+        }
+    }
+    Ok(directories)
+}
+
+/// Each entry carries its own metadata, not its target's, so a symlink is
+/// never taken for a directory.
+async fn undotted_entries_of(
+    dir: &Path,
+) -> Result<Vec<(String, std::fs::Metadata)>, FileDriverError> {
+    let io_error = |source| FileDriverError::Io {
+        path: dir.to_path_buf(),
+        source,
+    };
+    let mut stream = match tokio::fs::read_dir(dir).await {
+        Ok(read) => read,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(vec![]);
+        }
+        Err(source) => return Err(io_error(source)),
+    };
+    let mut entries = Vec::new();
+    while let Some(entry) = stream.next_entry().await.map_err(io_error)? {
+        let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+            continue;
+        };
+        if name.starts_with('.') {
+            continue;
+        }
+        let metadata = tokio::fs::symlink_metadata(entry.path())
+            .await
+            .map_err(io_error)?;
+        entries.push((name, metadata));
+    }
+    Ok(entries)
+}
+
+fn mtime_ms_of(metadata: &std::fs::Metadata) -> i64 {
+    metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |d| d.as_millis() as i64)
+}
+
 fn store_error_to_fd(error: StoreError, path: &Path) -> FileDriverError {
     match error {
         StoreError::CrossFilesystem { .. } => {
@@ -255,75 +473,55 @@ impl FileDriver for LocalFileDriver {
             Ok(r) => r.to_path_buf(),
             Err(e) => return Box::pin(std::future::ready(Err(e))),
         };
-        let Some(nested_manifest) = kind.nested_manifest_filename() else {
-            return Box::pin(async move {
-                if kind != DocTypeKey::WorkItems {
-                    return markdown_files_in(&root, has_md_extension).await;
-                }
-                let mut entries =
-                    markdown_files_in(&root, is_work_item_file).await?;
-                entries.extend(
-                    markdown_files_in(
-                        &root.join(DRAFTS_DIR),
-                        is_work_item_file,
-                    )
-                    .await?,
-                );
-                Ok(entries)
-            });
+        let Listing::Flat {
+            drafts_subdirectory,
+            filename_filter,
+        } = kind.listing()
+        else {
+            return Box::pin(std::future::ready(Err(
+                FileDriverError::SetType { kind },
+            )));
+        };
+        let is_document = match filename_filter {
+            FilenameFilter::Markdown => has_md_extension,
+            FilenameFilter::WorkItem => is_work_item_file,
         };
         Box::pin(async move {
-            let read = match tokio::fs::read_dir(&root).await {
-                Ok(r) => r,
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                    return Ok(vec![]);
-                }
-                Err(source) => {
-                    return Err(FileDriverError::Io { path: root, source })
-                }
-            };
-            let mut entries = Vec::new();
-            let mut stream = read;
-            loop {
-                let entry = match stream.next_entry().await {
-                    Ok(Some(e)) => e,
-                    Ok(None) => break,
-                    Err(source) => {
-                        return Err(FileDriverError::Io {
-                            path: root.clone(),
-                            source,
-                        });
-                    }
-                };
-                let path = entry.path();
-                let file_type = match entry.file_type().await {
-                    Ok(ft) => ft,
-                    Err(source) => {
-                        return Err(FileDriverError::Io { path, source });
-                    }
-                };
-
-                // Nested-manifest doc type (e.g. design inventories):
-                // each artifact lives at `<root>/<slug-dir>/<manifest>.md`.
-                if !file_type.is_dir() {
-                    continue;
-                }
-                // Skip dot-prefixed in-flight directories (e.g.
-                // `.YYYY-MM-DD-HHMMSS-{source-id}.tmp/`).
-                if path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .is_some_and(|n| n.starts_with('.'))
-                {
-                    continue;
-                }
-                let candidate = path.join(nested_manifest);
-                match tokio::fs::metadata(&candidate).await {
-                    Ok(meta) if meta.is_file() => entries.push(candidate),
-                    _ => {}
-                }
+            let mut entries = markdown_files_in(&root, is_document).await?;
+            if let Some(drafts) = drafts_subdirectory {
+                entries.extend(
+                    markdown_files_in(&root.join(drafts), is_document).await?,
+                );
             }
             Ok(entries)
+        })
+    }
+
+    fn list_sets(
+        &self,
+        kind: DocTypeKey,
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<Vec<SetListing>, FileDriverError>,
+                > + Send
+                + '_,
+        >,
+    > {
+        let root = match self.root_for(kind) {
+            Ok(r) => r.to_path_buf(),
+            Err(e) => return Box::pin(std::future::ready(Err(e))),
+        };
+        let Some(matcher) = self.doc_types.set_matcher(kind) else {
+            return Box::pin(std::future::ready(Ok(Vec::new())));
+        };
+        Box::pin(async move {
+            let mut sets = Vec::new();
+            for directory in set_directories_in(&root, matcher.root()).await? {
+                sets.push(self.set_listing(matcher, directory).await?);
+            }
+            sets.sort_by(|a, b| a.directory.cmp(&b.directory));
+            Ok(sets)
         })
     }
 
@@ -361,6 +559,9 @@ impl FileDriver for LocalFileDriver {
                         source,
                     }
                 })?;
+            if meta.is_dir() {
+                return Err(FileDriverError::NotFound { path });
+            }
             if meta.len() > MAX_DOC_BYTES {
                 return Err(FileDriverError::TooLarge {
                     path,
@@ -509,6 +710,12 @@ impl FileDriver for LocalFileDriver {
             .find(|(_, root)| path.starts_with(*root))
             .map(|(kind, _)| *kind)
     }
+
+    fn lies_in_a_set_doc_root(&self, canonical_path: &Path) -> bool {
+        self.set_roots
+            .iter()
+            .any(|root| canonical_path.starts_with(root))
+    }
 }
 
 pub fn etag_of(bytes: &[u8]) -> String {
@@ -538,8 +745,6 @@ pub fn template_extra_roots(
 }
 
 /// Where a work item no tracker has confirmed yet waits, beside the rest.
-const DRAFTS_DIR: &str = "drafts";
-
 fn has_md_extension(path: &Path) -> bool {
     path.extension().and_then(|s| s.to_str()) == Some("md")
 }
@@ -612,14 +817,19 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("decisions".into(), dec.clone());
         map.insert("plans".into(), plans);
-        LocalFileDriver::new(&map, vec![], vec![])
+        LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        )
     }
 
     #[tokio::test]
     async fn list_returns_only_md_files() {
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_driver(tmp.path());
-        let mut got = d.list(DocTypeKey::Decisions).await.unwrap();
+        let mut got = d.list(DocTypeKey::DECISIONS).await.unwrap();
         got.sort();
         assert_eq!(got.len(), 2);
         for p in &got {
@@ -639,10 +849,15 @@ mod tests {
         std::fs::write(drafts.join("nested/deeper.md"), "# No\n").unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work);
-        let d = LocalFileDriver::new(&map, vec![], vec![]);
+        let d = LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        );
 
         let mut got: Vec<String> = d
-            .list(DocTypeKey::WorkItems)
+            .list(DocTypeKey::WORK_ITEMS)
             .await
             .unwrap()
             .iter()
@@ -653,18 +868,319 @@ mod tests {
         assert_eq!(got, vec!["PP-1-item.md", "draft-k7mq3x-idea.md"]);
     }
 
+    fn seed_every_listing_shape(root: &Path) {
+        for directory in ["", "drafts", "set", ".hidden-set", "rootless"] {
+            std::fs::create_dir_all(root.join(directory)).unwrap();
+        }
+        for file in [
+            "0001-item.md",
+            "a-note.md",
+            "notes.txt",
+            "UPPER.MD",
+            "drafts/UPPER.MD",
+            "drafts/0002-draft.md",
+            "drafts/a-draft.md",
+            "set/manifest.md",
+            "set/inventory.md",
+            ".hidden-set/manifest.md",
+            ".hidden-set/inventory.md",
+            "rootless/other.md",
+        ] {
+            std::fs::write(root.join(file), "# x\n").unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn every_built_in_doc_type_lists_by_its_declared_rule() {
+        let expected: [(&str, &[&str]); 12] = [
+            ("decisions", &["0001-item.md", "a-note.md"]),
+            (
+                "work-items",
+                &[
+                    "0001-item.md",
+                    "UPPER.MD",
+                    "a-note.md",
+                    "drafts/0002-draft.md",
+                    "drafts/UPPER.MD",
+                    "drafts/a-draft.md",
+                ],
+            ),
+            ("plans", &["0001-item.md", "a-note.md"]),
+            ("codebase-research", &["0001-item.md", "a-note.md"]),
+            ("plan-reviews", &["0001-item.md", "a-note.md"]),
+            ("pr-reviews", &["0001-item.md", "a-note.md"]),
+            ("work-item-reviews", &["0001-item.md", "a-note.md"]),
+            ("validations", &["0001-item.md", "a-note.md"]),
+            ("notes", &["0001-item.md", "a-note.md"]),
+            ("pr-descriptions", &["0001-item.md", "a-note.md"]),
+            ("design-gaps", &["0001-item.md", "a-note.md"]),
+            ("root-cause-analyses", &["0001-item.md", "a-note.md"]),
+        ];
+        let catalogue = crate::test_support::assembled_catalogue();
+        let listed: Vec<&str> =
+            expected.iter().map(|(token, _)| *token).collect();
+        let configured: Vec<&str> = catalogue
+            .doc_types()
+            .iter()
+            .filter(|kind| kind.config_path_key().is_some() && !kind.is_set())
+            .map(|kind| kind.wire_token())
+            .collect();
+        assert_eq!(listed, configured);
+        for (token, files) in expected {
+            let kind = catalogue.from_wire_token(token).unwrap();
+            let tmp = tempfile::tempdir().unwrap();
+            let root = std::fs::canonicalize(tmp.path()).unwrap();
+            seed_every_listing_shape(&root);
+            let mut map = HashMap::new();
+            map.insert(
+                kind.config_path_key().unwrap().to_owned(),
+                root.clone(),
+            );
+            let driver = LocalFileDriver::new(
+                &crate::test_support::assembled_catalogue(),
+                &map,
+                vec![],
+                vec![],
+            );
+            let mut got: Vec<String> = driver
+                .list(kind)
+                .await
+                .unwrap()
+                .iter()
+                .map(|path| {
+                    path.strip_prefix(&root)
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned()
+                })
+                .collect();
+            got.sort();
+            assert_eq!(got, files, "{token}");
+        }
+    }
+
+    fn set_driver(path_key: &str, root: &Path) -> LocalFileDriver {
+        let mut map = HashMap::new();
+        map.insert(path_key.to_owned(), root.to_path_buf());
+        LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![],
+        )
+    }
+
+    fn write_files(root: &Path, files: &[&str]) {
+        for file in files {
+            let path = root.join(file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, "# x\n").unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn list_sets_lists_each_set_with_the_members_its_shape_holds() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(tmp.path()).unwrap();
+        write_files(
+            &root,
+            &[
+                "s/manifest.md",
+                "s/brief.md",
+                "s/findings/01-a.md",
+                "s/findings/01-a.levels/2-1.md",
+                "s/reports/r.md",
+                "s/notes.txt",
+                "s/findings/sub/x.md",
+                "s/findings/.01-x-web.md.invalid",
+                "s/.conduct-run.json",
+                "s/.scratch/x.md",
+                ".draft.tmp/manifest.md",
+                "rootless/brief.md",
+                "stray.md",
+            ],
+        );
+        let driver = set_driver("research_topics", &root);
+
+        let sets = driver.list_sets(DocTypeKey::TOPIC_RESEARCH).await.unwrap();
+
+        assert_eq!(sets.len(), 1, "{sets:?}");
+        assert_eq!(sets[0].directory, root.join("s"));
+        assert_eq!(sets[0].root, root.join("s/manifest.md"));
+        assert_eq!(
+            sets[0].documents,
+            vec![
+                "brief.md",
+                "findings/01-a.levels/2-1.md",
+                "findings/01-a.md",
+                "reports/r.md",
+            ]
+        );
+        assert!(sets[0].assets.is_empty(), "{:?}", sets[0].assets);
+    }
+
+    #[tokio::test]
+    async fn list_sets_carries_each_asset_with_its_size_and_mtime() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(tmp.path()).unwrap();
+        write_files(
+            &root,
+            &[
+                "i/inventory.md",
+                "i/prototype-full/x.html",
+                "i/assets/y.svg",
+                "i/notes.txt",
+            ],
+        );
+        let screenshots = root.join("i/screenshots");
+        std::fs::create_dir_all(&screenshots).unwrap();
+        for (name, bytes, mtime_ms) in [
+            ("a.png", "abc", 1_700_000_000_000_u64),
+            ("Some File (v2).png", "abcdefg", 1_700_000_001_000),
+        ] {
+            let path = screenshots.join(name);
+            std::fs::write(&path, bytes).unwrap();
+            std::fs::File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_modified(
+                    std::time::UNIX_EPOCH
+                        + std::time::Duration::from_millis(mtime_ms),
+                )
+                .unwrap();
+        }
+        let driver = set_driver("research_design_inventories", &root);
+
+        let sets = driver
+            .list_sets(DocTypeKey::DESIGN_INVENTORIES)
+            .await
+            .unwrap();
+
+        assert_eq!(sets.len(), 1, "{sets:?}");
+        assert!(sets[0].documents.is_empty(), "{:?}", sets[0].documents);
+        assert_eq!(
+            sets[0].assets,
+            vec![
+                AssetListing {
+                    set_relative_path: "screenshots/Some File (v2).png".into(),
+                    size: 7,
+                    mtime_ms: 1_700_000_001_000,
+                },
+                AssetListing {
+                    set_relative_path: "screenshots/a.png".into(),
+                    size: 3,
+                    mtime_ms: 1_700_000_000_000,
+                },
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn list_sets_of_a_missing_doc_root_is_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let driver = set_driver("research_topics", &tmp.path().join("missing"));
+
+        let sets = driver.list_sets(DocTypeKey::TOPIC_RESEARCH).await.unwrap();
+
+        assert!(sets.is_empty(), "{sets:?}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_slotted_symlink_out_of_the_doc_roots_is_not_listed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let tmp = std::fs::canonicalize(tmp.path()).unwrap();
+        let root = tmp.join("inventories");
+        write_files(&root, &["i/inventory.md", "i/screenshots/kept.png"]);
+        std::fs::write(tmp.join("secret.png"), "s3cret").unwrap();
+        std::os::unix::fs::symlink(
+            tmp.join("secret.png"),
+            root.join("i/screenshots/escape.png"),
+        )
+        .unwrap();
+        let driver = set_driver("research_design_inventories", &root);
+
+        let sets = driver
+            .list_sets(DocTypeKey::DESIGN_INVENTORIES)
+            .await
+            .unwrap();
+
+        let assets: Vec<&str> = sets[0]
+            .assets
+            .iter()
+            .map(|asset| asset.set_relative_path.as_str())
+            .collect();
+        assert_eq!(assets, vec!["screenshots/kept.png"]);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_symlinked_slot_directory_is_not_walked() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(tmp.path()).unwrap();
+        write_files(&root, &["s/manifest.md", "elsewhere/findings/01-a.md"]);
+        std::os::unix::fs::symlink(
+            root.join("elsewhere/findings"),
+            root.join("s/findings"),
+        )
+        .unwrap();
+        let driver = set_driver("research_topics", &root);
+
+        let sets = driver.list_sets(DocTypeKey::TOPIC_RESEARCH).await.unwrap();
+
+        let set = sets
+            .iter()
+            .find(|set| set.directory == root.join("s"))
+            .unwrap();
+        assert!(set.documents.is_empty(), "{:?}", set.documents);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_symlinked_directory_named_like_a_member_is_not_listed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(tmp.path()).unwrap();
+        write_files(&root, &["s/manifest.md", "s/findings/01-a.md"]);
+        std::os::unix::fs::symlink(
+            root.join("s/findings"),
+            root.join("s/findings/02-b.md"),
+        )
+        .unwrap();
+        let driver = set_driver("research_topics", &root);
+
+        let sets = driver.list_sets(DocTypeKey::TOPIC_RESEARCH).await.unwrap();
+
+        assert_eq!(sets[0].documents, vec!["findings/01-a.md"]);
+    }
+
+    #[tokio::test]
+    async fn list_refuses_a_set_type() {
+        let tmp = tempfile::tempdir().unwrap();
+        let driver = set_driver("research_topics", tmp.path());
+
+        let err = driver.list(DocTypeKey::TOPIC_RESEARCH).await.unwrap_err();
+
+        assert!(matches!(err, FileDriverError::SetType { .. }), "{err:?}");
+    }
+
     #[tokio::test]
     async fn list_missing_directory_returns_empty() {
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_driver(tmp.path());
-        let got = d.list(DocTypeKey::Plans).await.unwrap();
+        let got = d.list(DocTypeKey::PLANS).await.unwrap();
         assert!(got.is_empty(), "missing dir must not be an error");
     }
 
     #[tokio::test]
     async fn list_unconfigured_type_is_not_configured_error() {
-        let d = LocalFileDriver::new(&HashMap::new(), vec![], vec![]);
-        let err = d.list(DocTypeKey::Notes).await.unwrap_err();
+        let d = LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &HashMap::new(),
+            vec![],
+            vec![],
+        );
+        let err = d.list(DocTypeKey::NOTES).await.unwrap_err();
         assert!(matches!(err, FileDriverError::TypeNotConfigured { .. }));
     }
 
@@ -754,7 +1270,12 @@ mod write_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         map.insert("plans".into(), plans);
-        LocalFileDriver::new(&map, vec![], vec![work])
+        LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![work],
+        )
     }
 
     // ── Step 2.1 ─────────────────────────────────────────────────────────────
@@ -940,7 +1461,12 @@ mod write_tests {
 
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
+        let d = LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![work.clone()],
+        );
 
         let path = work.join("0001-no-fm.md");
         let raw = std::fs::read(&path).unwrap();
@@ -981,7 +1507,12 @@ mod write_tests {
 
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
+        let d = LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![work.clone()],
+        );
 
         let path = work.join("0001-no-status.md");
         let raw = std::fs::read(&path).unwrap();
@@ -1024,8 +1555,12 @@ mod write_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d =
-            StdArc::new(LocalFileDriver::new(&map, vec![], vec![work.clone()]));
+        let d = StdArc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![work.clone()],
+        ));
 
         let path = work.join("0001-foo.md");
         let etag = {
@@ -1115,7 +1650,12 @@ mod write_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
+        let d = LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![work.clone()],
+        );
 
         let path = work.join("0001-foo.md");
         let raw = std::fs::read(&path).unwrap();
@@ -1194,7 +1734,12 @@ mod write_tests {
 
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
+        let d = LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
+            &map,
+            vec![],
+            vec![work.clone()],
+        );
 
         let etag = etag_of(&std::fs::read(&path).unwrap());
         d.write_frontmatter(

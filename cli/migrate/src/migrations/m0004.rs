@@ -690,7 +690,7 @@ fn rewrite_inbound_references(
     }
 
     let mut scan_dirs: Vec<PathBuf> = ctx
-        .doc_type_dirs()
+        .doc_type_dirs()?
         .into_iter()
         .map(|entry| entry.dir)
         .filter(|dir| ctx.dir_exists(dir))

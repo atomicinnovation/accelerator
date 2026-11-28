@@ -73,7 +73,7 @@ mod tests {
         let work = dir.path().join("meta/work");
         std::fs::create_dir_all(&work)?;
         std::fs::write(work.join("0042-foo.md"), "")?;
-        let table = vec![(DocTypeKey::WorkItems, work)];
+        let table = vec![(DocTypeKey::WORK_ITEMS, work)];
 
         let index = FileCorpusIndex::build(&table, &RealFs, &LegacyNumericIds);
         assert!(index.target_exists("work-item", "0042"));
@@ -91,7 +91,7 @@ mod tests {
             plans.join("2026-05-13-0055-sidebar-activity-feed.md"),
             "",
         )?;
-        let table = vec![(DocTypeKey::Plans, plans)];
+        let table = vec![(DocTypeKey::PLANS, plans)];
 
         let index = FileCorpusIndex::build(&table, &RealFs, &LegacyNumericIds);
         assert!(index

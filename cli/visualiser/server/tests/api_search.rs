@@ -99,7 +99,7 @@ async fn excludes_templates_by_indexer_structure() {
     assert!(
         snapshot
             .iter()
-            .all(|e| e.r#type != corpus::DocTypeKey::Templates),
+            .all(|e| e.r#type != corpus::DocTypeKey::TEMPLATES),
         "Indexer::all() must not yield Templates entries",
     );
 
@@ -464,4 +464,70 @@ async fn a_row_carries_the_document_id_and_rel_path() {
         anonymous["relPath"],
         "meta/plans/2026-04-02-kiwi-anonymous.md"
     );
+}
+
+async fn search_an_inventory_holding(
+    files: &[(&str, &str)],
+    q: &str,
+) -> Vec<serde_json::Value> {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    let inventory = tmp
+        .path()
+        .join("meta/research/design-inventories/2026-05-26-inv");
+    std::fs::create_dir_all(&inventory).unwrap();
+    std::fs::write(inventory.join("inventory.md"), "---\ntitle: Inv\n---\n")
+        .unwrap();
+    for (file, content) in files {
+        let path = inventory.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
+    }
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+    fetch_search(&format!("/api/search?q={q}"), state).await["results"]
+        .as_array()
+        .unwrap()
+        .clone()
+}
+
+#[tokio::test]
+async fn an_asset_is_not_searchable() {
+    let results = search_an_inventory_holding(
+        &[("screenshots/a.png", "a.png screenshot\n")],
+        "a.png",
+    )
+    .await;
+
+    assert!(results.is_empty(), "{results:?}");
+}
+
+#[tokio::test]
+async fn no_file_the_shape_does_not_hold_is_searchable() {
+    for (file, q) in [
+        ("assets/y.svg", "y.svg"),
+        ("notes.txt", "notes.txt"),
+        ("assets/y.svg", "quokkasvg"),
+        ("notes.txt", "quokkanotes"),
+    ] {
+        let results = search_an_inventory_holding(
+            &[(file, "quokkasvg quokkanotes y.svg notes.txt\n")],
+            q,
+        )
+        .await;
+
+        assert!(results.is_empty(), "{file} for {q}: {results:?}");
+    }
+}
+
+#[tokio::test]
+async fn a_file_the_shape_does_not_hold_is_not_searchable() {
+    let results = search_an_inventory_holding(
+        &[("prototype-full/x.html", "zebracorn prototype\n")],
+        "zebracorn",
+    )
+    .await;
+
+    assert!(results.is_empty(), "{results:?}");
 }

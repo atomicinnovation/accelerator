@@ -1,8 +1,8 @@
 //! `accelerator-corpus resolve` black-box CLI coverage: the full exit-code
-//! taxonomy (0/1/2/3/4/6) against a nested-manifest type (`design-inventory`)
-//! and a flat dated type (`codebase-research`), including a deeper
-//! sub-document, an in-root path resolved through a non-canonical temp dir,
-//! and the outside-root refusal.
+//! taxonomy (0/1/2/3/4/6) against a set type (`design-inventory`) and a flat
+//! dated type (`codebase-research`), including member and slot directory
+//! paths, paths the set's shape does not hold, an in-root path resolved
+//! through a non-canonical temp dir, and the outside-root refusal.
 
 use std::fs;
 use std::path::Path;
@@ -211,5 +211,94 @@ fn an_in_root_path_resolves_through_a_non_canonical_temp_dir(
         resolved.trim().ends_with("2026-09-08-slugged-topic.md"),
         "{resolved}"
     );
+    Ok(())
+}
+
+fn assert_not_found(output: &Output) {
+    assert_eq!(output.status.code(), Some(3), "{}", stderr(output));
+    assert!(stderr(output).contains("E_RESOLVE_NOT_FOUND"));
+}
+
+#[test]
+fn a_rootless_set_directory_does_not_resolve_by_slug_or_path(
+) -> Result<(), TestError> {
+    let dir = tempdir("rootless")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let rel = format!("{INVENTORIES}/2026-05-06-135214-current-app");
+    touch(&root.join(&rel).join("screenshots/home.png"))?;
+
+    for input in ["135214-current-app", rel.as_str()] {
+        let output =
+            run(&root, &["resolve", "--type", "design-inventory", input])?;
+        assert_not_found(&output);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_dot_prefixed_directory_does_not_resolve_by_exact_name_or_path(
+) -> Result<(), TestError> {
+    let dir = tempdir("dot-prefixed")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let rel = format!("{INVENTORIES}/.current-app.tmp");
+    touch(&root.join(&rel).join("inventory.md"))?;
+
+    let inventory = format!("{rel}/inventory.md");
+    for input in [".current-app.tmp", rel.as_str(), inventory.as_str()] {
+        let output =
+            run(&root, &["resolve", "--type", "design-inventory", input])?;
+        assert_not_found(&output);
+    }
+    Ok(())
+}
+
+#[test]
+fn an_unslotted_file_in_a_set_does_not_resolve() -> Result<(), TestError> {
+    let dir = tempdir("unslotted")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let rel = format!("{INVENTORIES}/2026-05-06-135214-current-app");
+    touch(&root.join(&rel).join("inventory.md"))?;
+
+    for file in ["notes.txt", "prototype-full/x.html", ".inventory.md.swp"] {
+        touch(&root.join(&rel).join(file))?;
+        let input = format!("{rel}/{file}");
+        let output =
+            run(&root, &["resolve", "--type", "design-inventory", &input])?;
+        assert_not_found(&output);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_stray_file_in_the_type_directory_does_not_resolve_as_a_set(
+) -> Result<(), TestError> {
+    let dir = tempdir("stray")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let rel = format!("{INVENTORIES}/stray.md");
+    touch(&root.join(&rel))?;
+
+    let output = run(&root, &["resolve", "--type", "design-inventory", &rel])?;
+    assert_not_found(&output);
+    Ok(())
+}
+
+#[test]
+fn a_path_to_a_slot_directory_resolves_to_its_set() -> Result<(), TestError> {
+    let dir = tempdir("slot-dir")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let set = root.join(INVENTORIES).join("2026-05-06-135214-current-app");
+    touch(&set.join("inventory.md"))?;
+    touch(&set.join("screenshots/home.png"))?;
+    let rel =
+        format!("{INVENTORIES}/2026-05-06-135214-current-app/screenshots");
+
+    let output = run(&root, &["resolve", "--type", "design-inventory", &rel])?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stdout(&output).trim(), set.to_str().ok_or("non-utf8")?);
     Ok(())
 }

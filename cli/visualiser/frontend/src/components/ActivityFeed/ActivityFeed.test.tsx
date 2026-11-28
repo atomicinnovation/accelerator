@@ -17,11 +17,6 @@ import { renderWithRouterAt } from "../../test/router-helpers";
 import { ActivityFeed } from "./ActivityFeed";
 import styles from "./ActivityFeed.module.css";
 
-// AC11 (self-caused events reach the feed) is covered at the hook layer
-// in `use-doc-events.test.ts` via the `subscribe + self-caused` test —
-// the ActivityFeed never consults the self-cause registry, so duplicating
-// the assertion here would not add incremental coverage.
-
 vi.mock("../../api/use-doc-events", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("../../api/use-doc-events")>();
@@ -124,33 +119,79 @@ describe("ActivityFeed", () => {
     vi.clearAllMocks();
   });
 
-  it("renders rows from initial history with new SSE events prepended", async () => {
-    const initial = [
-      makeEvent({
-        path: "meta/plans/old.md",
-        timestamp: "2026-05-13T10:00:00Z",
-      }),
-    ];
-    const { getListener } = mountWith({ initial });
-
-    // Wait for initial fetch to resolve.
+  it("refetches the feed once on a doc-changed event and shows the server's rows", async () => {
+    const old = makeEvent({
+      path: "meta/plans/old.md",
+      timestamp: "2026-05-13T10:00:00Z",
+    });
+    const created = makeEvent({
+      action: "created",
+      path: "meta/plans/new.md",
+      timestamp: "2026-05-13T11:00:00Z",
+    });
+    const { getListener } = mountWith({ initial: [old] });
     await screen.findByText(/old\.md/);
+    vi.mocked(fetchModule.fetchActivity).mockResolvedValue([created, old]);
+
+    act(() => {
+      getListener()!(
+        makeSseEvent({ action: "created", path: "meta/plans/new.md" }),
+      );
+    });
+
+    await screen.findByText(/new\.md/);
+    expect(fetchModule.fetchActivity).toHaveBeenCalledTimes(2);
+    const items = screen.getAllByRole("listitem");
+    expect(items[0].textContent).toMatch(/created/);
+    expect(items[0].textContent).toMatch(/new\.md/);
+    expect(items[1].textContent).toMatch(/old\.md/);
+  });
+
+  it("shows one row for a set whose members changed, as the server rolls them up", async () => {
+    const root = "meta/research/topics/s/manifest.md";
+    const { getListener } = mountWith({ initial: [] });
+    await screen.findByTestId("activity-empty");
+    vi.mocked(fetchModule.fetchActivity).mockResolvedValue([
+      makeEvent({ docType: "topic-research", path: root }),
+    ]);
+
+    act(() => {
+      for (const member of ["brief.md", "outline.md", "findings/01-a.md"]) {
+        getListener()!(
+          makeSseEvent({
+            docType: "topic-research",
+            path: `meta/research/topics/s/${member}`,
+          }),
+        );
+      }
+    });
+
+    await screen.findByText(/manifest\.md/);
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.queryByText(/brief\.md/)).toBeNull();
+  });
+
+  it("refetches on an event this tab caused and shows the row the server recorded", async () => {
+    const { getListener } = mountWith({ initial: [] });
+    await screen.findByTestId("activity-empty");
+    vi.mocked(fetchModule.fetchActivity).mockResolvedValue([
+      makeEvent({ path: "meta/work/0001-mine.md" }),
+    ]);
 
     act(() => {
       getListener()!(
         makeSseEvent({
-          action: "created",
-          path: "meta/plans/new.md",
-          timestamp: "2026-05-13T11:00:00Z",
+          docType: "work-items",
+          path: "meta/work/0001-mine.md",
+          etag: "sha256-written-by-this-tab",
         }),
       );
     });
 
-    const items = screen.getAllByRole("listitem");
-    expect(items[0].textContent).toMatch(/created/);
-    expect(items[0].textContent).toMatch(/new\.md/);
-    expect(items[1].textContent).toMatch(/edited/);
-    expect(items[1].textContent).toMatch(/old\.md/);
+    await waitFor(() =>
+      expect(fetchModule.fetchActivity).toHaveBeenCalledTimes(2),
+    );
+    await screen.findByText(/0001-mine\.md/);
   });
 
   it("shows LIVE badge when connectionState is open", async () => {
@@ -213,91 +254,6 @@ describe("ActivityFeed", () => {
     mountWith({ initial: new Promise<ActivityEvent[]>(() => {}) });
     expect(screen.queryByTestId("activity-empty")).toBeNull();
     expect(screen.queryByRole("listitem")).toBeNull();
-  });
-
-  it("dedupes when a live event has the same identity as an initial entry", async () => {
-    const a = makeEvent({
-      path: "meta/plans/a.md",
-      timestamp: "2026-05-13T11:00:00Z",
-    });
-    const b = makeEvent({
-      path: "meta/plans/b.md",
-      timestamp: "2026-05-13T10:00:00Z",
-    });
-    const { getListener } = mountWith({ initial: [a, b] });
-
-    await screen.findByText(/a\.md/);
-
-    // Replay event `a` via the listener — same activityRowId.
-    act(() => {
-      getListener()!(
-        makeSseEvent({
-          action: a.action,
-          docType: a.docType,
-          path: a.path,
-          timestamp: a.timestamp,
-        }),
-      );
-    });
-
-    expect(screen.getAllByRole("listitem").length).toBe(2);
-  });
-
-  it("drops doc-changed events with empty action or timestamp", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { getListener } = mountWith({ initial: [] });
-    await screen.findByTestId("activity-empty");
-
-    act(() => {
-      getListener()!({
-        type: "doc-changed",
-        action: "" as "created",
-        docType: "plans",
-        path: "meta/plans/bad.md",
-        timestamp: "2026-05-13T12:00:00Z",
-      });
-    });
-
-    // Empty state still shown — bad event was dropped.
-    expect(screen.queryByText(/bad\.md/)).toBeNull();
-    expect(warn).toHaveBeenCalled();
-  });
-
-  it("orders newer initial entries above older live entries via sort step", async () => {
-    // Live event arrives first with older timestamp; initial fetch
-    // resolves later with a newer entry. Sort must place the newer one
-    // on top.
-    let resolveInitial!: (value: ActivityEvent[]) => void;
-    const pending = new Promise<ActivityEvent[]>((r) => {
-      resolveInitial = r;
-    });
-    const { getListener } = mountWith({ initial: pending });
-
-    // Live event (older).
-    await waitFor(() => expect(getListener()).toBeDefined());
-    act(() => {
-      getListener()!(
-        makeSseEvent({
-          path: "meta/plans/older-live.md",
-          timestamp: "2026-05-13T10:00:00Z",
-        }),
-      );
-    });
-
-    // Initial fetch resolves (newer).
-    await act(async () => {
-      resolveInitial([
-        makeEvent({
-          path: "meta/plans/newer-initial.md",
-          timestamp: "2026-05-13T11:00:00Z",
-        }),
-      ]);
-    });
-
-    await screen.findByText(/newer-initial\.md/);
-    const items = screen.getAllByRole("listitem");
-    expect(items[0].textContent).toMatch(/newer-initial\.md/);
-    expect(items[1].textContent).toMatch(/older-live\.md/);
   });
 });
 
@@ -437,7 +393,7 @@ describe("ActivityFeed row links", () => {
     expect(rowHref(rowItems()[0])).toBeNull();
   });
 
-  it("links a live row for a new document once its listing refetches", async () => {
+  it("links the row for a new document once its listing refetches", async () => {
     const existing = makeIndexEntry({ relPath: "meta/plans/existing.md" });
     const created = makeIndexEntry({
       id: "created-id",
@@ -453,6 +409,10 @@ describe("ActivityFeed row links", () => {
     );
 
     plans.push(created);
+    vi.mocked(fetchModule.fetchActivity).mockResolvedValue([
+      rowFor(created, NEWER),
+      rowFor(existing, OLDER),
+    ]);
     const event = makeSseEvent({
       action: "created",
       path: created.relPath,

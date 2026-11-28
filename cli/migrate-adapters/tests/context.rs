@@ -10,6 +10,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use common::Composition;
+use corpus::DocTypeCatalogue;
 use migrate::ports::ManifestStore as _;
 use migrate::ports::MigrationContext as _;
 use migrate::ports::MigrationError;
@@ -172,5 +173,70 @@ fn a_path_through_a_dotdot_in_a_missing_directory_is_refused(
     assert!(read.is_err());
     assert!(!dir.path().join("missing").exists());
     assert!(!dir.path().join("templates/plan.md").exists());
+    Ok(())
+}
+
+#[test]
+fn the_doc_type_dirs_of_an_overlapping_configuration_are_refused(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    write_team_config(
+        dir.path(),
+        "---\npaths:\n  research_codebase: meta/research\n---\n",
+    )?;
+    let composition = Composition::at(dir.path())?;
+    let ctx = FileMigrationContext::new(dir.path(), composition.capabilities());
+
+    let message = ctx.doc_type_dirs().err().map(|error| error.to_string());
+
+    assert!(
+        message
+            .as_deref()
+            .is_some_and(|text| text.contains("paths.research_codebase")
+                && text.contains("paths.research_issues")),
+        "the doc type dirs were not refused naming both keys: {message:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_doc_type_dirs_follow_a_config_rewritten_mid_run() -> Result<(), TestError>
+{
+    let dir = TempDir::new()?;
+    let composition = Composition::at(dir.path())?;
+    let ctx = FileMigrationContext::new(dir.path(), composition.capabilities());
+    let notes_dir = |ctx: &FileMigrationContext<'_>| {
+        ctx.doc_type_dirs().map(|dirs| {
+            dirs.into_iter()
+                .find(|resolved| resolved.doc_type == "note")
+                .map(|resolved| resolved.dir)
+        })
+    };
+    assert_eq!(notes_dir(&ctx)?, Some(dir.path().join("meta/notes")));
+
+    ctx.write(
+        &dir.path().join(".accelerator/config.md"),
+        "---\npaths:\n  notes: meta/jottings\n---\n",
+    )?;
+
+    assert_eq!(notes_dir(&ctx)?, Some(dir.path().join("meta/jottings")));
+    Ok(())
+}
+
+#[test]
+fn migrations_read_the_doc_types_the_context_is_composed_with(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let composition = Composition::at(dir.path())?;
+    let catalogue = DocTypeCatalogue::new(&[], &[])?;
+    let ctx = FileMigrationContext::new(
+        dir.path(),
+        Capabilities {
+            doc_types: &catalogue,
+            ..composition.capabilities()
+        },
+    );
+
+    assert!(ctx.doc_types().doc_types().is_empty());
     Ok(())
 }

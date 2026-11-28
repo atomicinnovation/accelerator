@@ -125,8 +125,9 @@ Every verb but `brief` takes a SLUG. Resolve it to the set root with:
 accelerator corpus resolve --type topic-research SLUG
 ```
 
-It accepts the tolerant forms — a bare slug, the set directory, or a
-sub-document path — and prints the set root. If it exits non-zero, report the
+It accepts a bare slug, the set directory, or a path to one of its documents
+or to `findings/`, a `.levels/` directory or `reports/`, and prints the set
+root. If it exits non-zero, report the
 error and stop.
 
 Then assert the verb's precondition before mutating anything, so an
@@ -203,8 +204,9 @@ aborted run first. Write `manifest.md` (base `status: briefed`, `primary:
 brief.md`, counts 0) and `brief.md` (`source_profiles` the chosen subset, base
 `status: draft` during scoping, `complete` once authored). Then rename the temp
 directory to `meta/research/topics/<slug>/`, mirroring `inventory-design`, so
-the indexer's dot-skipping lister never sees a half-written set; clean up the
-temp directory on a failed rename.
+neither the visualiser nor `accelerator corpus resolve`, both of which skip
+dot-prefixed directories, sees a half-written set; clean up the temp directory
+on a failed rename.
 
 Validate both documents (see **Validate every write** below).
 

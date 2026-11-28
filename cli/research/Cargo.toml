@@ -16,3 +16,7 @@ workspace = true
 
 [dependencies]
 network = { path = "../network" }
+research-declarations = { path = "../research-declarations" }
+
+[dev-dependencies]
+corpus = { path = "../corpus", features = ["test-support"] }

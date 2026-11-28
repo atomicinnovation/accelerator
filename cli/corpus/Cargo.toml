@@ -21,3 +21,11 @@ workspace = true
 # kernel dependency is carried for that.
 [dependencies]
 kernel = { path = "../kernel" }
+
+[features]
+# `DocType::FLAT_DEFAULTS`, a base for a test to declare a doc type of its
+# own. Enabled only from dev-dependencies.
+test-support = []
+
+[dev-dependencies]
+corpus = { path = ".", features = ["test-support"] }

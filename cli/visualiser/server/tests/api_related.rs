@@ -65,6 +65,7 @@ fn cfg_with_only(
         owner_start_time: None,
         log_path: tmp.join("server.log"),
         doc_paths,
+        doc_types: Some(declarations::catalogue().unwrap()),
         templates,
         work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,
@@ -315,7 +316,7 @@ async fn related_endpoint_returns_404_for_template_path() {
     let (_state, app) = build_app(cfg).await;
     // Template paths are not addressable through this endpoint —
     // Indexer::get returns None for any path under the templates root,
-    // because the indexer skips DocTypeKey::Templates on rescan.
+    // because the indexer skips DocTypeKey::TEMPLATES on rescan.
     let res = app
         .oneshot(
             Request::builder()
@@ -392,11 +393,19 @@ async fn related_endpoint_recovers_after_target_creation() {
     // Create the target plan and rescan.
     std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n")
         .unwrap();
-    state.indexer.rescan().await.unwrap();
+    state
+        .indexer
+        .rescan_with_diff(
+            &accelerator_visualiser::change_broadcast::ChangeBroadcast::of(
+                &state,
+            ),
+        )
+        .await
+        .unwrap();
     {
         let snapshot = state.indexer.all().await;
         let wbi = state.indexer.work_item_by_identity_key_snapshot().await;
-        let pbi = state.indexer.plans_by_id_snapshot().await;
+        let pbi = state.indexer.documents_by_address_snapshot().await;
         let work_item_cfg = state.indexer.work_item_cfg();
         let ctx = ClusterContext::from_entries(
             &snapshot,
@@ -484,7 +493,16 @@ async fn related_endpoint_returns_empty_outbound_after_target_deletion() {
     // Delete the target plan.
     let plan_path = tmp.path().join("meta/plans/2026-04-18-foo.md");
     std::fs::remove_file(&plan_path).unwrap();
-    state.indexer.refresh_one(&plan_path).await.unwrap();
+    state
+        .indexer
+        .refresh_one(
+            &plan_path,
+            &accelerator_visualiser::change_broadcast::ChangeBroadcast::of(
+                &state,
+            ),
+        )
+        .await
+        .unwrap();
 
     let res = app
         .oneshot(
@@ -843,4 +861,284 @@ async fn a_related_work_item_reference_is_an_inbound_link() {
         inbound_rel_paths(cfg, "meta/work/PP-0500-x.md").await,
         vec!["meta/plans/2026-01-01-a.md"]
     );
+}
+
+fn write_slug_collisions(tmp: &std::path::Path) -> Config {
+    let meta = tmp.join("meta");
+    let files = [
+        ("decisions", "decisions/ADR-0021-shared.md"),
+        (
+            "research_codebase",
+            "research/codebase/2026-03-29-shared.md",
+        ),
+        ("plans", "plans/2026-03-29-shared.md"),
+        (
+            "research_design_gaps",
+            "research/design-gaps/2026-05-21-gap.md",
+        ),
+        (
+            "research_design_gaps",
+            "research/design-gaps/2026-09-10-gap.md",
+        ),
+    ];
+    let mut paths = HashMap::new();
+    for (key, file) in files {
+        let path = meta.join(file);
+        let dir = path.parent().unwrap().to_path_buf();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(&path, "---\ntitle: T\n---\n").unwrap();
+        paths.insert(key.to_string(), dir);
+    }
+    cfg_with_only(tmp, paths)
+}
+
+async fn inferred_rel_paths(app: &axum::Router, rel_path: &str) -> Vec<String> {
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/related/{rel_path}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    json_body(res).await["inferredCluster"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["relPath"].as_str().unwrap().to_string())
+        .collect()
+}
+
+#[tokio::test]
+async fn an_entry_infers_only_the_cluster_it_is_in_when_slugs_collide() {
+    let tmp = tempfile::tempdir().unwrap();
+    for _ in 0..16 {
+        let (_state, app) = build_app(write_slug_collisions(tmp.path())).await;
+        assert_eq!(
+            inferred_rel_paths(&app, "meta/decisions/ADR-0021-shared.md").await,
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            inferred_rel_paths(
+                &app,
+                "meta/research/codebase/2026-03-29-shared.md"
+            )
+            .await,
+            vec!["meta/plans/2026-03-29-shared.md"]
+        );
+        assert_eq!(
+            inferred_rel_paths(
+                &app,
+                "meta/research/design-gaps/2026-05-21-gap.md"
+            )
+            .await,
+            Vec::<String>::new()
+        );
+    }
+}
+
+fn set_with_a_member_naming_a_work_item(tmp: &std::path::Path) -> Config {
+    let meta = tmp.join("meta");
+    let files = [
+        ("work/0001-x.md", "---\nid: \"0001\"\ntitle: X\n---\n"),
+        (
+            "research/topics/caching/manifest.md",
+            "---\nid: \"the-set\"\ntitle: Caching\n---\n",
+        ),
+        (
+            "research/topics/caching/findings/01-a.md",
+            "---\ntitle: A\nparent: \"0001\"\n---\n",
+        ),
+        (
+            "research/topics/caching/findings/02-b.md",
+            "---\ntitle: B\n---\n",
+        ),
+        (
+            "plans/2026-01-01-01-a.md",
+            "---\ntitle: Plan\nparent: \"0001\"\n---\n",
+        ),
+    ];
+    for (file, content) in files {
+        let path = meta.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
+    }
+    let mut paths = HashMap::new();
+    paths.insert("work".into(), meta.join("work"));
+    paths.insert("research_topics".into(), meta.join("research/topics"));
+    paths.insert("plans".into(), meta.join("plans"));
+    cfg_with_only(tmp, paths)
+}
+
+async fn related_of(app: &axum::Router, rel_path: &str) -> serde_json::Value {
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/related/{rel_path}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK, "{rel_path}");
+    json_body(res).await
+}
+
+fn rel_paths_of(items: &serde_json::Value) -> Vec<String> {
+    items
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["relPath"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+const MEMBER: &str = "meta/research/topics/caching/findings/01-a.md";
+
+#[tokio::test]
+async fn a_members_parent_is_its_own_outbound_item() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_state, app) =
+        build_app(set_with_a_member_naming_a_work_item(tmp.path())).await;
+
+    assert_eq!(
+        rel_paths_of(&related_of(&app, MEMBER).await["declaredOutbound"]),
+        vec!["meta/work/0001-x.md"]
+    );
+    for other in [
+        "meta/research/topics/caching/manifest.md",
+        "meta/research/topics/caching/findings/02-b.md",
+    ] {
+        assert!(
+            rel_paths_of(&related_of(&app, other).await["declaredOutbound"])
+                .is_empty(),
+            "{other}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_work_item_has_the_member_naming_it_as_inbound() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_state, app) =
+        build_app(set_with_a_member_naming_a_work_item(tmp.path())).await;
+
+    let inbound =
+        &related_of(&app, "meta/work/0001-x.md").await["declaredInbound"];
+
+    assert_eq!(
+        rel_paths_of(inbound),
+        vec!["meta/plans/2026-01-01-01-a.md", MEMBER]
+    );
+    assert_eq!(inbound[1]["setId"], "the-set");
+    assert_eq!(inbound[1]["setRelativePath"], "findings/01-a.md");
+}
+
+#[tokio::test]
+async fn no_inferred_item_is_a_member() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_state, app) =
+        build_app(set_with_a_member_naming_a_work_item(tmp.path())).await;
+
+    for rel_path in [
+        MEMBER,
+        "meta/research/topics/caching/manifest.md",
+        "meta/plans/2026-01-01-01-a.md",
+        "meta/work/0001-x.md",
+    ] {
+        let inferred =
+            rel_paths_of(&related_of(&app, rel_path).await["inferredCluster"]);
+        assert!(
+            !inferred.iter().any(|path| path.contains("/findings/")),
+            "{rel_path}: {inferred:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_member_and_a_plan_sharing_a_slug_do_not_infer_each_other() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_state, app) =
+        build_app(set_with_a_member_naming_a_work_item(tmp.path())).await;
+    let plan = "meta/plans/2026-01-01-01-a.md";
+
+    let members_inferred =
+        rel_paths_of(&related_of(&app, MEMBER).await["inferredCluster"]);
+    let plans_inferred =
+        rel_paths_of(&related_of(&app, plan).await["inferredCluster"]);
+
+    assert!(
+        !members_inferred.contains(&plan.to_owned()),
+        "{members_inferred:?}"
+    );
+    assert!(
+        !plans_inferred.contains(&MEMBER.to_owned()),
+        "{plans_inferred:?}"
+    );
+}
+
+async fn get_json(app: &axum::Router, uri: &str) -> serde_json::Value {
+    let res = app
+        .clone()
+        .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK, "{uri}");
+    json_body(res).await
+}
+
+#[tokio::test]
+async fn a_sets_id_is_the_same_on_every_surface() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut cfg = set_with_a_member_naming_a_work_item(tmp.path());
+    let inventories = tmp.path().join("meta/research/design-inventories");
+    for (file, content) in [
+        (
+            "inv/inventory.md",
+            "---\nid: \"the-inv\"\ntitle: Inv\n---\n",
+        ),
+        ("inv/screenshots/a.png", "png"),
+    ] {
+        let path = inventories.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
+    }
+    cfg.doc_paths
+        .insert("research_design_inventories".into(), inventories);
+    let (_state, app) = build_app(cfg).await;
+
+    for (wire_token, set_id) in [
+        ("topic-research", "the-set"),
+        ("design-inventories", "the-inv"),
+    ] {
+        let listing =
+            get_json(&app, &format!("/api/docs?type={wire_token}")).await;
+        assert_eq!(listing["docs"][0]["id"], set_id, "{listing}");
+        assert_eq!(listing["docs"][0]["setId"], set_id, "{listing}");
+        let set =
+            get_json(&app, &format!("/api/sets/{wire_token}/{set_id}")).await;
+        assert_eq!(set["set"]["id"], set_id);
+    }
+    let search = get_json(&app, "/api/search?q=02-b").await;
+    let member_row = search["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["setRelativePath"] == "findings/02-b.md")
+        .unwrap_or_else(|| panic!("no member row in {search}"));
+    assert_eq!(member_row["setId"], "the-set");
+    assert_eq!(member_row["id"], "the-set");
+    let inbound =
+        &related_of(&app, "meta/work/0001-x.md").await["declaredInbound"];
+    let member_item = inbound
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["relPath"] == MEMBER)
+        .unwrap_or_else(|| panic!("no member item in {inbound}"));
+    assert_eq!(member_item["setId"], "the-set");
 }

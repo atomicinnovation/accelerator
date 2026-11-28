@@ -8,10 +8,6 @@ mod common;
 
 #[tokio::test]
 async fn api_surface_is_fully_reachable_against_fixture_meta() {
-    // Model-1 fixture project: symlink meta/ + templates/ to the committed
-    // fixtures and remap only the one path that differs from the catalogue
-    // default (research_codebase → meta/research). The server discovers this
-    // root from its cwd and reads config directly.
     let fixtures = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/meta");
     let plugin_templates = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -21,11 +17,6 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
     std::fs::create_dir_all(project.join(".accelerator")).unwrap();
     symlink(&fixtures, project.join("meta")).unwrap();
     symlink(&plugin_templates, project.join("templates")).unwrap();
-    std::fs::write(
-        project.join(".accelerator/config.md"),
-        "---\npaths:\n  research_codebase: meta/research\n---\n",
-    )
-    .unwrap();
 
     let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
     let mut child = Command::new(bin)
@@ -103,6 +94,26 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .await
         .unwrap();
     assert_eq!(d["docs"].as_array().unwrap().len(), 3);
+
+    assert!(!project.join(".accelerator/config.md").exists());
+    let research: serde_json::Value = client
+        .get(format!("{base}/api/docs?type=codebase-research"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let research = research["docs"].as_array().unwrap();
+    assert!(!research.is_empty());
+    for doc in research {
+        let rel_path = doc["relPath"].as_str().unwrap();
+        assert!(
+            std::path::Path::new(rel_path)
+                .starts_with(fixtures.join("research/codebase")),
+            "{rel_path}"
+        );
+    }
 
     // /api/docs?type=plan-reviews -> 2 entries with expected slugs.
     let pr: serde_json::Value = client

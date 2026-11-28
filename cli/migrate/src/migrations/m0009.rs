@@ -519,11 +519,21 @@ mod tests {
     }
 
     impl MigrationContext for TestCtx {
-        fn doc_type_dirs(&self) -> Vec<DocTypeDir> {
-            Vec::new()
+        #[allow(clippy::expect_used)]
+        fn doc_types(&self) -> &corpus::DocTypeCatalogue {
+            static ASSEMBLED: std::sync::LazyLock<
+                std::sync::Arc<corpus::DocTypeCatalogue>,
+            > = std::sync::LazyLock::new(|| {
+                declarations::catalogue()
+                    .expect("the assembled catalogue builds")
+            });
+            &ASSEMBLED
         }
-        fn corpus_index(&self) -> &dyn CorpusIndex {
-            &self.index
+        fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError> {
+            Ok(Vec::new())
+        }
+        fn corpus_index(&self) -> Result<&dyn CorpusIndex, MigrationError> {
+            Ok(&self.index)
         }
         fn root(&self) -> &Path {
             &self.root

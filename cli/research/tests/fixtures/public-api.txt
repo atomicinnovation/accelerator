@@ -2250,6 +2250,13 @@ impl core::fmt::Debug for research::topic::evidence::LevelsDirectory
 pub fn research::topic::evidence::LevelsDirectory::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::evidence::LevelsDirectory
 pub mod research::topic::layout
+pub use research::topic::layout::BRIEF
+pub use research::topic::layout::FINDINGS
+pub use research::topic::layout::LEVELS_SUFFIX
+pub use research::topic::layout::MANIFEST
+pub use research::topic::layout::OUTLINE
+pub use research::topic::layout::REPORTS
+pub use research::topic::layout::SYNTHESIS
 pub mod research::topic::layout::entry
 pub fn research::topic::layout::entry::finding_stem(name: &str) -> core::option::Option<research::topic::layout::stem::Stem>
 pub fn research::topic::layout::entry::is_finding_entry(name: &str) -> bool
@@ -2372,12 +2379,6 @@ pub fn research::topic::layout::stem::Stem::fmt(&self, formatter: &mut core::fmt
 impl core::hash::Hash for research::topic::layout::stem::Stem
 pub fn research::topic::layout::stem::Stem::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
 impl core::marker::StructuralPartialEq for research::topic::layout::stem::Stem
-pub const research::topic::layout::BRIEF: &str
-pub const research::topic::layout::FINDINGS: &str
-pub const research::topic::layout::MANIFEST: &str
-pub const research::topic::layout::OUTLINE: &str
-pub const research::topic::layout::REPORTS: &str
-pub const research::topic::layout::SYNTHESIS: &str
 pub mod research::topic::lifecycle
 pub enum research::topic::lifecycle::SetStatus
 pub research::topic::lifecycle::SetStatus::Briefed

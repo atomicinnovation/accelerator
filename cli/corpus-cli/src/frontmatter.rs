@@ -228,8 +228,8 @@ mod tests {
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
         vec![
-            (DocTypeKey::WorkItems, PathBuf::from("meta/work")),
-            (DocTypeKey::Plans, PathBuf::from("meta/plans")),
+            (DocTypeKey::WORK_ITEMS, PathBuf::from("meta/work")),
+            (DocTypeKey::PLANS, PathBuf::from("meta/plans")),
         ]
     }
 

@@ -1400,10 +1400,15 @@ owes seven things. `cli/tracker/` is the worked example.
   missing `[lints]` table silently exempts the crate from every lint the rest
   of the workspace is held to.
 - **A role declaration.** Add `[package.metadata.accelerator]` with the
-  crate's `role`, plus its `context` for a domain or adapter, and the
-  context's `kind` and `downstreams` where the context is new. Add the same
-  row to `_EXPECTED_DECLARATIONS` in
+  crate's `role`, plus its `context` for a domain, adapter or declarations
+  crate, and the context's `kind` and `downstreams` where the context is new.
+  A declarations crate never carries a `kind`, which its context's domain
+  crate declares, and the declarations assembly carries no `context`. Add the
+  same row to `_EXPECTED_DECLARATIONS` in
   `tests/unit/tasks/test_crate_dependencies.py`.
+  A context's declarations crate is named `<context>-declarations`, and is
+  also added as a dependency of the `declarations` assembly, which combines
+  every context's declarations.
   `lint:crate-dependencies:check` rejects an undeclared member, and any
   normal or build dependency the declared role forbids.
 - **A `cli/pup.ron` rule.** Nothing derives architectural enforcement from

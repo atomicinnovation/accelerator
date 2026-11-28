@@ -10,6 +10,7 @@ use config::ConfigAccess;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use config_adapters::ScreenedStore;
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
 /// The composed configuration service plus the discovered project root.
@@ -52,7 +53,7 @@ pub fn resolve_type_dir(
     let path_key = key.config_path_key().ok_or_else(|| {
         kernel::Error::Failed(format!(
             "document type '{}' has no configured directory",
-            key.wire_str()
+            key.wire_token()
         ))
     })?;
     let raw =
@@ -90,6 +91,7 @@ pub fn resolve_type_dir(
 /// A [`config::ConfigError`] when a doc-type directory is unsafe or a config
 /// level cannot be read.
 pub fn table_from_config(
+    catalogue: &DocTypeCatalogue,
     config: &dyn ConfigAccess,
 ) -> Result<Vec<(DocTypeKey, PathBuf)>, config::ConfigError> {
     let mut doc_paths = HashMap::new();
@@ -97,7 +99,9 @@ pub fn table_from_config(
         doc_paths
             .insert(resolved.path_key.to_owned(), PathBuf::from(resolved.dir));
     }
-    Ok(corpus_adapters::doc_type::table_from_paths(&doc_paths))
+    Ok(corpus_adapters::doc_type::table_from_paths(
+        catalogue, &doc_paths,
+    ))
 }
 
 #[cfg(test)]
@@ -112,9 +116,10 @@ mod tests {
     use config::Resolved;
     use config::Scalar;
     use config::Value;
+    use corpus::DocTypeCatalogue;
     use corpus::DocTypeKey;
 
-    use super::table_from_config;
+    use super::{compose, resolve_type_dir, table_from_config};
 
     struct FakeConfig(HashMap<String, String>);
 
@@ -157,16 +162,21 @@ mod tests {
             .map(|(_, dir)| dir.clone())
     }
 
+    #[allow(clippy::expect_used)]
+    fn assembled() -> std::sync::Arc<DocTypeCatalogue> {
+        declarations::catalogue().expect("the assembled catalogue builds")
+    }
+
     #[test]
     fn resolves_a_configured_doc_type_directory() -> Result<(), ConfigError> {
         let mut values = HashMap::new();
         values.insert("paths.work".to_owned(), "tickets".to_owned());
         let config = FakeConfig(values);
 
-        let table = table_from_config(&config)?;
+        let table = table_from_config(&assembled(), &config)?;
 
         assert_eq!(
-            dir_for(&table, DocTypeKey::WorkItems),
+            dir_for(&table, DocTypeKey::WORK_ITEMS),
             Some(PathBuf::from("tickets")),
             "the directory must stay project-root-relative, not be joined \
              against any root here"
@@ -179,11 +189,54 @@ mod tests {
     ) -> Result<(), ConfigError> {
         let config = FakeConfig(HashMap::new());
 
-        let table = table_from_config(&config)?;
+        let table = table_from_config(&assembled(), &config)?;
 
         assert_eq!(
-            dir_for(&table, DocTypeKey::WorkItems),
+            dir_for(&table, DocTypeKey::WORK_ITEMS),
             Some(PathBuf::from("meta/work"))
+        );
+        Ok(())
+    }
+
+    fn overlapping_config() -> FakeConfig {
+        let mut values = HashMap::new();
+        values.insert(
+            "paths.research_codebase".to_owned(),
+            "meta/research".to_owned(),
+        );
+        FakeConfig(values)
+    }
+
+    #[test]
+    fn an_overlapping_configuration_is_refused() {
+        let refused = table_from_config(&assembled(), &overlapping_config());
+
+        assert!(
+            matches!(refused, Err(ConfigError::OverlappingDocRoots { .. })),
+            "an overlapping configuration was not refused: {refused:?}"
+        );
+    }
+
+    #[test]
+    fn a_doc_type_directory_lookup_over_an_overlapping_configuration_is_refused(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let project = tempfile::tempdir()?;
+        std::fs::create_dir_all(project.path().join(".accelerator"))?;
+        std::fs::write(
+            project.path().join(".accelerator/config.md"),
+            "---\npaths:\n  research_codebase: meta/research\n---\n",
+        )?;
+        let composed = compose(project.path())?;
+
+        let refused = resolve_type_dir(&composed, DocTypeKey::TOPIC_RESEARCH);
+
+        let message = refused.err().map(|error| error.to_string());
+        assert!(
+            message
+                .as_deref()
+                .is_some_and(|text| text.contains("paths.research_codebase")
+                    && text.contains("paths.research_issues")),
+            "the lookup was not refused naming both keys: {message:?}"
         );
         Ok(())
     }

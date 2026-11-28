@@ -1,0 +1,3 @@
+pub mod declarations
+pub fn declarations::catalogue() -> core::result::Result<alloc::sync::Arc<corpus::doc_type::catalogue::DocTypeCatalogue>, corpus::doc_type::catalogue::CatalogueError>
+pub fn declarations::set_declarations() -> &'static [corpus::doc_type::catalogue::DeclaredSet]

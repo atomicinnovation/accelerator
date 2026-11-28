@@ -229,3 +229,55 @@ async fn library_structure_selection_round_trip_through_query_string() {
     assert_eq!(work_items["count"], 3);
     assert_eq!(work_items["filteredCount"], 1);
 }
+
+#[tokio::test]
+async fn library_structure_places_every_doc_type_in_its_phase_in_order() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    let activity = Arc::new(Activity::new());
+    let state = AppState::build(cfg, activity).await.unwrap();
+    let app = build_router(state);
+    let v = request("/api/library/structure", app).await;
+
+    let phases: Vec<(&str, &str, Vec<&str>)> = v["phases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|phase| {
+            (
+                phase["id"].as_str().unwrap(),
+                phase["label"].as_str().unwrap(),
+                phase["docTypes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|doc_type| doc_type["id"].as_str().unwrap())
+                    .collect(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        phases,
+        vec![
+            ("define", "Define", vec!["work-items", "work-item-reviews"]),
+            (
+                "discover",
+                "Discover",
+                vec![
+                    "design-inventories",
+                    "design-gaps",
+                    "topic-research",
+                    "codebase-research",
+                ],
+            ),
+            (
+                "build",
+                "Build",
+                vec!["plans", "plan-reviews", "validations"],
+            ),
+            ("ship", "Ship", vec!["pr-descriptions", "pr-reviews"]),
+            ("operate", "Operate", vec!["root-cause-analyses"]),
+            ("remember", "Remember", vec!["decisions", "notes"]),
+        ]
+    );
+}

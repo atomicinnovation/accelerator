@@ -91,7 +91,7 @@ impl ProjectContext {
         let path_key = key.config_path_key().ok_or_else(|| {
             format!(
                 "document type '{}' has no configured directory",
-                key.wire_str()
+                key.wire_token()
             )
         })?;
         let raw = config::paths::resolve_with_fallback(

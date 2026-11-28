@@ -6,6 +6,7 @@ use std::fmt;
 use crate::topic::layout::lineage::Lineage;
 use crate::topic::layout::stem::Stem;
 use crate::topic::layout::FINDINGS;
+use crate::topic::layout::LEVELS_SUFFIX;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoteRef {
@@ -17,7 +18,10 @@ impl NoteRef {
     /// The set-relative path of the level note at this address.
     #[must_use]
     pub fn path(&self) -> String {
-        format!("{FINDINGS}/{}.levels/{}.md", self.stem, self.lineage)
+        format!(
+            "{FINDINGS}/{}{LEVELS_SUFFIX}/{}.md",
+            self.stem, self.lineage
+        )
     }
 
     /// Scoped by `set_slug`, because stems repeat across sets and level-note

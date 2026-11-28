@@ -4,17 +4,18 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::activity_feed::{ActivityEvent, ActivityRingBuffer};
-use crate::clusters::{compute_clusters_with_backfill, LifecycleCluster};
+use corpus::set::SetMatcher;
+use corpus::DocTypeCatalogue;
+
 use crate::config::TemplateTiers;
-use crate::file_driver::FileDriver;
-use crate::indexer::{IndexEntry, Indexer, FRONTMATTER_MALFORMED};
-use crate::sse_hub::{ActionKind, SseHub, SsePayload};
+use crate::file_driver::{resolved_root, FileDriver};
+use crate::indexer::{ChangeSink, Indexer};
+use crate::sse_hub::{SseHub, SsePayload};
 use crate::templates::TemplateResolver;
 use crate::write_coordinator::WriteCoordinator;
 
@@ -29,6 +30,78 @@ impl Settings {
     };
 }
 
+pub struct SetDocRoots {
+    roots: Vec<(PathBuf, SetMatcher)>,
+}
+
+/// A change inside a set is debounced on its set directory, so a burst
+/// inside one set costs one rescan.
+enum Admission {
+    Ignored,
+    OwnPath,
+    SetDirectory(PathBuf),
+}
+
+impl SetDocRoots {
+    pub fn new(
+        doc_types: &DocTypeCatalogue,
+        doc_paths: &HashMap<String, PathBuf>,
+    ) -> Self {
+        let roots = doc_types
+            .doc_types()
+            .iter()
+            .filter(|kind| kind.is_set())
+            .filter_map(|&kind| {
+                let raw = doc_paths.get(kind.config_path_key()?)?;
+                let matcher = doc_types.set_matcher(kind)?;
+                Some([
+                    (raw.clone(), matcher.clone()),
+                    (resolved_root(raw), matcher.clone()),
+                ])
+            })
+            .flatten()
+            .collect();
+        Self { roots }
+    }
+
+    fn admission(&self, path: &Path) -> Admission {
+        let Some((root, matcher)) =
+            self.roots.iter().find(|(root, _)| path.starts_with(root))
+        else {
+            return if is_markdown(path) {
+                Admission::OwnPath
+            } else {
+                Admission::Ignored
+            };
+        };
+        let below: Option<Vec<&str>> = path
+            .strip_prefix(root)
+            .map_or_else(|_| Vec::new(), |rest| rest.iter().collect())
+            .into_iter()
+            .map(std::ffi::OsStr::to_str)
+            .collect();
+        let Some(below) = below else {
+            return Admission::Ignored;
+        };
+        let Some((set_name, within)) = below.split_first() else {
+            return Admission::Ignored;
+        };
+        if below.iter().any(|name| name.starts_with('.')) {
+            return Admission::Ignored;
+        }
+        let set_relative = within.join("/");
+        let names_a_set_directory = within.is_empty() && !path.is_file();
+        if names_a_set_directory
+            || matcher.classify(&set_relative).is_some()
+            || matcher.may_contain_members(&set_relative)
+        {
+            Admission::SetDirectory(root.join(set_name))
+        } else {
+            Admission::Ignored
+        }
+    }
+}
+
 pub trait DirectoryWatcher: Send + 'static {
     fn watch_recursively(&mut self, dir: &Path) -> notify::Result<()>;
 }
@@ -36,7 +109,7 @@ pub trait DirectoryWatcher: Send + 'static {
 impl DirectoryWatcher for RecommendedWatcher {
     fn watch_recursively(&mut self, dir: &Path) -> notify::Result<()> {
         // Recursive so editor atomic-rename patterns and nested tier layouts
-        // produce events. Scope is preserved by the is_markdown filter and the
+        // produce events. Scope is preserved by the admission rule and the
         // canonical-path index inside the handler.
         Watcher::watch(self, dir, RecursiveMode::Recursive)
     }
@@ -80,10 +153,9 @@ pub fn spawn<W: DirectoryWatcher>(
     open: impl FnOnce(EventSink) -> notify::Result<W> + Send + 'static,
     dirs: Vec<PathBuf>,
     indexer: Arc<Indexer>,
-    clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
-    hub: Arc<SseHub>,
-    activity_feed: Arc<ActivityRingBuffer>,
+    sink: Arc<dyn ChangeSink>,
     write_coordinator: Arc<WriteCoordinator>,
+    set_roots: SetDocRoots,
     template_change_handler: Option<Arc<TemplateChangeHandler>>,
     settings: Settings,
 ) -> Watching {
@@ -110,31 +182,37 @@ pub fn spawn<W: DirectoryWatcher>(
             Ok(watcher) => watcher,
             Err(e) => std::panic::resume_unwind(e.into_panic()),
         };
-        let mut pending: HashMap<PathBuf, JoinHandle<()>> = HashMap::new();
+        let mut pending: HashMap<PathBuf, (JoinHandle<()>, Vec<PathBuf>)> =
+            HashMap::new();
 
         while let Some(result) = rx.recv().await {
             match result {
                 Ok(event) => {
                     for path in event.paths {
-                        if !is_markdown(&path) {
-                            continue;
-                        }
-                        if let Some(h) = pending.remove(&path) {
-                            h.abort();
-                        }
-                        pending.retain(|_, h| !h.is_finished());
+                        let key = match set_roots.admission(&path) {
+                            Admission::Ignored => continue,
+                            Admission::OwnPath => path.clone(),
+                            Admission::SetDirectory(directory) => directory,
+                        };
+                        pending.retain(|_, (h, _)| !h.is_finished());
+                        let mut paths = pending
+                            .remove(&key)
+                            .map(|(h, paths)| {
+                                h.abort();
+                                paths
+                            })
+                            .unwrap_or_default();
+                        paths.push(path);
 
-                        let h = tokio::spawn(on_path_changed_debounced(
-                            path.clone(),
+                        let h = tokio::spawn(on_paths_changed_debounced(
+                            paths.clone(),
                             indexer.clone(),
-                            clusters.clone(),
-                            hub.clone(),
-                            activity_feed.clone(),
+                            sink.clone(),
                             write_coordinator.clone(),
                             template_change_handler.clone(),
                             settings.debounce,
                         ));
-                        pending.insert(path, h);
+                        pending.insert(key, (h, paths));
                     }
                 }
                 Err(e) => {
@@ -158,15 +236,29 @@ fn register(watcher: &mut impl DirectoryWatcher, dirs: &[PathBuf]) {
     }
 }
 
-// Forwards the same set of narrow shared-state handles `spawn` holds, plus
-// the changed path; a param struct would not aid clarity.
-#[allow(clippy::too_many_arguments)]
 pub async fn on_path_changed_debounced(
     path: PathBuf,
     indexer: Arc<Indexer>,
-    clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
-    hub: Arc<SseHub>,
-    activity_feed: Arc<ActivityRingBuffer>,
+    sink: Arc<dyn ChangeSink>,
+    write_coordinator: Arc<WriteCoordinator>,
+    template_change_handler: Option<Arc<TemplateChangeHandler>>,
+    debounce: Duration,
+) {
+    on_paths_changed_debounced(
+        vec![path],
+        indexer,
+        sink,
+        write_coordinator,
+        template_change_handler,
+        debounce,
+    )
+    .await;
+}
+
+async fn on_paths_changed_debounced(
+    paths: Vec<PathBuf>,
+    indexer: Arc<Indexer>,
+    sink: Arc<dyn ChangeSink>,
     write_coordinator: Arc<WriteCoordinator>,
     template_change_handler: Option<Arc<TemplateChangeHandler>>,
     debounce: Duration,
@@ -176,193 +268,61 @@ pub async fn on_path_changed_debounced(
     // Detached: a later event for the same path aborts only the debounce
     // above. Aborting after the rescan would leave its changes in the index
     // but never broadcast, and no later rescan would see them as changes.
-    let _ = tokio::spawn(on_path_changed(
-        path,
+    let _ = tokio::spawn(on_paths_changed(
+        paths,
         indexer,
-        clusters,
-        hub,
-        activity_feed,
+        sink,
         write_coordinator,
         template_change_handler,
     ))
     .await;
 }
 
-async fn on_path_changed(
-    path: PathBuf,
+async fn on_paths_changed(
+    paths: Vec<PathBuf>,
     indexer: Arc<Indexer>,
-    clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
-    hub: Arc<SseHub>,
-    activity_feed: Arc<ActivityRingBuffer>,
+    sink: Arc<dyn ChangeSink>,
     write_coordinator: Arc<WriteCoordinator>,
     template_change_handler: Option<Arc<TemplateChangeHandler>>,
 ) {
-    // Walk-up canonicalisation so that delete events (where canonicalize
-    // fails because the inode is gone) still match the canonical paths
-    // stored by the WriteCoordinator and the TierPathIndex.
-    let canonical = canonicalise_path_or_ancestor(&path).await;
+    let mut only_self_writes = true;
+    for path in &paths {
+        // Walk-up canonicalisation so that delete events (where canonicalize
+        // fails because the inode is gone) still match the canonical paths
+        // stored by the WriteCoordinator and the TierPathIndex.
+        let canonical = canonicalise_path_or_ancestor(path).await;
 
-    // Additive: a tier-file change is signalled for rebuild + broadcast
-    // independently of the doc-changed flow. Templates have no frontend
-    // write path today, so we skip WriteCoordinator suppression here.
-    let is_template = template_change_handler
-        .as_ref()
-        .is_some_and(|h| h.try_handle(&canonical));
-    tracing::debug!(
-        file = %canonical.display(),
-        is_template,
-        "watcher dispatched fs event",
-    );
+        // Additive: a tier-file change is signalled for rebuild + broadcast
+        // independently of the doc-changed flow. Templates have no frontend
+        // write path today, so we skip WriteCoordinator suppression here.
+        let is_template = template_change_handler
+            .as_ref()
+            .is_some_and(|h| h.try_handle(&canonical));
+        tracing::debug!(
+            file = %canonical.display(),
+            is_template,
+            "watcher dispatched fs event",
+        );
 
-    if write_coordinator.should_suppress(&canonical) {
-        tracing::debug!(file = %path.display(), "watcher suppressed self-write broadcast");
-        return;
-    }
-
-    let before = indexer.all().await;
-    if let Err(e) = indexer.rescan().await {
-        tracing::warn!(path = %path.display(), error = %e, "rescan failed after watch event");
-        return;
-    }
-
-    let snapshot = indexer.all().await;
-    let work_item_by_identity_key =
-        indexer.work_item_by_identity_key_snapshot().await;
-    let plans_by_id = indexer.plans_by_id_snapshot().await;
-    let work_item_cfg = indexer.work_item_cfg();
-    let cluster_ctx = crate::clusters::ClusterContext::from_entries(
-        &snapshot,
-        &work_item_by_identity_key,
-        &plans_by_id,
-        indexer.project_root(),
-        &work_item_cfg,
-    );
-    let (new_clusters, completeness_backfill, cluster_key_backfill) =
-        compute_clusters_with_backfill(&snapshot, &cluster_ctx);
-    let linked_counts = crate::related::collect_linked_counts(
-        &indexer,
-        &new_clusters,
-        &snapshot,
-    )
-    .await;
-    indexer
-        .apply_completeness_backfill(completeness_backfill)
-        .await;
-    indexer
-        .apply_cluster_key_backfill(cluster_key_backfill)
-        .await;
-    indexer.apply_linked_count_backfill(linked_counts).await;
-    *clusters.write().await = new_clusters;
-
-    // The rescan reindexes every file, not just `path`, so it broadcasts every
-    // change it applied: a change another file's rescan absorbs is otherwise
-    // indistinguishable from a no-op by the time its own event arrives.
-    for payload in rescan_changes(&before, &snapshot, Utc::now())
-        .into_iter()
-        .filter(|change| !write_coordinator.should_suppress(&change.path))
-        .map(|change| change.payload)
-    {
-        emit(payload, hub.as_ref(), activity_feed.as_ref());
-    }
-}
-
-struct RescanChange {
-    path: PathBuf,
-    payload: SsePayload,
-}
-
-/// The broadcasts a rescan owes its subscribers, from the index before and
-/// after it.
-///
-/// An entry whose etag and frontmatter state are unchanged is not a change:
-/// macOS `FSEvents` replays coalesced historical events and multi-event bursts
-/// per write, and broadcasting those would only churn SSE clients.
-fn rescan_changes(
-    before: &[IndexEntry],
-    after: &[IndexEntry],
-    now: DateTime<Utc>,
-) -> Vec<RescanChange> {
-    let before_by_path: HashMap<&Path, &IndexEntry> = before
-        .iter()
-        .map(|entry| (entry.path.as_path(), entry))
-        .collect();
-    let after_paths: std::collections::HashSet<&Path> =
-        after.iter().map(|entry| entry.path.as_path()).collect();
-
-    let edited_or_created = after.iter().filter_map(|entry| {
-        let pre = before_by_path.get(entry.path.as_path()).copied();
-        let unchanged = pre.is_some_and(|p| {
-            p.etag == entry.etag
-                && p.frontmatter_state == entry.frontmatter_state
-        });
-        (!unchanged).then(|| RescanChange {
-            path: entry.path.clone(),
-            payload: payload_for_entry(
-                entry,
-                entry.served_rel_path(),
-                pre,
-                now,
-            ),
-        })
-    });
-    let deleted = before
-        .iter()
-        .filter(|entry| !after_paths.contains(entry.path.as_path()))
-        .map(|entry| RescanChange {
-            path: entry.path.clone(),
-            payload: SsePayload::DocChanged {
-                action: ActionKind::Deleted,
-                doc_type: entry.r#type,
-                path: entry.served_rel_path(),
-                etag: None,
-                timestamp: now,
-            },
-        });
-    edited_or_created.chain(deleted).collect()
-}
-
-/// Single fan-out point for SSE events: pushes a derived `ActivityEvent`
-/// into the ring buffer (if applicable — `DocInvalid` does not surface),
-/// then broadcasts the payload. Ring-buffer push is **synchronous and
-/// before** the broadcast, so a buffered event is always available via
-/// `/api/activity` once a subscriber sees it on the live stream.
-fn emit(payload: SsePayload, hub: &SseHub, activity_feed: &ActivityRingBuffer) {
-    if let Some(activity_event) = ActivityEvent::from_payload(&payload) {
-        activity_feed.push(activity_event);
-    }
-    hub.broadcast(payload);
-}
-
-/// Map an `IndexEntry` (post-rescan) plus optional `pre` (pre-rescan) plus a
-/// captured `now` into the SSE wire-format envelope to broadcast.
-///
-/// - Malformed entries produce `DocInvalid` (no action; not surfaced in the
-///   Activity feed).
-/// - `pre.is_some()` -> `Edited`; `pre.is_none()` -> `Created`.
-fn payload_for_entry(
-    entry: &IndexEntry,
-    rel: String,
-    pre: Option<&IndexEntry>,
-    now: DateTime<Utc>,
-) -> SsePayload {
-    if entry.frontmatter_state == FRONTMATTER_MALFORMED {
-        SsePayload::DocInvalid {
-            doc_type: entry.r#type,
-            path: rel,
-        }
-    } else {
-        let action = if pre.is_some() {
-            ActionKind::Edited
+        if write_coordinator.should_suppress(&canonical) {
+            tracing::debug!(
+                file = %path.display(),
+                "watcher suppressed self-write broadcast",
+            );
         } else {
-            ActionKind::Created
-        };
-        SsePayload::DocChanged {
-            action,
-            doc_type: entry.r#type,
-            path: rel,
-            etag: Some(entry.etag.clone()),
-            timestamp: now,
+            only_self_writes = false;
         }
+    }
+    if only_self_writes {
+        return;
+    }
+
+    // The rescan reindexes every file, not just the changed paths, so the
+    // sink hears of every change it applied: a change another file's rescan
+    // absorbs is otherwise indistinguishable from a no-op by the time its
+    // own event arrives.
+    if let Err(e) = indexer.rescan_with_diff(sink.as_ref()).await {
+        tracing::warn!(error = %e, "rescan failed after watch event");
     }
 }
 
@@ -564,6 +524,7 @@ const EVENT_BUDGET: Duration = Duration::from_secs(5);
 
 #[cfg(test)]
 mod tests {
+    use crate::test_support::RecordingSink;
 
     #[test]
     fn a_markdown_file_is_watched_whatever_its_extensions_case() {
@@ -573,9 +534,11 @@ mod tests {
         assert!(!super::is_markdown(std::path::Path::new("a.mdx")));
     }
     use super::*;
+    use crate::activity_feed::ActivityRingBuffer;
     use crate::file_driver::LocalFileDriver;
     use crate::indexer::Indexer;
-    use crate::sse_hub::{SseHub, SsePayload};
+    use crate::sse_hub::{ActionKind, SseHub, SsePayload};
+    use chrono::DateTime;
     use std::collections::HashMap;
     use std::sync::Arc;
     use std::time::Duration;
@@ -600,25 +563,36 @@ mod tests {
         let mut doc_paths = HashMap::new();
         doc_paths.insert("plans".into(), plans);
         let driver: Arc<dyn crate::file_driver::FileDriver> =
-            Arc::new(LocalFileDriver::new(&doc_paths, vec![], vec![]));
+            Arc::new(LocalFileDriver::new(
+                &crate::test_support::assembled_catalogue(),
+                &doc_paths,
+                vec![],
+                vec![],
+            ));
         let work_item_cfg =
             Arc::new(crate::config::WorkItemConfig::default_numeric());
         let indexer = Arc::new(
-            Indexer::build(driver, tmp.to_path_buf(), work_item_cfg)
-                .await
-                .unwrap(),
+            Indexer::build(
+                driver,
+                crate::test_support::assembled_catalogue(),
+                tmp.to_path_buf(),
+                work_item_cfg,
+            )
+            .await
+            .unwrap(),
         );
         let hub = Arc::new(SseHub::new(64));
         let activity_feed = Arc::new(ActivityRingBuffer::new());
         let snapshot = indexer.all().await;
         let work_item_by_identity_key =
             indexer.work_item_by_identity_key_snapshot().await;
-        let plans_by_id = indexer.plans_by_id_snapshot().await;
+        let documents_by_address =
+            indexer.documents_by_address_snapshot().await;
         let work_item_cfg = indexer.work_item_cfg();
         let ctx = crate::clusters::ClusterContext::from_entries(
             &snapshot,
             &work_item_by_identity_key,
-            &plans_by_id,
+            &documents_by_address,
             indexer.project_root(),
             &work_item_cfg,
         );
@@ -626,6 +600,21 @@ mod tests {
             crate::clusters::compute_clusters(&snapshot, &ctx),
         ));
         (doc_paths, indexer, hub, activity_feed, clusters)
+    }
+
+    fn broadcast(
+        indexer: Arc<Indexer>,
+        clusters: Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
+        hub: Arc<SseHub>,
+        activity_feed: Arc<ActivityRingBuffer>,
+    ) -> Arc<dyn ChangeSink> {
+        Arc::new(crate::change_broadcast::ChangeBroadcast::new(
+            indexer,
+            clusters,
+            hub,
+            activity_feed,
+            Arc::new(WriteCoordinator::new()),
+        ))
     }
 
     const REGISTRATION_HOLD: Duration = Duration::from_secs(2);
@@ -652,11 +641,13 @@ mod tests {
         let mut watching = spawn(
             move |_sink| Ok(HeldRegistration { release: held }),
             doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed,
+            indexer.clone(),
+            broadcast(indexer, clusters, hub, activity_feed),
             Arc::new(WriteCoordinator::new()),
+            SetDocRoots::new(
+                &crate::test_support::assembled_catalogue(),
+                &HashMap::new(),
+            ),
             None,
             Settings::DEFAULT,
         );
@@ -692,11 +683,13 @@ mod tests {
                 Err(notify::Error::generic("backend unavailable"))
             },
             doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed,
+            indexer.clone(),
+            broadcast(indexer, clusters, hub, activity_feed),
             Arc::new(WriteCoordinator::new()),
+            SetDocRoots::new(
+                &crate::test_support::assembled_catalogue(),
+                &HashMap::new(),
+            ),
             None,
             Settings::DEFAULT,
         );
@@ -707,7 +700,7 @@ mod tests {
         assert!(watching.finished().await.is_err());
     }
 
-    struct ScriptedWatcher;
+    pub(super) struct ScriptedWatcher;
 
     impl DirectoryWatcher for ScriptedWatcher {
         fn watch_recursively(&mut self, _dir: &Path) -> notify::Result<()> {
@@ -715,12 +708,12 @@ mod tests {
         }
     }
 
-    struct ScriptedEvents {
-        sink: EventSink,
+    pub(super) struct ScriptedEvents {
+        pub(super) sink: EventSink,
     }
 
     impl ScriptedEvents {
-        fn changed(&mut self, path: &Path) {
+        pub(super) fn changed(&mut self, path: &Path) {
             use notify::EventHandler;
             self.sink
                 .handle_event(Ok(Event::new(notify::EventKind::Modify(
@@ -760,11 +753,13 @@ mod tests {
                 Ok(ScriptedWatcher)
             },
             Vec::new(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed,
+            indexer.clone(),
+            broadcast(indexer, clusters, hub, activity_feed),
             Arc::new(WriteCoordinator::new()),
+            SetDocRoots::new(
+                &crate::test_support::assembled_catalogue(),
+                &HashMap::new(),
+            ),
             None,
             Settings { debounce },
         )
@@ -976,7 +971,8 @@ mod tests {
     }
 
     /// The one test of the OS adapter itself; every other test feeds the
-    /// watcher scripted events.
+    /// watcher scripted events. It runs as one test so its lane can name
+    /// it exactly.
     #[tokio::test]
     #[cfg_attr(
         target_os = "macos",
@@ -985,39 +981,86 @@ mod tests {
                   `mise run test:integration:visualiser-os-watcher`"
     )]
     async fn the_os_watcher_reports_a_write_under_a_registered_directory() {
-        let tmp = tempfile::tempdir().unwrap();
-        let dir = tmp.path().canonicalize().unwrap();
-        let probe = dir.join("probe.md");
-        std::fs::write(&probe, "a").unwrap();
+        the_os_reports_a_write().await;
+        the_os_reports_a_directory_renamed_into_place().await;
+        super::set_watch_tests::a_case_only_rename_through_the_os_is_one_edit()
+            .await;
+    }
+
+    /// The OS's notifications for `dir` until one names a path `matches`
+    /// accepts, while `provoke` makes a change each second: a loaded
+    /// fseventsd can coalesce or drop the first.
+    async fn the_os_reports(
+        dir: &Path,
+        matches: impl Fn(&Path) -> bool,
+        mut provoke: impl FnMut(),
+        what: &str,
+    ) {
         let (tx, mut rx) = tokio::sync::mpsc::channel(1024);
         let mut watcher = os_watcher(EventSink(tx)).unwrap();
-        register(&mut watcher, std::slice::from_ref(&dir));
+        register(&mut watcher, &[dir.to_path_buf()]);
 
-        let reports_the_probe = async {
+        let reported = async {
             loop {
                 let event = rx.recv().await.unwrap().unwrap();
-                if event.paths.iter().any(|path| path.ends_with("probe.md")) {
+                if event.paths.iter().any(|path| matches(path)) {
                     return;
                 }
             }
         };
-        let rewrites = async {
+        let provoking = async {
             loop {
-                std::fs::write(&probe, "b").unwrap();
+                provoke();
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
         };
-
-        // A loaded fseventsd can coalesce or drop the first write, so the
-        // probe is rewritten until a report arrives.
         tokio::time::timeout(Duration::from_secs(600), async {
             tokio::select! {
-                () = reports_the_probe => {}
-                () = rewrites => {}
+                () = reported => {}
+                () = provoking => {}
             }
         })
         .await
-        .expect("the OS never reported a write under the watched directory");
+        .unwrap_or_else(|_| panic!("the OS never reported {what}"));
+    }
+
+    async fn the_os_reports_a_write() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().canonicalize().unwrap();
+        let probe = dir.join("probe.md");
+        std::fs::write(&probe, "a").unwrap();
+
+        the_os_reports(
+            &dir,
+            |path| path.ends_with("probe.md"),
+            || std::fs::write(&probe, "b").unwrap(),
+            "a write under the watched directory",
+        )
+        .await;
+    }
+
+    async fn the_os_reports_a_directory_renamed_into_place() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().canonicalize().unwrap();
+        let staging = dir.join(".x.tmp");
+        let placed = dir.join("x");
+        std::fs::create_dir(&staging).unwrap();
+        std::fs::write(staging.join("manifest.md"), "a").unwrap();
+
+        the_os_reports(
+            &dir,
+            |path| path.starts_with(&placed),
+            || {
+                let (from, to) = if staging.exists() {
+                    (&staging, &placed)
+                } else {
+                    (&placed, &staging)
+                };
+                std::fs::rename(from, to).unwrap();
+            },
+            "a directory renamed into place",
+        )
+        .await;
     }
 
     #[tokio::test]
@@ -1028,7 +1071,10 @@ mod tests {
         let foo = root.join("meta/plans/2026-01-01-foo.md");
         let bar = root.join("meta/plans/2026-01-02-bar.md");
         std::fs::write(&bar, "---\ntitle: Bar\n---\n# Body\n").unwrap();
-        indexer.rescan().await.unwrap();
+        indexer
+            .rescan_with_diff(&RecordingSink::default())
+            .await
+            .unwrap();
         let mut rx = hub.subscribe();
         let mut events =
             spawn_scripted(indexer, hub, activity_feed, clusters).await;
@@ -1048,6 +1094,750 @@ mod tests {
             }
             other => panic!("expected DocChanged, got {other:?}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod set_watch_tests {
+    use super::tests::{ScriptedEvents, ScriptedWatcher};
+    use super::*;
+    use crate::activity_feed::ActivityRingBuffer;
+    use crate::change_broadcast::ChangeBroadcast;
+    use crate::clusters::LifecycleCluster;
+    use crate::config::WorkItemConfig;
+    use crate::file_driver::LocalFileDriver;
+    use crate::indexer::IndexDiff;
+    use crate::sse_hub::{ActionKind, SseHub, SsePayload};
+    use std::future::Future;
+    use std::pin::Pin;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tokio::sync::{oneshot, RwLock};
+
+    const TOPICS: &str = "meta/research/topics";
+    const INVENTORIES: &str = "meta/research/design-inventories";
+    const MANIFEST: &str = "---\nid: \"s\"\ntitle: S\n---\n";
+    const DOC: &str = "---\ntitle: A member\n---\nbody\n";
+    const QUIET: Duration = Duration::from_millis(300);
+    const DIRS: [(&str, &str); 4] = [
+        ("work", "meta/work"),
+        ("plans", "meta/plans"),
+        ("research_topics", TOPICS),
+        ("research_design_inventories", INVENTORIES),
+    ];
+
+    struct Hold {
+        reached: oneshot::Sender<()>,
+        release: oneshot::Receiver<()>,
+    }
+
+    /// The server's sink, counting the rescans that reach it and holding
+    /// the next one when asked.
+    struct TestSink {
+        inner: ChangeBroadcast,
+        rescans: AtomicUsize,
+        hold: std::sync::Mutex<Option<Hold>>,
+    }
+
+    impl TestSink {
+        fn hold_next(&self) -> (oneshot::Receiver<()>, oneshot::Sender<()>) {
+            let (reached, reached_rx) = oneshot::channel();
+            let (release_tx, release) = oneshot::channel();
+            *self.hold.lock().unwrap() = Some(Hold { reached, release });
+            (reached_rx, release_tx)
+        }
+
+        async fn take(&self, diff: &IndexDiff) {
+            self.rescans.fetch_add(1, Ordering::SeqCst);
+            let hold = self.hold.lock().unwrap().take();
+            if let Some(hold) = hold {
+                let _ = hold.reached.send(());
+                let _ = hold.release.await;
+            }
+            self.inner.changed(diff).await;
+        }
+    }
+
+    impl ChangeSink for TestSink {
+        fn changed<'a>(
+            &'a self,
+            diff: &'a IndexDiff,
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+            Box::pin(self.take(diff))
+        }
+    }
+
+    struct SetWatch {
+        _tmp: tempfile::TempDir,
+        root: PathBuf,
+        indexer: Arc<Indexer>,
+        clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
+        sink: Arc<TestSink>,
+        events: Option<ScriptedEvents>,
+        rx: tokio::sync::broadcast::Receiver<SsePayload>,
+        activity_feed: Arc<ActivityRingBuffer>,
+    }
+
+    fn write_files(root: &Path, files: &[(&str, &str)]) {
+        for (file, content) in files {
+            let path = root.join(file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, content).unwrap();
+        }
+    }
+
+    impl SetWatch {
+        async fn start(files: &[(&str, &str)], debounce: Duration) -> Self {
+            Self::start_reading(
+                files,
+                debounce,
+                WorkItemConfig::default_numeric(),
+            )
+            .await
+        }
+
+        async fn start_reading(
+            files: &[(&str, &str)],
+            debounce: Duration,
+            work_items: WorkItemConfig,
+        ) -> Self {
+            let (sink_tx, sink_rx) = std::sync::mpsc::channel();
+            let mut watch = Self::start_watching(
+                files,
+                debounce,
+                work_items,
+                move |events| {
+                    sink_tx.send(events).unwrap();
+                    Ok(ScriptedWatcher)
+                },
+            )
+            .await;
+            watch.events = Some(ScriptedEvents {
+                sink: sink_rx.recv().unwrap(),
+            });
+            watch
+        }
+
+        async fn start_on_the_os(files: &[(&str, &str)]) -> Self {
+            Self::start_watching(
+                files,
+                Settings::DEFAULT.debounce,
+                WorkItemConfig::default_numeric(),
+                os_watcher,
+            )
+            .await
+        }
+
+        async fn start_watching<W: DirectoryWatcher>(
+            files: &[(&str, &str)],
+            debounce: Duration,
+            work_items: WorkItemConfig,
+            open: impl FnOnce(EventSink) -> notify::Result<W> + Send + 'static,
+        ) -> Self {
+            let tmp = tempfile::tempdir().unwrap();
+            let root = tmp.path().canonicalize().unwrap();
+            let doc_paths: HashMap<String, PathBuf> = DIRS
+                .iter()
+                .map(|(key, dir)| {
+                    std::fs::create_dir_all(root.join(dir)).unwrap();
+                    ((*key).to_owned(), root.join(dir))
+                })
+                .collect();
+            write_files(&root, files);
+            let catalogue = crate::test_support::assembled_catalogue();
+            let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+                &catalogue,
+                &doc_paths,
+                vec![],
+                vec![],
+            ));
+            let indexer = Arc::new(
+                Indexer::build(
+                    driver,
+                    catalogue.clone(),
+                    root.clone(),
+                    Arc::new(work_items),
+                )
+                .await
+                .unwrap(),
+            );
+            let clusters = Arc::new(RwLock::new(Vec::new()));
+            crate::clusters::recompute_clusters(&indexer, &clusters).await;
+            let hub = Arc::new(SseHub::new(256));
+            let activity_feed = Arc::new(ActivityRingBuffer::new());
+            let write_coordinator = Arc::new(WriteCoordinator::new());
+            let sink = Arc::new(TestSink {
+                inner: ChangeBroadcast::new(
+                    indexer.clone(),
+                    clusters.clone(),
+                    hub.clone(),
+                    activity_feed.clone(),
+                    write_coordinator.clone(),
+                ),
+                rescans: AtomicUsize::new(0),
+                hold: std::sync::Mutex::new(None),
+            });
+            let rx = hub.subscribe();
+            spawn(
+                open,
+                doc_paths.values().cloned().collect(),
+                indexer.clone(),
+                sink.clone(),
+                write_coordinator,
+                SetDocRoots::new(&catalogue, &doc_paths),
+                None,
+                Settings { debounce },
+            )
+            .registered()
+            .await;
+            Self {
+                _tmp: tmp,
+                root,
+                indexer,
+                clusters,
+                sink,
+                events: None,
+                rx,
+                activity_feed,
+            }
+        }
+
+        fn put(&mut self, file: &str, content: &str) {
+            write_files(&self.root, &[(file, content)]);
+            self.inject(&[file]);
+        }
+
+        fn delete(&mut self, file: &str) {
+            std::fs::remove_file(self.root.join(file)).unwrap();
+            self.inject(&[file]);
+        }
+
+        fn inject(&mut self, files: &[&str]) {
+            use notify::EventHandler;
+            let event = files
+                .iter()
+                .fold(Event::new(notify::EventKind::Any), |event, file| {
+                    event.add_path(self.root.join(file))
+                });
+            self.events
+                .as_mut()
+                .expect("a scripted watcher")
+                .sink
+                .handle_event(Ok(event));
+        }
+
+        async fn next(&mut self) -> (ActionKind, String) {
+            let event = tokio::time::timeout(EVENT_BUDGET, self.rx.recv())
+                .await
+                .expect("timed out waiting for SSE event")
+                .expect("channel closed");
+            match event {
+                SsePayload::DocChanged { action, path, .. } => (action, path),
+                other => panic!("expected DocChanged, got {other:?}"),
+            }
+        }
+
+        async fn next_n(&mut self, n: usize) -> Vec<(ActionKind, String)> {
+            let mut changes = Vec::new();
+            for _ in 0..n {
+                changes.push(self.next().await);
+            }
+            changes.sort_by(|a, b| a.1.cmp(&b.1));
+            changes
+        }
+
+        async fn assert_quiet(&mut self) {
+            let event = tokio::time::timeout(QUIET, self.rx.recv()).await;
+            assert!(event.is_err(), "expected no broadcast, got {event:?}");
+        }
+
+        fn rows(&self) -> Vec<(ActionKind, String)> {
+            self.activity_feed
+                .recent(crate::activity_feed::CAPACITY)
+                .into_iter()
+                .map(|row| (row.action, row.path))
+                .collect()
+        }
+
+        fn rescans(&self) -> usize {
+            self.sink.rescans.load(Ordering::SeqCst)
+        }
+    }
+
+    fn change(action: ActionKind, path: &str) -> (ActionKind, String) {
+        (action, path.to_owned())
+    }
+
+    fn fast() -> Duration {
+        Duration::from_millis(5)
+    }
+
+    fn topic(file: &str) -> String {
+        format!("{TOPICS}/s/{file}")
+    }
+
+    fn inventory(file: &str) -> String {
+        format!("{INVENTORIES}/i/{file}")
+    }
+
+    async fn topic_set() -> SetWatch {
+        SetWatch::start(
+            &[
+                (&topic("manifest.md"), MANIFEST),
+                (&topic("brief.md"), DOC),
+                (&topic("outline.md"), DOC),
+            ],
+            fast(),
+        )
+        .await
+    }
+
+    async fn inventory_set() -> SetWatch {
+        SetWatch::start(
+            &[
+                (&inventory("inventory.md"), MANIFEST),
+                (&inventory("screenshots/a.png"), "a"),
+            ],
+            fast(),
+        )
+        .await
+    }
+
+    pub(super) async fn a_case_only_rename_through_the_os_is_one_edit() {
+        let probe = tempfile::tempdir().unwrap();
+        std::fs::write(probe.path().join("probe"), "").unwrap();
+        if !probe.path().join("PROBE").exists() {
+            eprintln!(
+                "skipping the case-only rename: this volume is case-sensitive"
+            );
+            return;
+        }
+        let mut watch = SetWatch::start_on_the_os(&[
+            (&inventory("inventory.md"), MANIFEST),
+            (&inventory("screenshots/a.png"), "a"),
+        ])
+        .await;
+        let screenshots = watch.root.join(inventory("screenshots"));
+        let warm_up = inventory("screenshots/warm-up.png");
+        let screenshot = inventory("screenshots/a.png");
+
+        tokio::time::timeout(Duration::from_secs(600), async {
+            for turn in 0_usize.. {
+                write_files(&watch.root, &[(&warm_up, &"x".repeat(turn + 1))]);
+                if tokio::time::timeout(Duration::from_secs(5), watch.rx.recv())
+                    .await
+                    .is_ok()
+                {
+                    return;
+                }
+            }
+        })
+        .await
+        .expect("the OS never reported the warm-up write");
+        std::fs::rename(screenshots.join("a.png"), screenshots.join("a.PNG"))
+            .unwrap();
+        let mut events = Vec::new();
+        let mut wait = Duration::from_secs(600);
+        while let Ok(Ok(event)) =
+            tokio::time::timeout(wait, watch.rx.recv()).await
+        {
+            if matches!(
+                &event,
+                SsePayload::DocChanged { path, .. }
+                    if path.eq_ignore_ascii_case(&screenshot)
+            ) {
+                events.push(event);
+                wait = Duration::from_secs(5);
+            }
+        }
+
+        assert!(
+            matches!(
+                events.as_slice(),
+                [SsePayload::DocChanged {
+                    action: ActionKind::Edited,
+                    ..
+                }]
+            ),
+            "{events:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn adding_changing_and_removing_a_member_each_emit_one_event() {
+        let mut watch = topic_set().await;
+        let finding = topic("findings/01-a.md");
+
+        watch.put(&finding, DOC);
+        assert_eq!(watch.next().await, change(ActionKind::Created, &finding));
+        watch.assert_quiet().await;
+        watch.put(&finding, "---\ntitle: Changed\n---\n");
+        assert_eq!(watch.next().await, change(ActionKind::Edited, &finding));
+        watch.assert_quiet().await;
+        watch.delete(&finding);
+        assert_eq!(watch.next().await, change(ActionKind::Deleted, &finding));
+        watch.assert_quiet().await;
+    }
+
+    #[tokio::test]
+    async fn adding_changing_and_removing_an_asset_each_emit_one_event() {
+        let mut watch = inventory_set().await;
+        let shot = inventory("screenshots/b.png");
+
+        watch.put(&shot, "b");
+        assert_eq!(watch.next().await, change(ActionKind::Created, &shot));
+        watch.assert_quiet().await;
+        watch.put(&shot, "b, larger");
+        assert_eq!(watch.next().await, change(ActionKind::Edited, &shot));
+        watch.assert_quiet().await;
+        watch.delete(&shot);
+        assert_eq!(watch.next().await, change(ActionKind::Deleted, &shot));
+        watch.assert_quiet().await;
+    }
+
+    #[tokio::test]
+    async fn an_asset_event_carries_no_etag() {
+        let mut watch = inventory_set().await;
+
+        watch.put(&inventory("screenshots/b.png"), "b");
+
+        let event = tokio::time::timeout(EVENT_BUDGET, watch.rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(
+            matches!(event, SsePayload::DocChanged { etag: None, .. }),
+            "{event:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_change_to_a_deep_member_emits_one_event() {
+        let mut watch = topic_set().await;
+        let level = topic("findings/01-a.levels/2-1.md");
+
+        watch.put(&level, DOC);
+
+        assert_eq!(watch.next().await, change(ActionKind::Created, &level));
+        watch.assert_quiet().await;
+    }
+
+    #[tokio::test]
+    async fn a_screenshot_renamed_only_in_case_is_one_edit() {
+        let mut watch = SetWatch::start(&[], fast()).await;
+        watch.put(&inventory("inventory.md"), MANIFEST);
+        watch.next().await;
+        watch.put(&inventory("screenshots/a.png"), "a");
+        watch.next().await;
+        let screenshots = watch.root.join(inventory("screenshots"));
+        std::fs::rename(screenshots.join("a.png"), screenshots.join("a.PNG"))
+            .unwrap();
+
+        watch.inject(&[
+            &inventory("screenshots/a.png"),
+            &inventory("screenshots/a.PNG"),
+        ]);
+
+        assert_eq!(
+            watch.next().await,
+            change(ActionKind::Edited, &inventory("screenshots/a.PNG"))
+        );
+        watch.assert_quiet().await;
+        assert_eq!(
+            watch.rows(),
+            [change(ActionKind::Created, &inventory("inventory.md"))]
+        );
+    }
+
+    #[tokio::test]
+    async fn excluded_files_in_a_set_root_cause_no_rescan() {
+        let mut watch = SetWatch::start(
+            &[
+                (&topic("manifest.md"), MANIFEST),
+                (&inventory("inventory.md"), MANIFEST),
+            ],
+            fast(),
+        )
+        .await;
+        for file in [
+            topic("findings/.01-x-web.md.invalid"),
+            topic(".conduct-run.json"),
+            topic(".scratch/x.md"),
+            format!("{TOPICS}/.draft.tmp/manifest.md"),
+            format!("{TOPICS}/stray.md"),
+            inventory("prototype-full/x.html"),
+            inventory("assets/y.svg"),
+            inventory("notes.txt"),
+        ] {
+            watch.put(&file, DOC);
+        }
+        watch.assert_quiet().await;
+        assert_eq!(watch.rescans(), 0);
+
+        watch.put(&topic("brief.md"), DOC);
+
+        assert_eq!(
+            watch.next().await,
+            change(ActionKind::Created, &topic("brief.md"))
+        );
+        assert_eq!(
+            watch.rows(),
+            [change(ActionKind::Edited, &topic("manifest.md"))]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_dot_prefixed_document_of_a_flat_type_still_emits() {
+        let mut watch = SetWatch::start(&[], fast()).await;
+
+        watch.put("meta/plans/.hidden.md", DOC);
+
+        assert_eq!(
+            watch.next().await,
+            change(ActionKind::Created, "meta/plans/.hidden.md")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_set_renamed_into_place_reads_as_one_created_set() {
+        let mut watch = SetWatch::start(&[], fast()).await;
+        let staging = format!("{TOPICS}/.x.tmp");
+        write_files(
+            &watch.root,
+            &[
+                (&format!("{staging}/manifest.md"), MANIFEST),
+                (&format!("{staging}/brief.md"), DOC),
+                (&format!("{staging}/outline.md"), DOC),
+                (&format!("{staging}/notes.txt"), "notes"),
+            ],
+        );
+        let set = format!("{TOPICS}/x");
+        std::fs::rename(watch.root.join(&staging), watch.root.join(&set))
+            .unwrap();
+
+        watch.inject(&[
+            &set,
+            &format!("{set}/manifest.md"),
+            &format!("{set}/brief.md"),
+            &format!("{set}/outline.md"),
+            &format!("{set}/notes.txt"),
+        ]);
+
+        assert_eq!(
+            watch.next_n(3).await,
+            [
+                change(ActionKind::Created, &format!("{set}/brief.md")),
+                change(ActionKind::Created, &format!("{set}/manifest.md")),
+                change(ActionKind::Created, &format!("{set}/outline.md")),
+            ]
+        );
+        watch.assert_quiet().await;
+        assert_eq!(
+            watch.rows(),
+            [change(ActionKind::Created, &format!("{set}/manifest.md"))]
+        );
+        assert_eq!(watch.rescans(), 1);
+    }
+
+    #[tokio::test]
+    async fn deleting_a_root_deletes_its_set() {
+        let mut watch = topic_set().await;
+
+        watch.delete(&topic("manifest.md"));
+
+        assert_eq!(
+            watch.next_n(3).await,
+            [
+                change(ActionKind::Deleted, &topic("brief.md")),
+                change(ActionKind::Deleted, &topic("manifest.md")),
+                change(ActionKind::Deleted, &topic("outline.md")),
+            ]
+        );
+        watch.assert_quiet().await;
+        assert_eq!(
+            watch.rows(),
+            [change(ActionKind::Deleted, &topic("manifest.md"))]
+        );
+    }
+
+    #[tokio::test]
+    async fn two_events_for_one_change_released_together_emit_it_once() {
+        let mut watch = SetWatch::start(&[], fast()).await;
+        write_files(
+            &watch.root,
+            &[
+                ("meta/plans/2026-01-01-a.md", DOC),
+                ("meta/plans/2026-01-01-b.md", DOC),
+            ],
+        );
+
+        watch.inject(&["meta/plans/2026-01-01-a.md"]);
+        watch.inject(&["meta/plans/2026-01-01-b.md"]);
+
+        assert_eq!(
+            watch.next_n(2).await,
+            [
+                change(ActionKind::Created, "meta/plans/2026-01-01-a.md"),
+                change(ActionKind::Created, "meta/plans/2026-01-01-b.md"),
+            ]
+        );
+        watch.assert_quiet().await;
+    }
+
+    #[tokio::test]
+    async fn a_burst_of_writes_inside_one_set_costs_one_rescan() {
+        let mut watch = SetWatch::start(
+            &[(&topic("manifest.md"), MANIFEST)],
+            Duration::from_millis(100),
+        )
+        .await;
+
+        for n in 1..=10 {
+            watch.put(&topic(&format!("findings/{n:02}-f.md")), DOC);
+        }
+
+        assert_eq!(watch.next_n(10).await.len(), 10);
+        watch.assert_quiet().await;
+        assert_eq!(watch.rescans(), 1);
+    }
+
+    #[tokio::test]
+    async fn writes_inside_two_sets_cost_a_rescan_each() {
+        let mut watch = SetWatch::start(
+            &[
+                (&topic("manifest.md"), MANIFEST),
+                (&format!("{TOPICS}/t/manifest.md"), MANIFEST),
+            ],
+            Duration::from_millis(100),
+        )
+        .await;
+
+        watch.put(&topic("brief.md"), DOC);
+        watch.put(&format!("{TOPICS}/t/brief.md"), DOC);
+
+        assert_eq!(
+            watch.next_n(2).await,
+            [
+                change(ActionKind::Created, &topic("brief.md")),
+                change(ActionKind::Created, &format!("{TOPICS}/t/brief.md")),
+            ]
+        );
+        watch.assert_quiet().await;
+        assert_eq!(watch.rescans(), 2);
+    }
+
+    #[tokio::test]
+    async fn writes_under_a_flat_root_are_debounced_per_path() {
+        let mut watch = SetWatch::start(&[], Duration::from_millis(100)).await;
+
+        watch.put("meta/plans/2026-01-01-a.md", DOC);
+        watch.put("meta/plans/2026-01-01-a.md", "---\ntitle: Again\n---\n");
+        watch.put("meta/plans/2026-01-01-b.md", DOC);
+
+        assert_eq!(watch.next_n(2).await.len(), 2);
+        watch.assert_quiet().await;
+        assert_eq!(watch.rescans(), 2);
+    }
+
+    #[tokio::test]
+    async fn events_leave_in_the_order_their_rescans_saw_them() {
+        let mut watch = topic_set().await;
+        let finding = topic("findings/01-a.md");
+        let (reached, release) = watch.sink.hold_next();
+        watch.put(&finding, DOC);
+        tokio::time::timeout(EVENT_BUDGET, reached)
+            .await
+            .unwrap()
+            .unwrap();
+
+        watch.delete(&finding);
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        release.send(()).unwrap();
+
+        assert_eq!(watch.next().await, change(ActionKind::Created, &finding));
+        assert_eq!(watch.next().await, change(ActionKind::Deleted, &finding));
+        assert_eq!(
+            watch.rows(),
+            [change(ActionKind::Edited, &topic("manifest.md"))]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_trust_flip_emits_a_member_changed_meanwhile() {
+        let scheme = WorkItemConfig::new(crate::config::scheme_for_test(
+            "{number:04d}",
+            None,
+        ));
+        let mut watch = SetWatch::start_reading(
+            &[
+                ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n"),
+                (&topic("manifest.md"), MANIFEST),
+                (&topic("brief.md"), DOC),
+            ],
+            fast(),
+            scheme,
+        )
+        .await;
+        let brief = watch.root.join(topic("brief.md"));
+        std::fs::write(&brief, "---\ntitle: Changed\n---\n").unwrap();
+        for (file, ms) in
+            [(topic("manifest.md"), 1_000), (topic("brief.md"), 9_000)]
+        {
+            std::fs::File::options()
+                .write(true)
+                .open(watch.root.join(file))
+                .unwrap()
+                .set_modified(std::time::UNIX_EPOCH + Duration::from_millis(ms))
+                .unwrap();
+        }
+        let malformed = watch.root.join("meta/work/0400.md");
+        std::fs::write(&malformed, "---\nid: \"0400\"\n---\n").unwrap();
+
+        watch
+            .indexer
+            .refresh_one(&malformed, watch.sink.as_ref())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            watch.next().await,
+            change(ActionKind::Edited, &topic("brief.md"))
+        );
+        watch.assert_quiet().await;
+        let latest = watch
+            .indexer
+            .library_aggregates(&crate::indexer::Selection::new())
+            .await
+            .per_type[&corpus::DocTypeKey::TOPIC_RESEARCH]
+            .latest
+            .clone()
+            .unwrap()
+            .modified_at;
+        assert_eq!(latest, 9_000);
+    }
+
+    #[tokio::test]
+    async fn starting_over_a_populated_corpus_emits_nothing() {
+        let mut watch = topic_set().await;
+
+        watch.assert_quiet().await;
+        assert!(watch.rows().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_change_is_emitted_only_once_the_clusters_hold_it() {
+        let mut watch = SetWatch::start(&[], fast()).await;
+        let clusters = watch.clusters.clone();
+        let held = clusters.read().await;
+
+        watch.put("meta/plans/2026-01-01-fresh.md", DOC);
+        watch.assert_quiet().await;
+        drop(held);
+        watch.next().await;
+
+        assert!(watch.clusters.read().await.iter().any(|cluster| cluster
+            .entries
+            .iter()
+            .any(|entry| entry.rel_path.ends_with("2026-01-01-fresh.md"))));
     }
 }
 
@@ -1181,6 +1971,7 @@ mod template_change_handler_tests {
         Arc<SseHub>,
     ) {
         let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &crate::test_support::assembled_catalogue(),
             &HashMap::new(),
             vec![tmp.to_path_buf()],
             vec![],

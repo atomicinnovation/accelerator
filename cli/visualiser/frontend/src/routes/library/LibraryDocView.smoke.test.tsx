@@ -28,6 +28,8 @@ const planEntry: IndexEntry = {
   completeness: null,
   linkedCount: 0,
   clusterKey: null,
+  setId: null,
+  setRelativePath: null,
 };
 
 const reviewEntry: IndexEntry = {

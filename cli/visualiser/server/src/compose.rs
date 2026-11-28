@@ -98,6 +98,7 @@ pub fn load(params: Params) -> Result<Config, ComposeError> {
         owner_start_time: params.owner_start_time,
         log_path,
         doc_paths,
+        doc_types: None,
         templates,
         work_item,
         kanban_columns,

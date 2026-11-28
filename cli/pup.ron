@@ -95,7 +95,9 @@
         // The whole research crate is domain (no adapter modules live in it);
         // HTTP, JSON and XML decoding, the pacing lock and the clock live in
         // research-adapters, injected through ports.
-        // network supplies the shared host vocabulary.
+        // network supplies the shared host vocabulary, and
+        // research_declarations the set layout the domain shares with the
+        // platform crates.
         Module((
             name: "research_domain_imports_only_permitted",
             matches: Module("^research($|::)"),
@@ -105,6 +107,62 @@
                         "^(std|core|alloc)(::|$)",
                         "^kernel::Error(::|$)",
                         "^network(::|$)",
+                        "^research_declarations(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
+        // A declarations crate holds declared data for the platform crates,
+        // so it reaches only the kernel error and the platform domain it
+        // declares against.
+        Module((
+            name: "research_declarations_imports_only_permitted",
+            matches: Module("^research_declarations($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^kernel::Error(::|$)",
+                        "^corpus(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
+        Module((
+            name: "design_declarations_imports_only_permitted",
+            matches: Module("^design_declarations($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^kernel::Error(::|$)",
+                        "^corpus(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
+        // The assembly combines every context's declarations into the
+        // complete registrations.
+        Module((
+            name: "declarations_imports_only_permitted",
+            matches: Module("^declarations($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^kernel::Error(::|$)",
+                        "^corpus(::|$)",
+                        "^research_declarations(::|$)",
+                        "^design_declarations(::|$)",
                         "^crate(::|$)",
                     ]),
                     denied: None,
@@ -582,7 +640,7 @@
         Module((
             name: "only_the_consent_policy_names_the_command_runner",
             matches: Module(
-                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|adf|jira_client|linear_client|shortcut_client|collaboration|github|migrate|migrate_adapters|network|design|design_adapters)($|::)"
+                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|adf|jira_client|linear_client|shortcut_client|collaboration|github|migrate|migrate_adapters|network|design|design_adapters|research_declarations|design_declarations|declarations)($|::)"
             ),
             rules: [
                 RestrictImports(

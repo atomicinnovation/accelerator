@@ -336,8 +336,6 @@ mod tests {
 
     #[test]
     fn title_cascade_humanises_stem_for_every_doc_kind() {
-        use corpus::DocTypeKey;
-
         // No frontmatter.title and no first H1 → layer 3 for every kind.
         let raw = b("body without h1\n");
         let p = parse(&raw);
@@ -349,7 +347,7 @@ mod tests {
         // tautology (production calls the same helper). It guards against a
         // future per-kind refactor regressing any kind back to an unhumanised
         // stem.
-        for kind in DocTypeKey::all() {
+        for kind in crate::test_support::assembled_catalogue().doc_types() {
             let t = title_from(&p.state, &p.body, stem);
             assert_ne!(t, stem, "kind={kind:?} must not render the raw stem");
         }

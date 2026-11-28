@@ -19,6 +19,7 @@ use std::path::PathBuf;
 
 use crate::doc_type::DocTypeKey;
 use crate::id_convention::IdConvention;
+use crate::linkage_address::LinkageAddress;
 use crate::typed_ref::parse_typed_ref;
 use crate::typed_ref::TypedRef;
 
@@ -61,6 +62,54 @@ pub struct Completeness {
     pub present: Vec<String>,
 }
 
+/// The lifecycle stage a doc type's documents mark present in their
+/// cluster's [`Completeness`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompletenessMark {
+    WorkItem,
+    Research,
+    Plan,
+    PlanReview,
+    Validation,
+    PrDescription,
+    PrReview,
+    Decision,
+    Notes,
+    DesignInventory,
+    DesignGap,
+}
+
+impl Completeness {
+    const fn mark(&mut self, mark: CompletenessMark) {
+        let stage = match mark {
+            CompletenessMark::WorkItem => &mut self.has_work_item,
+            CompletenessMark::Research => &mut self.has_research,
+            CompletenessMark::Plan => &mut self.has_plan,
+            CompletenessMark::PlanReview => &mut self.has_plan_review,
+            CompletenessMark::Validation => &mut self.has_validation,
+            CompletenessMark::PrDescription => &mut self.has_pr_description,
+            CompletenessMark::PrReview => &mut self.has_pr_review,
+            CompletenessMark::Decision => &mut self.has_decision,
+            CompletenessMark::Notes => &mut self.has_notes,
+            CompletenessMark::DesignInventory => &mut self.has_design_inventory,
+            CompletenessMark::DesignGap => &mut self.has_design_gap,
+        };
+        *stage = true;
+    }
+}
+
+/// How a doc type's documents find the work item whose cluster they join.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClusterKeyRule {
+    /// The document is a work item, keyed by its own id.
+    WorkItemId,
+    /// Through the `parent:` frontmatter.
+    Parent,
+    /// Through the `target:` frontmatter, following the target's own rule.
+    Target,
+    Unclustered,
+}
+
 /// One lifecycle cluster.
 ///
 /// Carries its representative slug/title, member indices (into the input slice)
@@ -91,7 +140,7 @@ pub struct Clustering {
 pub struct ClusterContext<'a, E: ClusterEntry> {
     pub entries_by_path: HashMap<PathBuf, &'a E>,
     pub work_item_by_id: &'a HashMap<String, PathBuf>,
-    pub plans_by_id: &'a HashMap<String, PathBuf>,
+    pub documents_by_address: &'a HashMap<LinkageAddress, PathBuf>,
     pub project_root: &'a Path,
     pub identity: &'a dyn IdConvention,
 }
@@ -103,7 +152,7 @@ impl<'a, E: ClusterEntry> ClusterContext<'a, E> {
     pub fn from_entries(
         entries: &'a [E],
         work_item_by_id: &'a HashMap<String, PathBuf>,
-        plans_by_id: &'a HashMap<String, PathBuf>,
+        documents_by_address: &'a HashMap<LinkageAddress, PathBuf>,
         project_root: &'a Path,
         identity: &'a dyn IdConvention,
     ) -> Self {
@@ -114,7 +163,7 @@ impl<'a, E: ClusterEntry> ClusterContext<'a, E> {
         Self {
             entries_by_path,
             work_item_by_id,
-            plans_by_id,
+            documents_by_address,
             project_root,
             identity,
         }
@@ -150,7 +199,7 @@ pub fn resolve_cluster_key<E: ClusterEntry>(
     entry: &E,
     entries_by_path: &HashMap<PathBuf, &E>,
     work_item_by_id: &HashMap<String, PathBuf>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     project_root: &Path,
     identity: &dyn IdConvention,
 ) -> Option<String> {
@@ -158,7 +207,7 @@ pub fn resolve_cluster_key<E: ClusterEntry>(
         entry,
         entries_by_path,
         work_item_by_id,
-        plans_by_id,
+        documents_by_address,
         project_root,
         identity,
         0,
@@ -170,7 +219,7 @@ fn walk<E: ClusterEntry>(
     entry: &E,
     entries_by_path: &HashMap<PathBuf, &E>,
     work_item_by_id: &HashMap<String, PathBuf>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     project_root: &Path,
     identity: &dyn IdConvention,
     depth: u8,
@@ -178,17 +227,10 @@ fn walk<E: ClusterEntry>(
     if depth >= MAX_DEPTH {
         return None;
     }
-    match entry.doc_type() {
-        DocTypeKey::WorkItems => entry.work_item_id().map(str::to_owned),
-        DocTypeKey::Plans
-        | DocTypeKey::Research
-        | DocTypeKey::PrDescriptions => {
-            cluster_key_from_parent(entry, identity)
-        }
-        DocTypeKey::PlanReviews
-        | DocTypeKey::WorkItemReviews
-        | DocTypeKey::PrReviews
-        | DocTypeKey::Validations => {
+    match entry.doc_type().cluster_key_rule() {
+        ClusterKeyRule::WorkItemId => entry.work_item_id().map(str::to_owned),
+        ClusterKeyRule::Parent => cluster_key_from_parent(entry, identity),
+        ClusterKeyRule::Target => {
             if let Some(s) = entry.target() {
                 if let Some(TypedRef::WorkItem(id)) = parse_typed_ref(s) {
                     return identity.identity_key(&id);
@@ -197,7 +239,7 @@ fn walk<E: ClusterEntry>(
             let target_path = target_path_from_entry(
                 entry.doc_type(),
                 entry.target(),
-                plans_by_id,
+                documents_by_address,
                 work_item_by_id,
                 identity,
                 project_root,
@@ -207,19 +249,13 @@ fn walk<E: ClusterEntry>(
                 target_entry,
                 entries_by_path,
                 work_item_by_id,
-                plans_by_id,
+                documents_by_address,
                 project_root,
                 identity,
                 depth + 1,
             )
         }
-        DocTypeKey::Decisions
-        | DocTypeKey::Notes
-        | DocTypeKey::DesignGaps
-        | DocTypeKey::DesignInventories
-        | DocTypeKey::TopicResearch
-        | DocTypeKey::RootCauseAnalyses
-        | DocTypeKey::Templates => None,
+        ClusterKeyRule::Unclustered => None,
     }
 }
 
@@ -254,7 +290,7 @@ fn id_from_value(raw: &str, identity: &dyn IdConvention) -> Option<String> {
 pub fn target_path_from_entry(
     doc_type: DocTypeKey,
     target: Option<&str>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_id: &HashMap<String, PathBuf>,
     identity: &dyn IdConvention,
     project_root: &Path,
@@ -264,7 +300,9 @@ pub fn target_path_from_entry(
     }
     let raw = target?;
     match parse_typed_ref(raw)? {
-        TypedRef::Plan(id) => plans_by_id.get(&id).cloned(),
+        reference @ TypedRef::Plan(_) => documents_by_address
+            .get(&reference.linkage_address()?)
+            .cloned(),
         TypedRef::WorkItem(id) => {
             let canon = identity.identity_key(&id)?;
             work_item_by_id.get(&canon).cloned()
@@ -341,34 +379,38 @@ pub fn compute<E: ClusterEntry>(
     let mut cluster_key_by_path: HashMap<PathBuf, Option<String>> =
         HashMap::with_capacity(entries.len());
     for e in entries {
-        if matches!(e.doc_type(), DocTypeKey::Templates) {
+        if e.doc_type().is_virtual() {
             continue;
         }
         let key = resolve_cluster_key(
             e,
             &ctx.entries_by_path,
             ctx.work_item_by_id,
-            ctx.plans_by_id,
+            ctx.documents_by_address,
             ctx.project_root,
             ctx.identity,
         );
         cluster_key_by_path.insert(e.path().to_path_buf(), key);
     }
 
+    let mut in_path_order: Vec<&E> = entries.iter().collect();
+    in_path_order.sort_by(|a, b| a.path().cmp(b.path()));
     let mut slug_to_cluster_key: HashMap<String, String> = HashMap::new();
-    for e in entries {
-        if e.doc_type() != DocTypeKey::WorkItems {
+    for e in &in_path_order {
+        if !e.doc_type().cluster_anchor() {
             continue;
         }
         if let (Some(slug), Some(ck)) = (
             e.slug(),
             cluster_key_by_path.get(e.path()).and_then(|o| o.as_deref()),
         ) {
-            slug_to_cluster_key.insert(slug.to_owned(), ck.to_owned());
+            slug_to_cluster_key
+                .entry(slug.to_owned())
+                .or_insert_with(|| ck.to_owned());
         }
     }
-    for e in entries {
-        if e.doc_type() == DocTypeKey::WorkItems {
+    for e in &in_path_order {
+        if e.doc_type().cluster_anchor() {
             continue;
         }
         if let (Some(slug), Some(ck)) = (
@@ -383,7 +425,7 @@ pub fn compute<E: ClusterEntry>(
 
     let mut buckets: HashMap<String, Vec<usize>> = HashMap::new();
     for (i, e) in entries.iter().enumerate() {
-        if matches!(e.doc_type(), DocTypeKey::Templates) {
+        if e.doc_type().is_virtual() {
             continue;
         }
         let key = cluster_key_by_path.get(e.path()).and_then(|o| o.as_deref());
@@ -421,6 +463,7 @@ pub fn compute<E: ClusterEntry>(
                 canonical_rank(entries[a].doc_type())
                     .cmp(&canonical_rank(entries[b].doc_type()))
                     .then(entries[a].mtime_ms().cmp(&entries[b].mtime_ms()))
+                    .then_with(|| entries[a].path().cmp(entries[b].path()))
             });
             let bucket: Vec<&E> =
                 members.iter().map(|&i| &entries[i]).collect();
@@ -447,7 +490,14 @@ pub fn compute<E: ClusterEntry>(
         })
         .collect();
 
-    clusters.sort_by(|a, b| a.slug.cmp(&b.slug));
+    let lowest_path = |cluster: &Cluster| {
+        cluster.members.iter().map(|&i| entries[i].path()).min()
+    };
+    clusters.sort_by(|a, b| {
+        a.slug
+            .cmp(&b.slug)
+            .then_with(|| lowest_path(a).cmp(&lowest_path(b)))
+    });
     Clustering {
         clusters,
         completeness_by_path,
@@ -459,10 +509,7 @@ fn pick_representative_cluster_key<E: ClusterEntry>(
     bucket: &[&E],
     cluster_key_by_path: &HashMap<PathBuf, Option<String>>,
 ) -> Option<String> {
-    if let Some(wi) = bucket
-        .iter()
-        .find(|e| e.doc_type() == DocTypeKey::WorkItems)
-    {
+    if let Some(wi) = bucket.iter().find(|e| e.doc_type().cluster_anchor()) {
         if let Some(key) = cluster_key_by_path.get(wi.path()).cloned().flatten()
         {
             return Some(key);
@@ -485,7 +532,7 @@ fn pick_representative_slug<E: ClusterEntry>(
 ) -> String {
     if let Some(wi_slug) = bucket
         .iter()
-        .find(|e| e.doc_type() == DocTypeKey::WorkItems)
+        .find(|e| e.doc_type().cluster_anchor())
         .and_then(|e| e.slug())
     {
         return wi_slug.to_owned();
@@ -498,23 +545,8 @@ fn pick_representative_slug<E: ClusterEntry>(
     cluster_key.unwrap_or("").to_owned()
 }
 
-const fn canonical_rank(kind: DocTypeKey) -> u8 {
-    match kind {
-        DocTypeKey::WorkItems => 0,
-        DocTypeKey::Research => 1,
-        DocTypeKey::Plans => 2,
-        DocTypeKey::PlanReviews => 3,
-        DocTypeKey::Validations => 4,
-        DocTypeKey::PrDescriptions => 5,
-        DocTypeKey::PrReviews | DocTypeKey::WorkItemReviews => 6,
-        DocTypeKey::Decisions => 7,
-        DocTypeKey::Notes => 8,
-        DocTypeKey::DesignInventories => 9,
-        DocTypeKey::DesignGaps => 10,
-        DocTypeKey::TopicResearch
-        | DocTypeKey::RootCauseAnalyses
-        | DocTypeKey::Templates => u8::MAX,
-    }
+fn canonical_rank(kind: DocTypeKey) -> u8 {
+    kind.lifecycle_rank().unwrap_or(u8::MAX)
 }
 
 fn derive_title<E: ClusterEntry>(slug: &str, entries: &[&E]) -> String {
@@ -547,22 +579,8 @@ fn derive_completeness<E: ClusterEntry>(entries: &[&E]) -> Completeness {
         present: Vec::new(),
     };
     for e in entries {
-        match e.doc_type() {
-            DocTypeKey::WorkItems => c.has_work_item = true,
-            DocTypeKey::Research => c.has_research = true,
-            DocTypeKey::Plans => c.has_plan = true,
-            DocTypeKey::PlanReviews => c.has_plan_review = true,
-            DocTypeKey::WorkItemReviews
-            | DocTypeKey::TopicResearch
-            | DocTypeKey::RootCauseAnalyses
-            | DocTypeKey::Templates => {}
-            DocTypeKey::Validations => c.has_validation = true,
-            DocTypeKey::PrDescriptions => c.has_pr_description = true,
-            DocTypeKey::PrReviews => c.has_pr_review = true,
-            DocTypeKey::Decisions => c.has_decision = true,
-            DocTypeKey::Notes => c.has_notes = true,
-            DocTypeKey::DesignGaps => c.has_design_gap = true,
-            DocTypeKey::DesignInventories => c.has_design_inventory = true,
+        if let Some(mark) = e.doc_type().completeness_mark() {
+            c.mark(mark);
         }
     }
     for (test, key) in STAGE_PUSH_ORDER {
@@ -639,14 +657,14 @@ mod tests {
         entry: &TestEntry,
         entries: &HashMap<PathBuf, &TestEntry>,
         work_item_by_id: &HashMap<String, PathBuf>,
-        plans_by_id: &HashMap<String, PathBuf>,
+        documents_by_address: &HashMap<LinkageAddress, PathBuf>,
         identity: &dyn IdConvention,
     ) -> Option<String> {
         resolve_cluster_key(
             entry,
             entries,
             work_item_by_id,
-            plans_by_id,
+            documents_by_address,
             Path::new("/repo"),
             identity,
         )
@@ -656,9 +674,64 @@ mod tests {
         HashMap::new()
     }
 
+    fn target_of(
+        kind: DocTypeKey,
+        target: &str,
+        documents_by_address: &HashMap<LinkageAddress, PathBuf>,
+    ) -> Option<PathBuf> {
+        target_path_from_entry(
+            kind,
+            Some(target),
+            documents_by_address,
+            &HashMap::new(),
+            &NUMERIC,
+            Path::new("/repo"),
+        )
+    }
+
+    #[test]
+    fn a_typed_plan_target_resolves_to_the_document_at_its_address() {
+        let documents_by_address = HashMap::from([(
+            LinkageAddress::new("plan", "the-plan"),
+            PathBuf::from("/repo/meta/plans/2026-01-02-the-plan.md"),
+        )]);
+        assert_eq!(
+            target_of(
+                DocTypeKey::PLAN_REVIEWS,
+                "plan:the-plan",
+                &documents_by_address
+            ),
+            Some(PathBuf::from("/repo/meta/plans/2026-01-02-the-plan.md"))
+        );
+        assert_eq!(
+            target_of(
+                DocTypeKey::PLAN_REVIEWS,
+                "plan:another-plan",
+                &documents_by_address
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn a_typed_adr_target_does_not_resolve_through_the_address_index() {
+        let documents_by_address = HashMap::from([(
+            LinkageAddress::new("adr", "ADR-0001"),
+            PathBuf::from("/repo/meta/decisions/ADR-0001-x.md"),
+        )]);
+        assert_eq!(
+            target_of(
+                DocTypeKey::PLAN_REVIEWS,
+                "adr:ADR-0001",
+                &documents_by_address
+            ),
+            None
+        );
+    }
+
     #[test]
     fn work_item_returns_its_own_work_item_id() {
-        let mut wi = TestEntry::new(DocTypeKey::WorkItems, "pipeline");
+        let mut wi = TestEntry::new(DocTypeKey::WORK_ITEMS, "pipeline");
         wi.work_item_id = Some("0040".into());
         assert_eq!(
             resolve(&wi, &empty(), &HashMap::new(), &HashMap::new(), &NUMERIC)
@@ -669,9 +742,9 @@ mod tests {
 
     #[test]
     fn typed_and_bare_parent_resolve_equally() {
-        let mut typed = TestEntry::new(DocTypeKey::Plans, "pipeline");
+        let mut typed = TestEntry::new(DocTypeKey::PLANS, "pipeline");
         typed.parent = Some("work-item:0042".into());
-        let mut bare = TestEntry::new(DocTypeKey::Plans, "pipeline");
+        let mut bare = TestEntry::new(DocTypeKey::PLANS, "pipeline");
         bare.parent = Some("0042".into());
         let t = resolve(
             &typed,
@@ -693,7 +766,7 @@ mod tests {
 
     #[test]
     fn path_shape_parent_resolves_via_the_filename_id() {
-        let mut plan = TestEntry::new(DocTypeKey::Plans, "pipeline");
+        let mut plan = TestEntry::new(DocTypeKey::PLANS, "pipeline");
         plan.parent = Some("meta/work/0033-foo.md".into());
         assert_eq!(
             resolve(
@@ -712,12 +785,12 @@ mod tests {
     fn review_target_path_resolves_transitively_via_plan() {
         let plan_path =
             PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
-        let mut plan = TestEntry::new(DocTypeKey::Plans, "pipeline");
+        let mut plan = TestEntry::new(DocTypeKey::PLANS, "pipeline");
         plan.path = plan_path.clone();
         plan.parent = Some("work-item:0040".into());
         let mut entries: HashMap<PathBuf, &TestEntry> = HashMap::new();
         entries.insert(plan_path, &plan);
-        let mut review = TestEntry::new(DocTypeKey::PlanReviews, "rev");
+        let mut review = TestEntry::new(DocTypeKey::PLAN_REVIEWS, "rev");
         review.target = Some("meta/plans/2026-05-31-0040-pipeline.md".into());
         assert_eq!(
             resolve(
@@ -734,7 +807,7 @@ mod tests {
 
     #[test]
     fn work_item_review_typed_target_short_circuits() {
-        let mut review = TestEntry::new(DocTypeKey::WorkItemReviews, "rev");
+        let mut review = TestEntry::new(DocTypeKey::WORK_ITEM_REVIEWS, "rev");
         review.target = Some("work-item:0033".into());
         assert_eq!(
             resolve(
@@ -753,10 +826,10 @@ mod tests {
     fn cycle_between_two_reviews_terminates() {
         let path_a = PathBuf::from("/repo/meta/reviews/plans/a.md");
         let path_b = PathBuf::from("/repo/meta/reviews/plans/b.md");
-        let mut a = TestEntry::new(DocTypeKey::PlanReviews, "a");
+        let mut a = TestEntry::new(DocTypeKey::PLAN_REVIEWS, "a");
         a.path = path_a.clone();
         a.target = Some("meta/reviews/plans/b.md".into());
-        let mut b = TestEntry::new(DocTypeKey::PlanReviews, "b");
+        let mut b = TestEntry::new(DocTypeKey::PLAN_REVIEWS, "b");
         b.path = path_b.clone();
         b.target = Some("meta/reviews/plans/a.md".into());
         let mut entries: HashMap<PathBuf, &TestEntry> = HashMap::new();
@@ -771,11 +844,11 @@ mod tests {
     #[test]
     fn orphan_by_design_types_resolve_none() {
         for kind in [
-            DocTypeKey::Notes,
-            DocTypeKey::DesignGaps,
-            DocTypeKey::DesignInventories,
-            DocTypeKey::Decisions,
-            DocTypeKey::Templates,
+            DocTypeKey::NOTES,
+            DocTypeKey::DESIGN_GAPS,
+            DocTypeKey::DESIGN_INVENTORIES,
+            DocTypeKey::DECISIONS,
+            DocTypeKey::TEMPLATES,
         ] {
             let e = TestEntry::new(kind, "x");
             assert_eq!(
@@ -795,7 +868,7 @@ mod tests {
     #[test]
     fn project_pattern_bare_id_gains_prefix() {
         let project = FourDigitIds { key: Some("PROJ") };
-        let mut plan = TestEntry::new(DocTypeKey::Plans, "p");
+        let mut plan = TestEntry::new(DocTypeKey::PLANS, "p");
         plan.parent = Some("42".into());
         assert_eq!(
             resolve(
@@ -812,7 +885,7 @@ mod tests {
 
     #[test]
     fn malformed_empty_typed_parent_resolves_none() {
-        let mut plan = TestEntry::new(DocTypeKey::Plans, "p");
+        let mut plan = TestEntry::new(DocTypeKey::PLANS, "p");
         plan.parent = Some("work-item:".into());
         assert_eq!(
             resolve(
@@ -829,12 +902,12 @@ mod tests {
     fn ctx_for<'a>(
         entries: &'a [TestEntry],
         work_item_by_id: &'a HashMap<String, PathBuf>,
-        plans_by_id: &'a HashMap<String, PathBuf>,
+        documents_by_address: &'a HashMap<LinkageAddress, PathBuf>,
     ) -> ClusterContext<'a, TestEntry> {
         ClusterContext::from_entries(
             entries,
             work_item_by_id,
-            plans_by_id,
+            documents_by_address,
             Path::new("/repo"),
             &NUMERIC,
         )
@@ -842,13 +915,13 @@ mod tests {
 
     #[test]
     fn same_slug_clusters_into_one_ordered_bucket() {
-        let mut plan = TestEntry::new(DocTypeKey::Plans, "foo");
+        let mut plan = TestEntry::new(DocTypeKey::PLANS, "foo");
         plan.path = PathBuf::from("/repo/plan.md");
         plan.mtime_ms = 10;
-        let mut review = TestEntry::new(DocTypeKey::PlanReviews, "foo");
+        let mut review = TestEntry::new(DocTypeKey::PLAN_REVIEWS, "foo");
         review.path = PathBuf::from("/repo/review.md");
         review.mtime_ms = 20;
-        let mut wi = TestEntry::new(DocTypeKey::WorkItems, "foo");
+        let mut wi = TestEntry::new(DocTypeKey::WORK_ITEMS, "foo");
         wi.path = PathBuf::from("/repo/wi.md");
         wi.mtime_ms = 5;
         let entries = vec![plan, review, wi];
@@ -869,9 +942,9 @@ mod tests {
 
     #[test]
     fn templates_are_excluded() {
-        let mut plan = TestEntry::new(DocTypeKey::Plans, "shared");
+        let mut plan = TestEntry::new(DocTypeKey::PLANS, "shared");
         plan.path = PathBuf::from("/repo/plan.md");
-        let mut tmpl = TestEntry::new(DocTypeKey::Templates, "shared");
+        let mut tmpl = TestEntry::new(DocTypeKey::TEMPLATES, "shared");
         tmpl.path = PathBuf::from("/repo/tmpl.md");
         let entries = vec![plan, tmpl];
         let wib = HashMap::new();
@@ -883,15 +956,90 @@ mod tests {
 
     #[test]
     fn orphan_types_with_colliding_slugs_do_not_merge() {
-        let mut a = TestEntry::new(DocTypeKey::Notes, "shared");
+        let mut a = TestEntry::new(DocTypeKey::NOTES, "shared");
         a.path = PathBuf::from("/repo/a.md");
-        let mut b = TestEntry::new(DocTypeKey::Notes, "shared");
+        let mut b = TestEntry::new(DocTypeKey::NOTES, "shared");
         b.path = PathBuf::from("/repo/b.md");
         let entries = vec![a, b];
         let wib = HashMap::new();
         let plb = HashMap::new();
         let out = compute(&entries, &ctx_for(&entries, &wib, &plb));
         assert_eq!(out.clusters.len(), 2);
+    }
+
+    fn entry_at(
+        doc_type: DocTypeKey,
+        slug: &str,
+        path: &str,
+        mtime_ms: i64,
+    ) -> TestEntry {
+        let mut entry = TestEntry::new(doc_type, slug);
+        entry.path = PathBuf::from(path);
+        entry.title = path.to_owned();
+        entry.mtime_ms = mtime_ms;
+        entry
+    }
+
+    fn colliding_corpus() -> Vec<TestEntry> {
+        let mut first_item =
+            entry_at(DocTypeKey::WORK_ITEMS, "shared", "/repo/w/1.md", 1);
+        first_item.work_item_id = Some("0001".into());
+        let mut second_item =
+            entry_at(DocTypeKey::WORK_ITEMS, "shared", "/repo/w/2.md", 1);
+        second_item.work_item_id = Some("0002".into());
+        vec![
+            first_item,
+            second_item,
+            entry_at(DocTypeKey::PLANS, "shared", "/repo/p/a.md", 1),
+            entry_at(DocTypeKey::PLANS, "shared", "/repo/p/b.md", 1),
+            entry_at(DocTypeKey::PLANS, "alone", "/repo/p/c.md", 1),
+            entry_at(DocTypeKey::PLANS, "alone", "/repo/p/d.md", 1),
+            entry_at(DocTypeKey::NOTES, "alone", "/repo/n/a.md", 1),
+            entry_at(DocTypeKey::NOTES, "alone", "/repo/n/b.md", 1),
+            entry_at(DocTypeKey::DECISIONS, "alone", "/repo/d/a.md", 1),
+        ]
+    }
+
+    fn described(
+        entries: &[TestEntry],
+        clustering: &Clustering,
+    ) -> Vec<(String, Option<String>, String, Vec<PathBuf>)> {
+        clustering
+            .clusters
+            .iter()
+            .map(|cluster| {
+                (
+                    cluster.slug.clone(),
+                    cluster.cluster_key.clone(),
+                    cluster.title.clone(),
+                    cluster
+                        .members
+                        .iter()
+                        .map(|&i| entries[i].path.clone())
+                        .collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn clustering_does_not_depend_on_the_order_entries_arrive_in() {
+        let forwards = colliding_corpus();
+        let mut backwards = colliding_corpus();
+        backwards.reverse();
+        let wib = HashMap::new();
+        let plb = HashMap::new();
+        let expected = described(
+            &forwards,
+            &compute(&forwards, &ctx_for(&forwards, &wib, &plb)),
+        );
+        for _ in 0..32 {
+            for entries in [&forwards, &backwards] {
+                let clustering =
+                    compute(entries, &ctx_for(entries, &wib, &plb));
+                assert_eq!(described(entries, &clustering), expected);
+            }
+        }
     }
 
     #[test]

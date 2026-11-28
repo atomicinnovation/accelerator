@@ -76,7 +76,10 @@ mod tests {
     }
 
     fn table() -> Vec<(DocTypeKey, std::path::PathBuf)> {
-        vec![(DocTypeKey::WorkItems, std::path::PathBuf::from("meta/work"))]
+        vec![(
+            DocTypeKey::WORK_ITEMS,
+            std::path::PathBuf::from("meta/work"),
+        )]
     }
 
     #[test]

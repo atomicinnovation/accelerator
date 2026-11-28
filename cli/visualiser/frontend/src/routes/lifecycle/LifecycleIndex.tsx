@@ -43,6 +43,12 @@ function sortClusters(
   return sorted;
 }
 
+function rowIdentity(cluster: LifecycleCluster): string {
+  return cluster.entries
+    .map((entry) => entry.relPath)
+    .reduce((lowest, path) => (path < lowest ? path : lowest));
+}
+
 function workItemEntry(cluster: LifecycleCluster): IndexEntry | undefined {
   return cluster.entries.find((e) => e.type === "work-items");
 }
@@ -95,7 +101,7 @@ export function LifecycleIndex() {
             cluster.completeness.present,
           );
           return (
-            <li key={cluster.slug} className={styles.card}>
+            <li key={rowIdentity(cluster)} className={styles.card}>
               <Link
                 to="/lifecycle/$slug"
                 params={{ slug: cluster.slug }}

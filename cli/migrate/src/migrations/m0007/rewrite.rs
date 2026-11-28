@@ -780,7 +780,7 @@ mod tests {
     use crate::legacy_ids::LegacyNumericIds;
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
-        vec![(DocTypeKey::WorkItems, PathBuf::from("meta/work"))]
+        vec![(DocTypeKey::WORK_ITEMS, PathBuf::from("meta/work"))]
     }
 
     fn input<'a>(
@@ -964,16 +964,16 @@ mod tests {
     }
 
     fn note_table() -> Vec<(DocTypeKey, PathBuf)> {
-        vec![(DocTypeKey::Notes, PathBuf::from("meta/notes"))]
+        vec![(DocTypeKey::NOTES, PathBuf::from("meta/notes"))]
     }
 
     fn pr_review_table() -> Vec<(DocTypeKey, PathBuf)> {
-        vec![(DocTypeKey::PrReviews, PathBuf::from("meta/reviews/prs"))]
+        vec![(DocTypeKey::PR_REVIEWS, PathBuf::from("meta/reviews/prs"))]
     }
 
     fn design_inventory_table() -> Vec<(DocTypeKey, PathBuf)> {
         vec![(
-            DocTypeKey::DesignInventories,
+            DocTypeKey::DESIGN_INVENTORIES,
             PathBuf::from("meta/research/design-inventories"),
         )]
     }

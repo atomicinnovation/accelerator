@@ -8,6 +8,7 @@ mod library;
 mod lifecycle;
 mod related;
 mod search;
+mod sets;
 mod templates;
 mod types;
 mod work_item_config;
@@ -44,6 +45,7 @@ pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/api/lifecycle/:slug", get(lifecycle::lifecycle_one))
         .route("/api/related/*path", get(related::related_get))
         .route("/api/search", get(search::search))
+        .route("/api/sets/:type/:set_id", get(sets::set_get))
         .route(
             "/api/work-item/config",
             get(work_item_config::get_work_item_config),
@@ -65,8 +67,8 @@ pub(crate) enum ApiError {
     // Write-path errors
     #[error("patch URL must end with /frontmatter")]
     PatchEndpointMismatch,
-    #[error("only work-items are writable")]
-    OnlyWorkItemsAreWritable,
+    #[error("only kanban items are writable")]
+    OnlyKanbanItemsAreWritable,
     #[error("unknown kanban status")]
     UnknownKanbanStatus { accepted_keys: Vec<String> },
     #[error("invalid patch: {0}")]
@@ -109,9 +111,9 @@ impl IntoResponse for ApiError {
                 Json(serde_json::json!({ "error": "patch URL must end with /frontmatter" })),
             )
                 .into_response(),
-            ApiError::OnlyWorkItemsAreWritable => (
+            ApiError::OnlyKanbanItemsAreWritable => (
                 StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({ "error": "only work-items are writable" })),
+                Json(serde_json::json!({ "error": "only kanban items are writable" })),
             )
                 .into_response(),
             ApiError::UnknownKanbanStatus { accepted_keys } => (
@@ -152,10 +154,6 @@ impl IntoResponse for ApiError {
     }
 }
 
-pub(crate) fn parse_kind(s: &str) -> Option<corpus::DocTypeKey> {
-    corpus::DocTypeKey::from_wire_str(s)
-}
-
 pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {
     use crate::file_driver::FileDriverError as F;
     match e {
@@ -172,9 +170,12 @@ pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {
         F::Io { source, .. } => ApiError::Internal(source.to_string()),
         F::EtagMismatch { current } => ApiError::EtagMismatch { current },
         F::Patch(p) => ApiError::InvalidPatch(p.to_string()),
-        F::PathNotWritable { .. } => ApiError::OnlyWorkItemsAreWritable,
+        F::PathNotWritable { .. } => ApiError::OnlyKanbanItemsAreWritable,
         F::CrossFilesystem { .. } => {
             ApiError::Internal("cross-filesystem rename".into())
+        }
+        F::SetType { kind } => {
+            ApiError::Internal(format!("{kind:?} is a set type"))
         }
     }
 }
