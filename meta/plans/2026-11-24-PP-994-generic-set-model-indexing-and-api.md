@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-27T16:35:07+00:00"
+last_updated: "2026-11-28T09:50:08+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -4038,9 +4038,36 @@ id on every surface, a declared set type's unplaced files, member facets,
 titles, root and frontmatter, and the default research path in the smoke
 test and the e2e server. A new scanner function finds string literals,
 and the boundary test flags a set type's identity written as a string in
-the visualiser server. Eight other crates still name the set types as
-strings in tables that list every doc type; PP-1007 takes them (author
-decision, 2026-11-27).
+the visualiser server. Eight files in four other crates (`config`,
+`corpus`, `launcher` and `research`) still name the set types as strings,
+23 times, mostly in tables that list every doc type. PP-1007 takes them
+(author decision, 2026-11-27).
+
+The author decided four questions during this follow-up:
+
+- Sets that share an `id` are reached by their directory names, as the
+  library links them, rather than the spec's "lexically first" rule.
+- The lower-priority edge cases, the two older named-type uses and the
+  unrecorded deviations are all in scope.
+- The refusal names kanban items, since any kanban doc type is writable.
+- Criterion 21's string scan covers the visualiser server only, and
+  PP-1007 extends it to the whole workspace.
+
+Two runs of the full `mise run` failed on the way, and both are fixed in
+the commits that caused them:
+
+- Clippy's `too_long_first_doc_paragraph` rejected the new doc comment on
+  `pair_case_only_renames`; its first paragraph is now one sentence.
+- The smoke test's new default-path check expected project-relative
+  paths. The smoke test mounts the fixtures through a symlink, so the
+  server serves them as absolute paths. The check now compares each path
+  with the fixtures' `research/codebase` directory. Pointing it at
+  `research/topics` made it fail, so it is not vacuous.
+
+The follow-up is 19 commits, `ntztvypt`..`nyyozwsu`. The full `mise run`
+exited 0 on the final code in 938 s and left the working copy unchanged.
+The real-OS watcher lane passed on macOS. Its Linux run, the one
+success criterion still unticked, waits for CI on the pull request.
 
 ---
 

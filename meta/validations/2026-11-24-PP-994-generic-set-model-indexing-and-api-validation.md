@@ -9,7 +9,7 @@ status: "complete"
 result: "pass"
 target: "plan:2026-11-24-PP-994-generic-set-model-indexing-and-api"
 tags: ["visualiser", "server", "corpus", "set-model"]
-last_updated: "2026-11-27T16:35:07+00:00"
+last_updated: "2026-11-28T09:50:08+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -175,15 +175,33 @@ The plan records every manual check as done. These remain open:
 
 ### Follow-up, 2026-11-27
 
-All issues above are fixed in 13 commits, `ntztvypt`..`xkmxsokn`, each
-test first. The full `mise run` exited 0 on the final code. The real-OS
-watcher lane passed on macOS after its case-only step was tightened. The
+All issues above are fixed, each test first, in 19 commits,
+`ntztvypt`..`nyyozwsu`:
+
+- 11 commits fix the issues and the comment findings.
+- `xkmxsokn` renames the refusal to `OnlyKanbanItemsAreWritable`,
+  "only kanban items are writable", with a CHANGELOG entry.
+- `slrqonxl`, `nvyulxts` and `svxlxwos` add tests for the eight
+  acceptance criteria that were only partly tested: 8, 20, 21, 23, 27,
+  32, 34 and 35. None of them found a bug.
+- `nvyulxts` adds a scanner function for string literals. The boundary
+  test now flags a set type's identity written as a string in the
+  visualiser server.
+- `kuuotntr` hands PP-1007 the 23 places in `config`, `corpus`,
+  `launcher` and `research` that still name the set types as strings.
+- The other commits update the plan, this report and the work item.
+
+The author decided four questions: how shared set ids resolve, the scope
+of the fixes, the refusal's wording, and the scope of criterion 21's
+string scan. The plan's "Validation follow-up" records each one.
+
+The full `mise run` exited 0 on the final code in 938 s and left the
+working copy unchanged. The real-OS watcher lane passed on macOS. The
 Linux run still waits for CI.
+
+PP-994 is `in-progress`, with all 43 acceptance criteria ticked.
 
 ### Recommendations:
 
 - Raise the pull request, and tick the Linux criterion when CI passes.
-- ~~PP-994 is still `ready`, and its acceptance criteria are unticked.~~
-  Done: each criterion was checked against its tests, eight partly
-  covered criteria gained tests, and PP-994 is `in-progress` with all 43
-  ticked.
+- Set PP-994 to `done` when the pull request merges.

@@ -12,7 +12,7 @@ kind: "story"
 priority: "high"
 parent: "work-item:PP-868"
 tags: ["research", "visualiser"]
-last_updated: "2026-11-27T16:34:57+00:00"
+last_updated: "2026-11-28T09:50:08+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 blocks: ["work-item:PP-134", "work-item:PP-998", "work-item:PP-1001", "work-item:PP-1000", "work-item:PP-1002"]
@@ -623,9 +623,20 @@ rewritten.
   criterion on naming set types in production code, the boundary test
   scans the whole `cli/` workspace for `DocTypeKey` constants, and the
   visualiser server alone for an identity written as a string. Eight
-  other crates still name topic research or design inventories as
-  strings in tables that list every doc type; PP-1007 moves those (author
-  decision, 2026-11-27).
+  files in four other crates (`config`, `corpus`, `launcher` and
+  `research`) still name topic research or design inventories as
+  strings, mostly in tables that list every doc type; PP-1007 moves
+  those (author decision, 2026-11-27).
+- Validated, 2026-11-27: the report is
+  `meta/validations/2026-11-24-PP-994-generic-set-model-indexing-and-api-validation.md`.
+  Its issues are fixed, each test first. Two fixes change behaviour that
+  a reader of this work item would notice. When two sets of one type
+  share an `id`, each set's `id` is its directory's name, as the library
+  already linked it. And the document endpoint's refusal now reads "only
+  kanban items are writable", because every kanban doc type takes
+  frontmatter writes.
+- The full `mise run` passed on the final code. The real-OS watcher
+  test's Linux run waits for CI on the pull request.
 
 ## References
 
